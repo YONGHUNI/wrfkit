@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+RNB_REPO=${RNB_REPO:-https://github.com/YONGHUNI/rootless-nix-bootstrap.git}
+RNB_REF=${RNB_REF:-8f312a5516607f6b64feda03afe1e2c0227fba0d}
+
+profile=""
+config_file=""
+cli_store_root=""
+cli_backend=""
+
+usage() {
+  cat <<'USAGE'
+Usage: ./bootstrap [options]
+
+Options:
+  --profile NAME       generic, sapelo2, or sapelo2-local
+  --config FILE        Read bootstrap configuration from FILE
+  --store-root PATH    Override rootless Nix physical store path
+  --backend NAME       Override rootless-nix-bootstrap backend
+  -h, --help           Show this help
+
+Precedence:
+  CLI > environment > config file > profile/site defaults
+
+Supported config keys:
+  profile=...
+  store_root=...
+  backend=...
+USAGE
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --profile)    profile=$2; shift 2 ;;
+    --config)     config_file=$2; shift 2 ;;
+    --store-root) cli_store_root=$2; shift 2 ;;
+    --backend)    cli_backend=$2; shift 2 ;;
+    -h|--help) usage; exit 0 ;;
+    *) printf 'bootstrap: unknown option: %s\n' "$1" >&2; exit 2 ;;
+  esac
+done
+
+if command -v nix >/dev/null 2>&1 || [[ -x "$HOME/.local/bin/nix" ]]; then
+  echo "wrfkit: nix is already available; bootstrap is not needed."
+  exit 0
+fi
+
+case "$(hostname -s 2>/dev/null || hostname 2>/dev/null || true)" in
+  ss-sub*)
+    cat >&2 <<'MSG'
+wrfkit: Sapelo2 login node detected.
+
+Do not install/realize the WRF environment on a login node.
+Start a compute allocation first, for example:
+
+  interact -c 4 --mem=16G --time=01:00:00
+
+Then run ./bootstrap from the allocated compute node.
+MSG
+    exit 2
+    ;;
+esac
+
+if [[ -z "$config_file" ]]; then
+  user_config="${XDG_CONFIG_HOME:-$HOME/.config}/wrfkit/bootstrap.conf"
+  [[ -r "$user_config" ]] && config_file=$user_config
+fi
+
+config_profile=""
+config_store_root=""
+config_backend=""
+
+trim() {
+  local value=$1
+  value=${value#"${value%%[![:space:]]*}"}
+  value=${value%"${value##*[![:space:]]}"}
+  printf '%s' "$value"
+}
+
+read_config() {
+  local file=$1 line key value
+  [[ -r "$file" ]] || { printf 'bootstrap: cannot read config: %s\n' "$file" >&2; exit 2; }
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line=$(trim "$line")
+    [[ -z "$line" || ${line:0:1} == "#" ]] && continue
+    [[ "$line" == *=* ]] || { printf 'bootstrap: malformed line: %s\n' "$line" >&2; exit 2; }
+
+    key=$(trim "${line%%=*}")
+    value=$(trim "${line#*=}")
+    value=${value#\"}; value=${value%\"}
+    value=${value#\'}; value=${value%\'}
+
+    case "$key" in
+      profile)    config_profile=$value ;;
+      store_root) config_store_root=$value ;;
+      backend)    config_backend=$value ;;
+      *) printf 'bootstrap: unsupported config key: %s\n' "$key" >&2; exit 2 ;;
+    esac
+  done < "$file"
+}
+
+[[ -n "$config_file" ]] && read_config "$config_file"
+
+profile=${profile:-${WRFKIT_BOOTSTRAP_PROFILE:-$config_profile}}
+store_root=${WRFKIT_NIX_STORE_ROOT:-$config_store_root}
+backend=${WRFKIT_NIX_BACKEND:-$config_backend}
+[[ -n "$cli_store_root" ]] && store_root=$cli_store_root
+[[ -n "$cli_backend" ]] && backend=$cli_backend
+
+if [[ -z "$profile" ]]; then
+  if command -v sinfo-gacrc >/dev/null 2>&1 && [[ -d "/scratch/$USER" ]]; then
+    profile=sapelo2
+  else
+    profile=generic
+  fi
+fi
+
+case "$profile" in
+  generic) ;;
+  sapelo2)
+    : "${store_root:=/scratch/\$USER/.nix}"
+    : "${backend:=auto}"
+    ;;
+  sapelo2-local)
+    [[ -d /lscratch ]] || { echo "bootstrap: /lscratch is not available" >&2; exit 2; }
+    : "${store_root:=/lscratch/\$USER/.nix}"
+    : "${backend:=auto}"
+    ;;
+  *) printf 'bootstrap: unknown profile: %s\n' "$profile" >&2; exit 2 ;;
+esac
+
+expand_path() {
+  local value=$1
+  value=${value//\$\{USER\}/$USER}
+  value=${value//\$USER/$USER}
+  value=${value//\$\{HOME\}/$HOME}
+  value=${value//\$HOME/$HOME}
+  printf '%s' "$value"
+}
+[[ -n "$store_root" ]] && store_root=$(expand_path "$store_root")
+
+printf 'wrfkit bootstrap\n  profile:    %s\n' "$profile"
+printf '  store root: %s\n' "${store_root:-rootless-nix-bootstrap default}"
+printf '  backend:    %s\n\n' "${backend:-rootless-nix-bootstrap default}"
+
+tmp=$(mktemp -d "${TMPDIR:-/tmp}/wrfkit-bootstrap.XXXXXX")
+trap 'rm -rf "$tmp"' EXIT
+
+git clone --quiet "$RNB_REPO" "$tmp/rootless-nix-bootstrap"
+git -C "$tmp/rootless-nix-bootstrap" checkout --quiet "$RNB_REF"
+
+args=()
+[[ -n "$store_root" ]] && args+=(--store-root "$store_root")
+[[ -n "$backend" ]] && args+=(--backend "$backend")
+
+(cd "$tmp/rootless-nix-bootstrap" && ./bootstrap.sh "${args[@]}")
+
+cat <<'MSG'
+
+wrfkit: rootless Nix bootstrap completed.
+
+Next:
+  ./wrfctl doctor
+  ./wrfctl build
+MSG

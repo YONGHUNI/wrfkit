@@ -1,0 +1,7 @@
+.wrfkit/
+result
+result-*
+.wrfkit-bootstrap.conf
+.DS_Store
+*.swp
+*~

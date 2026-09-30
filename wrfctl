@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+
+usage() {
+  cat <<'USAGE'
+Usage: ./wrfctl <command> [options]
+
+Commands:
+  doctor              Check the pinned WRF build toolchain.
+  fetch               Extract the pinned WRF 4.8.0 release source.
+  build [--jobs N]    Configure and compile MPI-enabled WRF EM_REAL.
+  clean               Remove generated build/install state.
+  shell               Enter the project Nix development shell.
+  help                 Show this help.
+USAGE
+}
+
+is_sapelo_login() {
+  case "$(hostname -s 2>/dev/null || hostname 2>/dev/null || true)" in
+    ss-sub*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+ensure_compute_context() {
+  if is_sapelo_login; then
+    cat >&2 <<'MSG'
+wrfkit: Sapelo2 login node detected.
+
+Environment realization and WRF compilation must run on a compute node.
+Start an allocation first, for example:
+
+  interact -c 16 --mem=64G --time=02:00:00
+
+Then re-run this command from the allocated compute node.
+MSG
+    exit 2
+  fi
+}
+
+ensure_nix() {
+  if ! command -v nix >/dev/null 2>&1 && [[ -x "$HOME/.local/bin/nix" ]]; then
+    export PATH="$HOME/.local/bin:$PATH"
+  fi
+
+  if ! command -v nix >/dev/null 2>&1; then
+    cat >&2 <<'MSG'
+wrfkit: nix was not found.
+
+Run:
+  ./bootstrap
+
+then retry this command.
+MSG
+    exit 127
+  fi
+}
+
+run_dev() {
+  ensure_compute_context
+  ensure_nix
+  exec nix develop --no-write-lock-file "$ROOT" -c "$@"
+}
+
+cmd=${1:-help}
+shift || true
+
+case "$cmd" in
+  doctor) run_dev "$ROOT/scripts/doctor.sh" "$@" ;;
+  fetch)  run_dev "$ROOT/scripts/fetch-wrf.sh" "$@" ;;
+  build)  run_dev "$ROOT/scripts/build-wrf.sh" "$@" ;;
+  clean)
+    rm -rf "$ROOT/.wrfkit/build" "$ROOT/.wrfkit/install"
+    printf 'Removed generated build/install state under %s/.wrfkit\n' "$ROOT"
+    ;;
+  shell)
+    ensure_compute_context
+    ensure_nix
+    cd "$ROOT"
+    exec nix develop --no-write-lock-file
+    ;;
+  help|-h|--help) usage ;;
+  *)
+    printf 'wrfkit: unknown command: %s\n\n' "$cmd" >&2
+    usage >&2
+    exit 2
+    ;;
+esac
