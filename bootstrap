@@ -41,8 +41,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-if command -v nix >/dev/null 2>&1 || [[ -x "$HOME/.local/bin/nix" ]]; then
-  echo "wrfkit: nix is already available; bootstrap is not needed."
+# A wrapper may exist in PATH even when its physical rootless store is missing
+# on the current node (for example, an old /lscratch-backed installation).
+# Treat Nix as available only if it can actually execute.
+if command -v nix >/dev/null 2>&1 && nix --version >/dev/null 2>&1; then
+  echo "wrfkit: a working nix installation is already available; bootstrap is not needed."
+  exit 0
+fi
+
+if [[ -x "$HOME/.local/bin/nix" ]] && "$HOME/.local/bin/nix" --version >/dev/null 2>&1; then
+  echo "wrfkit: a working rootless nix installation is already available; bootstrap is not needed."
   exit 0
 fi
 
