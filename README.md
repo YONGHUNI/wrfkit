@@ -79,15 +79,17 @@ the compute node.
 Example:
 
 ```bash
-interact -c 16 --mem=64G --time=02:00:00
+interact -c 16 --mem=64G --time=02:00:00 --gres=lscratch:100
 
-cd ~/wrfkit
-./bootstrap
+cd ~/work/project/wrfkit
+./bootstrap --profile sapelo2
 ./wrfctl doctor
 ./wrfctl build
 ```
 
-On Sapelo2, `./bootstrap` auto-detects the site and loads the bundled profile:
+For reproducible/manual use, explicitly selecting `--profile sapelo2` is recommended. If no profile is supplied, `./bootstrap` still attempts Sapelo2 auto-detection as a convenience fallback.
+
+On Sapelo2, the explicit profile loads the bundled configuration:
 
 ```text
 config/bootstrap/sapelo2.conf
