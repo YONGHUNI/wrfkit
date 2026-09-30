@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+
 RNB_REPO=${RNB_REPO:-https://github.com/YONGHUNI/rootless-nix-bootstrap.git}
 RNB_REF=${RNB_REF:-8f312a5516607f6b64feda03afe1e2c0227fba0d}
 
@@ -14,14 +16,20 @@ usage() {
 Usage: ./bootstrap [options]
 
 Options:
-  --profile NAME       generic, sapelo2, or sapelo2-local
+  --profile NAME       generic, sapelo2, or sapelo2-shared
   --config FILE        Read bootstrap configuration from FILE
   --store-root PATH    Override rootless Nix physical store path
   --backend NAME       Override rootless-nix-bootstrap backend
   -h, --help           Show this help
 
 Precedence:
-  CLI > environment > config file > profile/site defaults
+  CLI > environment > user config > bundled profile config > built-in fallback
+
+User config:
+  ~/.config/wrfkit/bootstrap.conf
+
+Bundled profile configs:
+  config/bootstrap/<profile>.conf
 
 Supported config keys:
   profile=...
@@ -41,9 +49,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# A wrapper may exist in PATH even when its physical rootless store is missing
-# on the current node (for example, an old /lscratch-backed installation).
-# Treat Nix as available only if it can actually execute.
 if command -v nix >/dev/null 2>&1 && nix --version >/dev/null 2>&1; then
   echo "wrfkit: a working nix installation is already available; bootstrap is not needed."
   exit 0
@@ -62,7 +67,7 @@ wrfkit: Sapelo2 login node detected.
 Do not install/realize the WRF environment on a login node.
 Start a compute allocation first, for example:
 
-  interact -c 4 --mem=16G --time=01:00:00
+  interact -c 4 --mem=16G --time=01:00:00 --gres=lscratch:100
 
 Then run ./bootstrap from the allocated compute node.
 MSG
@@ -70,14 +75,10 @@ MSG
     ;;
 esac
 
-if [[ -z "$config_file" ]]; then
-  user_config="${XDG_CONFIG_HOME:-$HOME/.config}/wrfkit/bootstrap.conf"
-  [[ -r "$user_config" ]] && config_file=$user_config
-fi
-
 config_profile=""
 config_store_root=""
 config_backend=""
+config_source=""
 
 trim() {
   local value=$1
@@ -107,31 +108,50 @@ read_config() {
       *) printf 'bootstrap: unsupported config key: %s\n' "$key" >&2; exit 2 ;;
     esac
   done < "$file"
+  config_source=$file
 }
 
-[[ -n "$config_file" ]] && read_config "$config_file"
+if [[ -n "$config_file" ]]; then
+  read_config "$config_file"
+else
+  user_config="${XDG_CONFIG_HOME:-$HOME/.config}/wrfkit/bootstrap.conf"
+  [[ -r "$user_config" ]] && read_config "$user_config"
+fi
 
 profile=${profile:-${WRFKIT_BOOTSTRAP_PROFILE:-$config_profile}}
-store_root=${WRFKIT_NIX_STORE_ROOT:-$config_store_root}
-backend=${WRFKIT_NIX_BACKEND:-$config_backend}
-[[ -n "$cli_store_root" ]] && store_root=$cli_store_root
-[[ -n "$cli_backend" ]] && backend=$cli_backend
-
 if [[ -z "$profile" ]]; then
-  if command -v sinfo-gacrc >/dev/null 2>&1 && [[ -d "/scratch/$USER" ]]; then
+  if command -v sinfo-gacrc >/dev/null 2>&1 && [[ -d "/lscratch" ]]; then
     profile=sapelo2
   else
     profile=generic
   fi
 fi
 
+if [[ -z "$config_source" ]]; then
+  bundled_config="$ROOT/config/bootstrap/${profile}.conf"
+  [[ -r "$bundled_config" ]] && read_config "$bundled_config"
+fi
+
+store_root=${WRFKIT_NIX_STORE_ROOT:-$config_store_root}
+backend=${WRFKIT_NIX_BACKEND:-$config_backend}
+[[ -n "$cli_store_root" ]] && store_root=$cli_store_root
+[[ -n "$cli_backend" ]] && backend=$cli_backend
+
 case "$profile" in
-  generic) ;;
+  generic)
+    ;;
   sapelo2)
-    : "${store_root:=/scratch/\$USER/.nix}"
+    [[ -d /lscratch ]] || { echo "bootstrap: /lscratch is not available" >&2; exit 2; }
+    [[ -n "$store_root" ]] || { echo "bootstrap: Sapelo2 profile did not define store_root" >&2; exit 2; }
+    : "${backend:=auto}"
+    ;;
+  sapelo2-shared)
+    [[ -d "/scratch/$USER" ]] || { echo "bootstrap: /scratch/$USER is not available" >&2; exit 2; }
+    [[ -n "$store_root" ]] || { echo "bootstrap: Sapelo2 shared profile did not define store_root" >&2; exit 2; }
     : "${backend:=auto}"
     ;;
   sapelo2-local)
+    profile=sapelo2
     [[ -d /lscratch ]] || { echo "bootstrap: /lscratch is not available" >&2; exit 2; }
     : "${store_root:=/lscratch/\$USER/.nix}"
     : "${backend:=auto}"
@@ -149,7 +169,9 @@ expand_path() {
 }
 [[ -n "$store_root" ]] && store_root=$(expand_path "$store_root")
 
-printf 'wrfkit bootstrap\n  profile:    %s\n' "$profile"
+printf 'wrfkit bootstrap\n'
+printf '  profile:    %s\n' "$profile"
+printf '  config:     %s\n' "${config_source:-built-in defaults}"
 printf '  store root: %s\n' "${store_root:-rootless-nix-bootstrap default}"
 printf '  backend:    %s\n\n' "${backend:-rootless-nix-bootstrap default}"
 
