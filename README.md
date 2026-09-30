@@ -68,7 +68,19 @@ The wrapper installs rootless Nix through
 when a normal `nix` command is not already available.
 
 The bootstrap wrapper supports configuration profiles and does not require the
-user to remember rootless-Nix store paths.
+user to remember rootless-Nix store paths. It also manages the rootless Nix
+lifecycle explicitly:
+
+```bash
+./bootstrap --purge
+./bootstrap --profile sapelo2 --reset
+```
+
+`--purge` removes the currently managed rootless Nix store and exits. `--reset`
+removes the managed store and immediately reinstalls it using the requested
+profile. Both operations delegate deletion to the pinned `rootless-nix-bootstrap`
+`uninstall.sh --purge-store` implementation rather than duplicating uninstall
+logic in wrfkit.
 
 ## Sapelo2
 
@@ -88,6 +100,16 @@ cd ~/work/project/wrfkit
 ```
 
 For reproducible/manual use, explicitly selecting `--profile sapelo2` is recommended. If no profile is supplied, `./bootstrap` still attempts Sapelo2 auto-detection as a convenience fallback.
+
+To switch an existing managed rootless Nix installation to this profile in one
+step, use:
+
+```bash
+./bootstrap --profile sapelo2 --reset
+```
+
+This purges the currently managed rootless Nix store first, then recreates it
+using `config/bootstrap/sapelo2.conf`.
 
 On Sapelo2, the explicit profile loads the bundled configuration:
 
