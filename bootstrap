@@ -10,6 +10,9 @@ profile=""
 config_file=""
 cli_store_root=""
 cli_backend=""
+reset=0
+purge=0
+rnb_dir=""
 
 usage() {
   cat <<'USAGE'
@@ -20,6 +23,8 @@ Options:
   --config FILE        Read bootstrap configuration from FILE
   --store-root PATH    Override rootless Nix physical store path
   --backend NAME       Override rootless-nix-bootstrap backend
+  --reset              Purge managed rootless Nix, then reinstall with this profile
+  --purge              Purge managed rootless Nix and exit
   -h, --help           Show this help
 
 Precedence:
@@ -44,19 +49,16 @@ while [[ $# -gt 0 ]]; do
     --config)     config_file=$2; shift 2 ;;
     --store-root) cli_store_root=$2; shift 2 ;;
     --backend)    cli_backend=$2; shift 2 ;;
+    --reset)      reset=1; shift ;;
+    --purge)      purge=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) printf 'bootstrap: unknown option: %s\n' "$1" >&2; exit 2 ;;
   esac
 done
 
-if command -v nix >/dev/null 2>&1 && nix --version >/dev/null 2>&1; then
-  echo "wrfkit: a working nix installation is already available; bootstrap is not needed."
-  exit 0
-fi
-
-if [[ -x "$HOME/.local/bin/nix" ]] && "$HOME/.local/bin/nix" --version >/dev/null 2>&1; then
-  echo "wrfkit: a working rootless nix installation is already available; bootstrap is not needed."
-  exit 0
+if (( reset && purge )); then
+  echo "bootstrap: --reset and --purge cannot be used together" >&2
+  exit 2
 fi
 
 case "$(hostname -s 2>/dev/null || hostname 2>/dev/null || true)" in
@@ -64,7 +66,7 @@ case "$(hostname -s 2>/dev/null || hostname 2>/dev/null || true)" in
     cat >&2 <<'MSG'
 wrfkit: Sapelo2 login node detected.
 
-Do not install/realize the WRF environment on a login node.
+Do not install/realize or purge the managed WRF environment on a login node.
 Start a compute allocation first, for example:
 
   interact -c 4 --mem=16G --time=01:00:00 --gres=lscratch:100
@@ -74,6 +76,65 @@ MSG
     exit 2
     ;;
 esac
+
+cleanup() {
+  [[ -n "$rnb_dir" && -d "$rnb_dir" ]] && rm -rf "$(dirname "$rnb_dir")"
+}
+trap cleanup EXIT
+
+prepare_rnb() {
+  [[ -n "$rnb_dir" && -d "$rnb_dir" ]] && return 0
+
+  local tmp
+  tmp=$(mktemp -d "${TMPDIR:-/tmp}/wrfkit-bootstrap.XXXXXX")
+  rnb_dir="$tmp/rootless-nix-bootstrap"
+
+  git clone --quiet "$RNB_REPO" "$rnb_dir"
+  git -C "$rnb_dir" checkout --quiet "$RNB_REF"
+}
+
+purge_managed_nix() {
+  prepare_rnb
+
+  local state_file="${XDG_CONFIG_HOME:-$HOME/.config}/rootless-nix-bootstrap/state.env"
+  if [[ -r "$state_file" ]]; then
+    echo "wrfkit: purging managed rootless Nix installation"
+    # shellcheck disable=SC1090
+    (
+      source "$state_file"
+      printf '  backend:    %s\n' "${RNB_BACKEND:-unknown}"
+      printf '  store root: %s\n' "${RNB_STORE_ROOT:-unknown}"
+    )
+  else
+    echo "wrfkit: no managed rootless Nix state file was found"
+  fi
+
+  (cd "$rnb_dir" && ./uninstall.sh --purge-store)
+}
+
+if (( purge )); then
+  purge_managed_nix
+  echo "wrfkit: purge completed."
+  exit 0
+fi
+
+if (( reset )); then
+  purge_managed_nix
+  echo "wrfkit: reinstalling rootless Nix with the requested profile."
+  echo
+else
+  # A wrapper may exist in PATH even when its physical rootless store is missing
+  # on the current node. Treat Nix as available only if it can actually execute.
+  if command -v nix >/dev/null 2>&1 && nix --version >/dev/null 2>&1; then
+    echo "wrfkit: a working nix installation is already available; bootstrap is not needed."
+    exit 0
+  fi
+
+  if [[ -x "$HOME/.local/bin/nix" ]] && "$HOME/.local/bin/nix" --version >/dev/null 2>&1; then
+    echo "wrfkit: a working rootless nix installation is already available; bootstrap is not needed."
+    exit 0
+  fi
+fi
 
 config_profile=""
 config_store_root=""
@@ -175,17 +236,13 @@ printf '  config:     %s\n' "${config_source:-built-in defaults}"
 printf '  store root: %s\n' "${store_root:-rootless-nix-bootstrap default}"
 printf '  backend:    %s\n\n' "${backend:-rootless-nix-bootstrap default}"
 
-tmp=$(mktemp -d "${TMPDIR:-/tmp}/wrfkit-bootstrap.XXXXXX")
-trap 'rm -rf "$tmp"' EXIT
-
-git clone --quiet "$RNB_REPO" "$tmp/rootless-nix-bootstrap"
-git -C "$tmp/rootless-nix-bootstrap" checkout --quiet "$RNB_REF"
+prepare_rnb
 
 args=()
 [[ -n "$store_root" ]] && args+=(--store-root "$store_root")
 [[ -n "$backend" ]] && args+=(--backend "$backend")
 
-(cd "$tmp/rootless-nix-bootstrap" && ./bootstrap.sh "${args[@]}")
+(cd "$rnb_dir" && ./bootstrap.sh "${args[@]}")
 
 cat <<'MSG'
 
