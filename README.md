@@ -87,43 +87,46 @@ cd ~/wrfkit
 ./wrfctl build
 ```
 
-On Sapelo2, `./bootstrap` auto-detects the site when possible and defaults to a
-shared rootless Nix store under:
+On Sapelo2, `./bootstrap` auto-detects the site and loads the bundled profile:
 
 ```text
-/scratch/$USER/.nix
+config/bootstrap/sapelo2.conf
 ```
 
-This store is reusable from different compute nodes, but `/scratch` is temporary
-cluster storage and is subject to GACRC policy. For single-node experiments where
-local-I/O speed matters more than persistence, an explicit local profile is also
-provided:
-
-```bash
-./bootstrap --profile sapelo2-local
-```
-
-which uses:
+The default Sapelo2 profile now uses the fast, disposable node-local store:
 
 ```text
 /lscratch/$USER/.nix
 ```
 
-The local profile must not be treated as a portable multi-node environment.
-GACRC documents `/lscratch` as node-local storage and notes that MPI jobs should
-not generally rely on it.
+This is intentional for the current single-node MVP: the Nix store can be
+recreated for each allocation and prioritizes local I/O speed over persistence.
 
-Profiles can also be selected explicitly:
+If a shared store is needed later (for example while testing multi-node
+workflows), use:
 
 ```bash
-./bootstrap --profile sapelo2
-./bootstrap --profile sapelo2-local
+./bootstrap --profile sapelo2-shared
 ```
 
-or supplied through a configuration file:
+which loads `config/bootstrap/sapelo2-shared.conf` and uses:
 
-```bash
-./bootstrap --config config/bootstrap/sapelo2.conf
+```text
+/scratch/$USER/.nix
+```
+
+A personal override can be stored in:
+
+```text
+~/.config/wrfkit/bootstrap.conf
+```
+
+For example:
+
+```ini
+profile=sapelo2
+store_root=/lscratch/$USER/.nix
+backend=auto
 ```
 
 ## Build layout
