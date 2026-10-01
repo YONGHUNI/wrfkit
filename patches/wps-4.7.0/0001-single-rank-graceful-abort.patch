@@ -1,7 +1,7 @@
 diff --git a/geogrid/src/parallel_module.F b/geogrid/src/parallel_module.F
 --- a/geogrid/src/parallel_module.F
 +++ b/geogrid/src/parallel_module.F
-@@ -1033,12 +1033,18 @@
+@@ -1033,12 +1033,17 @@
  
        ! Local variables
  #ifdef _MPI
@@ -24,7 +24,7 @@ diff --git a/geogrid/src/parallel_module.F b/geogrid/src/parallel_module.F
 diff --git a/metgrid/src/parallel_module.F b/metgrid/src/parallel_module.F
 --- a/metgrid/src/parallel_module.F
 +++ b/metgrid/src/parallel_module.F
-@@ -1033,12 +1033,18 @@
+@@ -1033,12 +1033,17 @@
  
        ! Local variables
  #ifdef _MPI
