@@ -62,11 +62,19 @@ the host shell can therefore report missing NetCDF/MPI libraries or host glibc
 version errors. `wrfctl exec` enters the managed Nix environment first and is
 the supported execution path.
 
-To open the development shell explicitly for debugging:
+To enter the interactive wrfkit environment explicitly:
 
 ```bash
 ./wrfctl shell
 ```
+
+An interactive Bash prompt is marked with a conda-style `(wrfkit)` prefix, and
+installed WRF binaries are added to `PATH` for that shell session. This is
+session-local only; wrfkit does not edit `~/.bashrc`, `~/.profile`, or other
+user shell configuration files.
+
+Running `./wrfctl` with no subcommand continues to show the command help rather
+than entering a shell implicitly.
 
 ### Machine without Nix
 
@@ -198,7 +206,7 @@ mandatory bundled external code required for compilation.
 ./wrfctl exec wrf        run the installed WRF binary inside that environment
 ./wrfctl exec real       run the installed real binary inside that environment
 ./wrfctl clean           remove generated build/install files
-./wrfctl shell           enter the Nix development shell for debugging
+./wrfctl shell           enter the interactive wrfkit environment
 ```
 
 The source tree is preserved by `clean`; use `rm -rf .wrfkit/src` when a complete
