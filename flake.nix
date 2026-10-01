@@ -71,9 +71,10 @@
           # This is session-local; no user dotfiles are modified.
           if [[ $- == *i* ]]; then
             _wrfkit_prompt_marker() {
-              if [[ "''${PS1:-}" != "(wrfkit) "* ]]; then
-                PS1="(wrfkit) ''${PS1:-\\u@\\h:\\w\\$ }"
-              fi
+              case "''${PS1:-}" in
+                *"(wrfkit) "*) ;;
+                *) PS1="''${PS1:-\\u@\\h:\\w\\$ }(wrfkit) " ;;
+              esac
             }
 
             if declare -p PROMPT_COMMAND 2>/dev/null | grep -q '^declare -a'; then
