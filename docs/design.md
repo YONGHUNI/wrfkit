@@ -126,8 +126,16 @@ a production-data default.
 
 The smoke case keeps its native `namelist.wps` tracked under
 `cases/athens-smoke` and selects the `lowres` resolution defined by WPS
-4.7.0's `GEOGRID.TBL.ARW`. Meteorological forcing, Vtable selection, ungrib,
-and metgrid staging remain subsequent milestones.
+4.7.0's `GEOGRID.TBL.ARW`.
+
+The first forcing path is GFS 0.25-degree data from NOAA/NCEP NOMADS. Case-level
+forcing metadata is tracked in `forcing.conf`. `wrfctl fetch gfs --case NAME`
+stores reusable GRIB2 files under persistent `.wrfkit/data/gfs`, while
+`wrfctl prepare gfs --case NAME` creates case-local `Vtable` and
+`GRIBFILE.???` symlinks without duplicating the forcing data. The initial
+Athens smoke case deliberately uses a fixed short NOMADS window; because NOMADS
+is a rolling operational service, a durable archived forcing backend remains a
+future reproducibility improvement.
 
 ## MPI policy
 

@@ -16,3 +16,7 @@ cases/*/wrfbdy_d*
 cases/*/wrfout_d*
 cases/*/rsl.out.*
 cases/*/rsl.error.*
+
+# Generated WPS forcing staging
+cases/*/Vtable
+cases/*/GRIBFILE.???

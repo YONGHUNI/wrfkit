@@ -242,6 +242,8 @@ per-node environment realization.
 ./wrfctl fetch wrf                 materialize pinned WRF 4.8.0 source
 ./wrfctl fetch wps                 materialize pinned WPS 4.7.0 source
 ./wrfctl fetch geog                download low-res mandatory WPS geography for smoke tests
+./wrfctl fetch gfs --case NAME     download configured GFS forcing from NOMADS
+./wrfctl prepare gfs --case NAME   stage Vtable.GFS and GRIBFILE links
 ./wrfctl fetch all                 materialize both software source trees
 ./wrfctl build wrf --jobs N        build WRF with N parallel jobs
 ./wrfctl build wps --jobs N        build WPS against the existing WRF install
@@ -286,10 +288,24 @@ under `.wrfkit/cache`. The low-resolution package is for testing/education
 only; production or research simulations should use the appropriate
 higher-resolution static datasets.
 
-A successful smoke run creates `geo_em.d01.nc` in the case directory. Native
+A successful geogrid run creates `geo_em.d01.nc` in the case directory. Native
 `geogrid.log` is collected under `.wrfkit/logs/athens-smoke/<run-id>/`.
 The command may be launched from the repository root; wrfkit changes only its
 own child-process working directory, not the user's shell directory.
+
+The next smoke stage uses a fixed 2026-09-30 00Z GFS cycle and f000/f003/f006
+files, regionally subset through the NOAA/NCEP NOMADS GFS 0.25-degree GRIB
+filter:
+
+```bash
+./wrfctl fetch gfs --case athens-smoke
+./wrfctl prepare gfs --case athens-smoke
+./wrfctl exec ungrib --case athens-smoke
+```
+
+Downloaded forcing is cached under `.wrfkit/data/gfs/<date>/<cycle>/atmos`.
+The case keeps only symlinks to those files and to the pinned WPS
+`Vtable.GFS`.
 
 ### Case-scoped execution logs
 
