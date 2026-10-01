@@ -21,19 +21,35 @@ This repository is an early MVP. The first milestone is deliberately narrow:
 - WRF/WPS CMake workflows (`configure_new` / `compile_new`)
 - WPS GRIB2 support using the GRIB2 libraries bundled with the pinned WPS source
 - normal Nix or rootless Nix on machines without administrator access
-- single-node MPI as the initial execution target
+- real-data GFS -> WPS -> `real` -> WRF smoke workflow
+- single-node MPI on ordinary Linux and UGA Sapelo2
+- single-node Slurm execution in both interactive and `sbatch` allocations
 
 Not yet claimed as supported:
 
-- WPS real-data preparation/data-acquisition workflow
 - automated `namelist.wps` / `namelist.input` generation
 - YAML configuration frontend
 - multi-node MPI portability across HPC systems
-- general Slurm submission abstraction and validated multi-node MPI
+- general Slurm submission abstraction beyond the validated single-node path
+- WRF restart/recovery workflows
 - WRF-Chem / WRFDA
 
 Those are planned after the base build has been validated on ordinary Linux and
 UGA Sapelo2.
+
+## Documentation
+
+| If you want to... | Start here |
+| --- | --- |
+| Run wrfkit on one node | [Single-node research guide](docs/single-node-guide.md) |
+| See what is and is not validated | [Validation matrix](docs/validation.md) |
+| Avoid common HPC/WRF mistakes | [Caveats and safe patterns](docs/caveats.md) |
+| Understand the architecture | [Design notes](docs/design.md) |
+| Reproduce the included smoke case | [Athens smoke case](cases/athens-smoke/README.md) |
+
+The documentation is intentionally task-first: the README stays short enough to
+scan, while detailed procedures, caveats, and implementation notes live in
+separate pages.
 
 ## Quick start
 
@@ -266,10 +282,9 @@ Slurm allocation, `auto` selects the Slurm backend; outside Slurm it selects
 the Nix-provided OpenMPI `mpirun`. `mpiexec` and a simple custom launcher are
 also supported. The task count may come from the machine profile, the active
 Slurm allocation, an environment override, or `--ntasks N`. The single-node
-bridge is used for both interactive and batch allocations. Interactive
-single-node execution is validated; the new batch bridge is awaiting
-post-change validation. Multi-node rootless-Nix execution remains a separate
-validation target.
+bridge is used for both interactive and batch allocations. Both paths have
+been validated on Sapelo2 with WRF completing successfully. Multi-node
+rootless-Nix execution remains a separate validation target.
 
 Multi-node rootless Nix still requires a shared store (for example the
 `sapelo2-shared` profile) or equivalent per-node environment realization, so
@@ -311,9 +326,10 @@ CPUs in one child task and runs the requested ranks with the pinned OpenMPI
 launcher inside one Nix namespace. In an interactive `srun` shell that
 occupies one task, `mpi_tasks=auto` can use `SLURM_CPUS_PER_TASK` and uses
 the same bridge with `--overlap`. The WPS build enables
-MPI for geogrid/metgrid and GRIB2 support, while a real-data WPS workflow
-(`namelist.wps`, geography, forcing, Vtable selection, and staging) remains the
-next milestone and is not yet claimed as validated.
+MPI for geogrid/metgrid and GRIB2 support. The included `athens-smoke` case
+now validates the real-data path through geography, GFS forcing, Vtable
+selection, WPS staging, `real`, and `wrf`. This smoke case validates the
+workflow, not the scientific suitability of its configuration for research.
 
 The source tree is preserved by `clean`; use `rm -rf .wrfkit/src` when a complete
 source reset is needed.
