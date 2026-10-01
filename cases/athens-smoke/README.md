@@ -24,8 +24,9 @@ A successful run should create `cases/athens-smoke/geo_em.d01.nc`.
 The command is intentionally launched from the repository root; wrfkit enters
 the selected case directory internally.
 
-The tracked `GEOGRID.TBL` symlink points to the ARW table from wrfkit's pinned
-WPS 4.7.0 source tree. Build or fetch WPS before running this case.
+The tracked `GEOGRID.TBL` and `METGRID.TBL` symlinks point to the ARW tables
+from wrfkit's pinned WPS 4.7.0 source tree. Build or fetch WPS before running
+this case.
 
 The case now uses a fixed GFS smoke-test window: 2026-09-30 00 UTC through
 06 UTC at 3-hour intervals. The forcing metadata is tracked in `forcing.conf`.

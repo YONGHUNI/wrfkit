@@ -34,4 +34,5 @@
 
 &metgrid
  fg_name = 'FILE',
+ opt_metgrid_tbl_path = '.',
 /
