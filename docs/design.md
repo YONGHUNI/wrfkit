@@ -164,11 +164,20 @@ A Slurm child step may be created outside the rootless-Nix mount namespace of
 its parent. The child therefore re-enters wrfkit's Nix environment before
 starting the WRF/WPS binary rather than inheriting a raw `/nix/store` path.
 
-The current `exec` launcher deliberately uses one MPI task. This is a
-single-rank execution and smoke-test path, not a multi-node topology decision.
-Future multi-node support should extend the Slurm backend with explicit
-`--nodes`, `--ntasks`, task placement, and site-specific MPI/PMIx settings
-without changing WRF/WPS source code.
+MPI execution is launcher-based. The first-class launcher values are
+`auto`, `srun`, `mpirun`, `mpiexec`, and `custom`. With `auto`, an
+active Slurm allocation selects `srun`; otherwise wrfkit uses the OpenMPI
+`mpirun` provided by the pinned Nix environment.
+
+The machine profile may set `mpi_tasks=N` for fixed non-Slurm servers or
+`mpi_tasks=auto`. For Slurm batch jobs, auto uses `SLURM_NTASKS`. For an
+interactive `srun` shell that reserves one task with multiple CPUs, auto may
+use `SLURM_CPUS_PER_TASK` and creates an overlapping child step with one CPU
+per MPI rank. `--ntasks N` and `--launcher NAME` are per-run overrides.
+
+This is still a single-node-first policy. Multi-node support must additionally
+validate node topology, task placement, rootless-Nix visibility, PMIx/UCX, and
+site-specific fabric configuration without changing WRF/WPS source code.
 
 The default Sapelo2 rootless-Nix store under `/lscratch` is node-local and
 therefore cannot be assumed to exist on additional nodes. Multi-node execution

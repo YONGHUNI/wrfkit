@@ -17,11 +17,11 @@ Commands:
   fetch <wrf|wps|geog|gfs|all>        Fetch software, geography, or GFS forcing.
   build <wrf|wps|all> [--jobs N]      Build WRF, WPS, or both.
   prepare gfs --case NAME              Stage Vtable.GFS and GRIBFILE links for a case.
-  exec <command> [--case NAME] [args...]
+  exec <command> [--case NAME] [--ntasks N] [--launcher NAME] [--] [args...]
                                       Run a command inside the pinned Nix environment.
                                       --case NAME runs from cases/NAME without changing
-                                      the caller's working directory. MPI-capable
-                                      programs use an isolated Slurm child step.
+                                      the caller's working directory. MPI launchers:
+                                      auto, srun, mpirun, mpiexec, custom.
   clean                               Remove generated build/install state.
   shell                               Enter the interactive wrfkit environment.
   help                                Show this help.
@@ -86,6 +86,69 @@ run_dev() {
   return $?
 }
 
+trim_config_value() {
+  local value=$1
+  value=${value#"${value%%[![:space:]]*}"}
+  value=${value%"${value##*[![:space:]]}"}
+  printf '%s' "$value"
+}
+
+load_mpi_config() {
+  # Runtime MPI settings intentionally reuse bootstrap.conf so a fixed machine
+  # (for example a non-Slurm workstation/server) can keep one machine profile.
+  # Environment variables and exec CLI flags override these values.
+  WRFKIT_CONFIG_PROFILE=""
+  WRFKIT_CONFIG_MPI_LAUNCHER="auto"
+  WRFKIT_CONFIG_MPI_TASKS="1"
+  WRFKIT_CONFIG_MPI_LAUNCHER_COMMAND=""
+  WRFKIT_CONFIG_MPI_TASK_FLAG="-n"
+  WRFKIT_CONFIG_SOURCE="built-in defaults"
+
+  local file="" line key value profile_candidate=""
+  local user_config="${XDG_CONFIG_HOME:-$HOME/.config}/wrfkit/bootstrap.conf"
+
+  if [[ -r "$user_config" ]]; then
+    file="$user_config"
+  else
+    profile_candidate=${WRFKIT_BOOTSTRAP_PROFILE:-}
+    if [[ -z "$profile_candidate" ]]; then
+      if command -v sinfo-gacrc >/dev/null 2>&1 && [[ -d /lscratch ]]; then
+        profile_candidate=sapelo2
+      else
+        profile_candidate=generic
+      fi
+    fi
+    [[ -r "$ROOT/config/bootstrap/${profile_candidate}.conf" ]] &&
+      file="$ROOT/config/bootstrap/${profile_candidate}.conf"
+  fi
+
+  if [[ -n "$file" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line=$(trim_config_value "$line")
+      [[ -z "$line" || ${line:0:1} == "#" ]] && continue
+      [[ "$line" == *=* ]] || continue
+      key=$(trim_config_value "${line%%=*}")
+      value=$(trim_config_value "${line#*=}")
+      value=${value#\"}; value=${value%\"}
+      value=${value#\'}; value=${value%\'}
+
+      case "$key" in
+        profile)              WRFKIT_CONFIG_PROFILE=$value ;;
+        mpi_launcher)         WRFKIT_CONFIG_MPI_LAUNCHER=$value ;;
+        mpi_tasks)            WRFKIT_CONFIG_MPI_TASKS=$value ;;
+        mpi_launcher_command) WRFKIT_CONFIG_MPI_LAUNCHER_COMMAND=$value ;;
+        mpi_task_flag)        WRFKIT_CONFIG_MPI_TASK_FLAG=$value ;;
+      esac
+    done < "$file"
+    WRFKIT_CONFIG_SOURCE="$file"
+  fi
+
+  WRFKIT_CONFIG_MPI_LAUNCHER=${WRFKIT_MPI_LAUNCHER:-$WRFKIT_CONFIG_MPI_LAUNCHER}
+  WRFKIT_CONFIG_MPI_TASKS=${WRFKIT_MPI_TASKS:-$WRFKIT_CONFIG_MPI_TASKS}
+  WRFKIT_CONFIG_MPI_LAUNCHER_COMMAND=${WRFKIT_MPI_LAUNCHER_COMMAND:-$WRFKIT_CONFIG_MPI_LAUNCHER_COMMAND}
+  WRFKIT_CONFIG_MPI_TASK_FLAG=${WRFKIT_MPI_TASK_FLAG:-$WRFKIT_CONFIG_MPI_TASK_FLAG}
+}
+
 in_slurm_allocation() {
   [[ -n ${SLURM_JOB_ID:-} ]] && command -v srun >/dev/null 2>&1
 }
@@ -97,11 +160,75 @@ slurm_step_needs_overlap() {
   esac
 }
 
-run_slurm_mpi_step() {
-  local binary=$1
-  shift
+resolve_mpi_launcher() {
+  local requested=${WRFKIT_EXEC_LAUNCHER_OVERRIDE:-$WRFKIT_CONFIG_MPI_LAUNCHER}
 
-  local -a srun_args=(--ntasks=1)
+  case "$requested" in
+    auto)
+      if in_slurm_allocation; then
+        printf 'srun'
+      else
+        # OpenMPI is part of wrfkit's pinned Nix environment, so mpirun is the
+        # generic non-Slurm default even if it is not visible in the host PATH.
+        printf 'mpirun'
+      fi
+      ;;
+    srun|mpirun|mpiexec|custom)
+      printf '%s' "$requested"
+      ;;
+    *)
+      printf 'wrfkit: unsupported MPI launcher: %s\n' "$requested" >&2
+      printf 'Supported launchers: auto, srun, mpirun, mpiexec, custom\n' >&2
+      return 2
+      ;;
+  esac
+}
+
+resolve_mpi_tasks() {
+  local requested=${WRFKIT_EXEC_NTASKS_OVERRIDE:-$WRFKIT_CONFIG_MPI_TASKS}
+
+  if [[ "$requested" == "auto" ]]; then
+    if in_slurm_allocation; then
+      case "${SLURM_STEP_ID:-}" in
+        ""|batch|extern)
+          requested=${SLURM_NTASKS:-1}
+          ;;
+        *)
+          # An interactive srun shell often reserves one Slurm task with
+          # multiple CPUs. WRF is MPI-only in the current build, so turn those
+          # reserved CPUs into one-rank-per-CPU for the overlapping child step.
+          if [[ ${SLURM_NTASKS:-1} =~ ^[1-9][0-9]*$ ]] &&
+             (( SLURM_NTASKS > 1 )); then
+            requested=$SLURM_NTASKS
+          elif [[ ${SLURM_CPUS_PER_TASK:-1} =~ ^[1-9][0-9]*$ ]]; then
+            requested=$SLURM_CPUS_PER_TASK
+          else
+            requested=1
+          fi
+          ;;
+      esac
+    else
+      requested=$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf '1')
+    fi
+  fi
+
+  [[ "$requested" =~ ^[1-9][0-9]*$ ]] || {
+    printf 'wrfkit: invalid MPI task count: %s\n' "$requested" >&2
+    return 2
+  }
+  printf '%s' "$requested"
+}
+
+run_slurm_mpi_step() {
+  local tasks=$1 binary=$2
+  shift 2
+
+  in_slurm_allocation || {
+    echo "wrfkit: srun launcher requires an active Slurm allocation" >&2
+    return 2
+  }
+
+  local -a srun_args=(--ntasks="$tasks" --cpus-per-task=1)
   if slurm_step_needs_overlap; then
     # Interactive sessions created by srun already occupy a Slurm step.
     # Put the MPI program in a separate overlapping child step so MPI_Abort
@@ -109,20 +236,65 @@ run_slurm_mpi_step() {
     srun_args=(--overlap "${srun_args[@]}")
   fi
 
-  printf 'wrfkit: launching MPI program in an isolated Slurm step (1 task)\n' >&2
+  printf 'wrfkit: MPI launcher=srun tasks=%s (isolated Slurm child step)\n' "$tasks" >&2
 
   # A Slurm child step is created outside the rootless-Nix mount namespace.
-  # Re-enter wrfkit's Nix environment inside that step instead of executing a
-  # /nix/store-linked binary directly.
+  # Each rank re-enters wrfkit's Nix environment before executing the binary.
   srun "${srun_args[@]}" "$ROOT/wrfctl" __exec-direct "$binary" "$@"
 }
 
+run_generic_mpi() {
+  local launcher=$1 tasks=$2 binary=$3
+  shift 3
+
+  case "$launcher" in
+    mpirun)
+      printf 'wrfkit: MPI launcher=mpirun tasks=%s\n' "$tasks" >&2
+      run_dev mpirun -np "$tasks" "$binary" "$@"
+      ;;
+    mpiexec)
+      printf 'wrfkit: MPI launcher=mpiexec tasks=%s\n' "$tasks" >&2
+      run_dev mpiexec -n "$tasks" "$binary" "$@"
+      ;;
+    custom)
+      local command=$WRFKIT_CONFIG_MPI_LAUNCHER_COMMAND
+      local task_flag=$WRFKIT_CONFIG_MPI_TASK_FLAG
+      [[ -n "$command" ]] || {
+        echo "wrfkit: custom MPI launcher requires mpi_launcher_command" >&2
+        return 2
+      }
+      [[ "$command" != *[[:space:]]* ]] || {
+        echo "wrfkit: mpi_launcher_command must be a single executable/path" >&2
+        return 2
+      }
+      printf 'wrfkit: MPI launcher=custom (%s) tasks=%s\n' "$command" "$tasks" >&2
+      if [[ -n "$task_flag" ]]; then
+        run_dev "$command" "$task_flag" "$tasks" "$binary" "$@"
+      else
+        run_dev "$command" "$binary" "$@"
+      fi
+      ;;
+  esac
+}
+
 run_mpi() {
-  if in_slurm_allocation; then
-    run_slurm_mpi_step "$@"
-  else
-    run_dev "$@"
-  fi
+  local binary=$1
+  shift
+
+  load_mpi_config
+
+  local launcher tasks
+  launcher=$(resolve_mpi_launcher) || return $?
+  tasks=$(resolve_mpi_tasks) || return $?
+
+  export WRFKIT_EFFECTIVE_MPI_LAUNCHER="$launcher"
+  export WRFKIT_EFFECTIVE_MPI_TASKS="$tasks"
+  export WRFKIT_MPI_CONFIG_SOURCE="$WRFKIT_CONFIG_SOURCE"
+
+  case "$launcher" in
+    srun) run_slurm_mpi_step "$tasks" "$binary" "$@" ;;
+    mpirun|mpiexec|custom) run_generic_mpi "$launcher" "$tasks" "$binary" "$@" ;;
+  esac
 }
 
 sanitize_log_component() {
@@ -214,6 +386,9 @@ write_run_metadata() {
     printf 'exit_status=%s\n' "$status"
     printf 'slurm_job_id=%s\n' "${SLURM_JOB_ID:-}"
     printf 'slurm_step_id=%s\n' "${SLURM_STEP_ID:-}"
+    printf 'mpi_launcher=%s\n' "${WRFKIT_EFFECTIVE_MPI_LAUNCHER:-}"
+    printf 'mpi_tasks=%s\n' "${WRFKIT_EFFECTIVE_MPI_TASKS:-}"
+    printf 'mpi_config_source=%s\n' "${WRFKIT_MPI_CONFIG_SOURCE:-}"
     printf 'finished_at=%s\n' "$(date --iso-8601=seconds 2>/dev/null || date)"
   } > "$log_dir/run.env"
 
@@ -249,13 +424,15 @@ run_logged() {
 
 run_exec() {
   [[ $# -gt 0 ]] || {
-    echo "Usage: ./wrfctl exec <command> [--case NAME] [args...]" >&2
+    echo "Usage: ./wrfctl exec <command> [--case NAME] [--ntasks N] [--launcher NAME] [--] [args...]" >&2
     exit 2
   }
 
   local command=$1
   local case_name=""
   local case_dir=""
+  local exec_ntasks=""
+  local exec_launcher=""
   local -a command_args=()
   shift
 
@@ -273,6 +450,30 @@ run_exec() {
         case_name=${1#--case=}
         shift
         ;;
+      --ntasks)
+        [[ $# -ge 2 ]] || {
+          echo "wrfkit: --ntasks requires a positive integer" >&2
+          exit 2
+        }
+        exec_ntasks=$2
+        shift 2
+        ;;
+      --ntasks=*)
+        exec_ntasks=${1#--ntasks=}
+        shift
+        ;;
+      --launcher)
+        [[ $# -ge 2 ]] || {
+          echo "wrfkit: --launcher requires a launcher name" >&2
+          exit 2
+        }
+        exec_launcher=$2
+        shift 2
+        ;;
+      --launcher=*)
+        exec_launcher=${1#--launcher=}
+        shift
+        ;;
       --)
         shift
         command_args+=("$@")
@@ -284,6 +485,20 @@ run_exec() {
         ;;
     esac
   done
+
+  if [[ -n "$exec_ntasks" && ! "$exec_ntasks" =~ ^[1-9][0-9]*$ ]]; then
+    printf 'wrfkit: invalid --ntasks value: %s\n' "$exec_ntasks" >&2
+    exit 2
+  fi
+  if [[ -n "$exec_launcher" ]]; then
+    case "$exec_launcher" in
+      auto|srun|mpirun|mpiexec|custom) ;;
+      *) printf 'wrfkit: invalid --launcher value: %s\n' "$exec_launcher" >&2; exit 2 ;;
+    esac
+  fi
+
+  export WRFKIT_EXEC_NTASKS_OVERRIDE="$exec_ntasks"
+  export WRFKIT_EXEC_LAUNCHER_OVERRIDE="$exec_launcher"
 
   if [[ -n "$case_name" ]]; then
     [[ "$case_name" =~ ^[A-Za-z0-9._-]+$ ]] || {

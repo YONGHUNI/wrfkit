@@ -41,6 +41,10 @@ Supported config keys:
   store_root=...
   backend=...
   scratch_root=...
+  mpi_launcher=auto|srun|mpirun|mpiexec|custom
+  mpi_tasks=N|auto
+  mpi_launcher_command=...
+  mpi_task_flag=...
 USAGE
 }
 
@@ -141,6 +145,10 @@ config_profile=""
 config_store_root=""
 config_backend=""
 config_scratch_root=""
+config_mpi_launcher=""
+config_mpi_tasks=""
+config_mpi_launcher_command=""
+config_mpi_task_flag=""
 config_source=""
 
 trim() {
@@ -168,7 +176,11 @@ read_config() {
       profile)      config_profile=$value ;;
       store_root)   config_store_root=$value ;;
       backend)      config_backend=$value ;;
-      scratch_root) config_scratch_root=$value ;;
+      scratch_root)         config_scratch_root=$value ;;
+      mpi_launcher)         config_mpi_launcher=$value ;;
+      mpi_tasks)            config_mpi_tasks=$value ;;
+      mpi_launcher_command) config_mpi_launcher_command=$value ;;
+      mpi_task_flag)        config_mpi_task_flag=$value ;;
       *) printf 'bootstrap: unsupported config key: %s\n' "$key" >&2; exit 2 ;;
     esac
   done < "$file"
@@ -199,6 +211,10 @@ fi
 store_root=${WRFKIT_NIX_STORE_ROOT:-$config_store_root}
 backend=${WRFKIT_NIX_BACKEND:-$config_backend}
 scratch_root=${WRFKIT_SCRATCH_ROOT:-$config_scratch_root}
+mpi_launcher=${WRFKIT_MPI_LAUNCHER:-${config_mpi_launcher:-auto}}
+mpi_tasks=${WRFKIT_MPI_TASKS:-${config_mpi_tasks:-1}}
+mpi_launcher_command=${WRFKIT_MPI_LAUNCHER_COMMAND:-$config_mpi_launcher_command}
+mpi_task_flag=${WRFKIT_MPI_TASK_FLAG:-${config_mpi_task_flag:--n}}
 [[ -n "$cli_store_root" ]] && store_root=$cli_store_root
 [[ -n "$cli_backend" ]] && backend=$cli_backend
 
@@ -221,7 +237,14 @@ case "$profile" in
     : "${store_root:=/lscratch/\$USER/.nix}"
     : "${backend:=auto}"
     ;;
-  *) printf 'bootstrap: unknown profile: %s\n' "$profile" >&2; exit 2 ;;
+  *)
+    # Custom site/profile names are allowed when they come from an explicit
+    # user/config file. They inherit generic filesystem behavior.
+    [[ -n "$config_source" ]] || {
+      printf 'bootstrap: unknown profile: %s\n' "$profile" >&2
+      exit 2
+    }
+    ;;
 esac
 
 expand_path() {
@@ -240,7 +263,9 @@ printf '  profile:      %s\n' "$profile"
 printf '  config:       %s\n' "${config_source:-built-in defaults}"
 printf '  store root:   %s\n' "${store_root:-rootless-nix-bootstrap default}"
 printf '  scratch root: %s\n' "${scratch_root:-not configured}"
-printf '  backend:      %s\n\n' "${backend:-rootless-nix-bootstrap default}"
+printf '  backend:      %s\n' "${backend:-rootless-nix-bootstrap default}"
+printf '  MPI launcher: %s\n' "$mpi_launcher"
+printf '  MPI tasks:    %s\n\n' "$mpi_tasks"
 
 prepare_rnb
 

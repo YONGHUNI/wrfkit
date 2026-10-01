@@ -185,7 +185,25 @@ For example:
 profile=sapelo2
 store_root=/lscratch/$USER/.nix
 backend=auto
+mpi_launcher=srun
+mpi_tasks=auto
 ```
+
+The same config also carries runtime MPI policy. On a fixed non-Slurm server,
+the machine owner can pin a launcher and rank count once:
+
+```ini
+profile=my-server
+mpi_launcher=mpirun
+mpi_tasks=12
+```
+
+Supported launchers are `auto`, `srun`, `mpirun`, `mpiexec`, and
+`custom`. `auto` chooses `srun` inside an active Slurm allocation and
+`mpirun` otherwise. A custom launcher uses `mpi_launcher_command` plus
+`mpi_task_flag` (default `-n`). Per-run overrides are available as
+`./wrfctl exec ... --ntasks N --launcher NAME`; use `--` before program
+arguments if they contain wrfctl option names.
 
 ## Build layout
 
@@ -228,12 +246,15 @@ hosts an interactive shell. The child step re-enters the wrfkit Nix environment
 before executing the binary, which is required for rootless-Nix setups where a
 new Slurm step does not share the parent's mount namespace.
 
-The current `wrfctl exec` path intentionally launches one MPI task; it is a
-single-rank execution/smoke-test path, not a multi-node scheduler policy. Future
-multi-node execution will parameterize task/node topology in the Slurm backend
-rather than modifying WRF/WPS source behavior. Multi-node rootless Nix will also
-require a shared store (for example the `sapelo2-shared` profile) or equivalent
-per-node environment realization.
+MPI-capable `wrfctl exec` commands now use a launcher backend. Inside an
+active Slurm allocation, `auto` selects `srun`; outside Slurm it selects the
+Nix-provided OpenMPI `mpirun`. `mpiexec` and a simple custom launcher are
+also supported. The task count may come from the machine profile, the active
+Slurm allocation, an environment override, or `--ntasks N`.
+
+Multi-node rootless Nix still requires a shared store (for example the
+`sapelo2-shared` profile) or equivalent per-node environment realization, so
+multi-node portability is not yet claimed.
 
 ## Commands
 
@@ -249,8 +270,10 @@ per-node environment realization.
 ./wrfctl build wrf --jobs N        build WRF with N parallel jobs
 ./wrfctl build wps --jobs N        build WPS against the existing WRF install
 ./wrfctl build all --jobs N        build WRF, then WPS, with N parallel jobs
-./wrfctl exec wrf                  run the installed WRF binary in the Nix environment
-./wrfctl exec real                 run the installed real binary in the Nix environment
+./wrfctl exec wrf                  run the installed WRF binary with the configured MPI launcher
+./wrfctl exec wrf --ntasks 12       override the MPI rank count for this run
+./wrfctl exec wrf --launcher mpirun select a launcher explicitly for this run
+./wrfctl exec real                 run the installed real binary with the configured MPI launcher
 ./wrfctl exec geogrid              run the installed WPS geogrid binary
 ./wrfctl exec geogrid --case NAME  run geogrid from cases/NAME
 ./wrfctl exec ungrib --case NAME   run ungrib from cases/NAME
@@ -261,10 +284,11 @@ per-node environment realization.
 ```
 
 `wrfctl build wps` requires a completed wrfkit WRF installation. Use
-`wrfctl build all` for a clean WRF -> WPS build sequence. Inside a Slurm
-allocation, `wrfctl exec` launches MPI-capable WRF/WPS programs in an isolated
-one-task `srun` step; serial utilities continue to run directly in the current
-environment. The WPS build enables
+`wrfctl build all` for a clean WRF -> WPS build sequence. Inside a Slurm allocation, `wrfctl exec` launches MPI-capable WRF/WPS
+programs in an isolated `srun` child step; serial utilities continue to run
+directly in the current environment. In an `sbatch` job, `mpi_tasks=auto`
+uses `SLURM_NTASKS`. In an interactive `srun` shell, it can use
+`SLURM_CPUS_PER_TASK` when the shell itself occupies one task. The WPS build enables
 MPI for geogrid/metgrid and GRIB2 support, while a real-data WPS workflow
 (`namelist.wps`, geography, forcing, Vtable selection, and staging) remains the
 next milestone and is not yet claimed as validated.
