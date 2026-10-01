@@ -251,22 +251,25 @@ isolates MPI-capable programs in their own `srun` child step. This prevents an
 `MPI_Abort` from a program such as `geogrid` from cancelling the Slurm step that
 hosts an interactive shell.
 
-For an interactive shell that already occupies an `srun` step, wrfkit removes
-the parent's inherited `SLURM_CPU_BIND*` hints, creates one overlapping child
-task with N CPUs, enters the rootless-Nix environment once, and launches N MPI
-ranks with the pinned OpenMPI `mpirun`. The child cpuset still limits the job to
-the CPUs granted by Slurm. Before the inner `mpirun` starts, wrfkit hides the
-child step's Slurm resource-manager variables so OpenMPI does not mistake the
-single child task for a one-slot allocation. This avoids one Nix evaluation per
-MPI rank and keeps the ranks in one rootless-Nix mount namespace.
+For single-node Slurm execution, wrfkit creates one child task with N CPUs,
+enters the rootless-Nix environment once, and launches N MPI ranks with the
+pinned OpenMPI `mpirun`. Interactive shells that already occupy an `srun`
+step use `--overlap`; ordinary single-node batch allocations do not. The child
+cpuset still limits the job to the CPUs granted by Slurm. Before the inner
+`mpirun` starts, wrfkit hides the child step's Slurm resource-manager variables
+so OpenMPI does not mistake the single child task for a one-slot allocation.
+This avoids one Nix evaluation per MPI rank and keeps all ranks in one
+rootless-Nix mount namespace.
 
 MPI-capable `wrfctl exec` commands use a launcher backend. Inside an active
 Slurm allocation, `auto` selects the Slurm backend; outside Slurm it selects
 the Nix-provided OpenMPI `mpirun`. `mpiexec` and a simple custom launcher are
 also supported. The task count may come from the machine profile, the active
-Slurm allocation, an environment override, or `--ntasks N`. The interactive
-Slurm bridge described above is currently a single-node policy; batch and
-multi-node rootless-Nix execution remain separate validation targets.
+Slurm allocation, an environment override, or `--ntasks N`. The single-node
+bridge is used for both interactive and batch allocations. Interactive
+single-node execution is validated; the new batch bridge is awaiting
+post-change validation. Multi-node rootless-Nix execution remains a separate
+validation target.
 
 Multi-node rootless Nix still requires a shared store (for example the
 `sapelo2-shared` profile) or equivalent per-node environment realization, so
@@ -303,10 +306,11 @@ multi-node portability is not yet claimed.
 `wrfctl build all` for a clean WRF -> WPS build sequence. Inside a Slurm allocation, `wrfctl exec` isolates MPI-capable WRF/WPS
 programs in a child step; serial utilities continue to run directly in the
 current environment. In an `sbatch` job, `mpi_tasks=auto` uses
-`SLURM_NTASKS`. In an interactive `srun` shell that occupies one task,
-`mpi_tasks=auto` can use `SLURM_CPUS_PER_TASK`; wrfkit then reserves those
-CPUs in one overlapping child task and runs the requested ranks with the pinned
-OpenMPI launcher inside one Nix namespace. The WPS build enables
+`SLURM_NTASKS`. For a single-node batch allocation, wrfkit reserves that many
+CPUs in one child task and runs the requested ranks with the pinned OpenMPI
+launcher inside one Nix namespace. In an interactive `srun` shell that
+occupies one task, `mpi_tasks=auto` can use `SLURM_CPUS_PER_TASK` and uses
+the same bridge with `--overlap`. The WPS build enables
 MPI for geogrid/metgrid and GRIB2 support, while a real-data WPS workflow
 (`namelist.wps`, geography, forcing, Vtable selection, and staging) remains the
 next milestone and is not yet claimed as validated.
