@@ -14,8 +14,9 @@ Usage: ./wrfctl <command> [options]
 
 Commands:
   doctor                              Check the pinned WRF/WPS build toolchain.
-  fetch <wrf|wps|geog|all>            Fetch software sources or low-res WPS geography.
+  fetch <wrf|wps|geog|gfs|all>        Fetch software, geography, or GFS forcing.
   build <wrf|wps|all> [--jobs N]      Build WRF, WPS, or both.
+  prepare gfs --case NAME              Stage Vtable.GFS and GRIBFILE links for a case.
   exec <command> [--case NAME] [args...]
                                       Run a command inside the pinned Nix environment.
                                       --case NAME runs from cases/NAME without changing
@@ -355,8 +356,9 @@ shift || true
 case "$cmd" in
   doctor) run_dev "$ROOT/scripts/doctor.sh" "$@" ;;
   fetch)  run_dev "$ROOT/scripts/fetch.sh" "$@" ;;
-  build)  run_dev "$ROOT/scripts/build.sh" "$@" ;;
-  exec)   run_exec "$@" ;;
+  build)   run_dev "$ROOT/scripts/build.sh" "$@" ;;
+  prepare) run_dev "$ROOT/scripts/prepare.sh" "$@" ;;
+  exec)    run_exec "$@" ;;
   __exec-direct)
     [[ $# -gt 0 ]] || {
       echo "wrfkit: internal direct-exec command requires a program" >&2
