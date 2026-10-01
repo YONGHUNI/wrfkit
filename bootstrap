@@ -83,7 +83,10 @@ MSG
 esac
 
 cleanup() {
-  [[ -n "$rnb_dir" && -d "$rnb_dir" ]] && rm -rf "$(dirname "$rnb_dir")"
+  if [[ -n "$rnb_dir" && -d "$rnb_dir" ]]; then
+    rm -rf "$(dirname "$rnb_dir")"
+  fi
+  return 0
 }
 trap cleanup EXIT
 
