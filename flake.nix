@@ -35,6 +35,7 @@
           bison
           cacert
           cmake
+          curl
           file
           flex
           gcc
