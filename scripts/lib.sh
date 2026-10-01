@@ -8,7 +8,12 @@ fi
 WRFKIT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 WRFKIT_STATE_DIR=${WRFKIT_STATE_DIR:-"$WRFKIT_ROOT/.wrfkit"}
 WRFKIT_SRC_DIR=${WRFKIT_SRC_DIR:-"$WRFKIT_STATE_DIR/src/WRF-${WRFKIT_WRF_VERSION}"}
-WRFKIT_BUILD_DIR=${WRFKIT_BUILD_DIR:-"$WRFKIT_STATE_DIR/build/wrf-${WRFKIT_WRF_VERSION}"}
+
+# WRF 4.8.0's configure_new currently runs 'cmake ..' after cd'ing into
+# the selected build directory. Therefore the build directory must be a direct
+# child of the WRF source tree; an arbitrary sibling/out-of-tree path fails.
+WRFKIT_BUILD_DIR=${WRFKIT_BUILD_DIR:-"$WRFKIT_SRC_DIR/_build-wrfkit"}
+
 WRFKIT_INSTALL_DIR=${WRFKIT_INSTALL_DIR:-"$WRFKIT_STATE_DIR/install/wrf-${WRFKIT_WRF_VERSION}"}
 
 ensure_wrf_source() {
