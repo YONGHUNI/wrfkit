@@ -213,3 +213,13 @@ MPI assumptions.
 - **0.3** `wrfctl init`, native namelist workflow, provenance manifest.
 - **0.4** YAML schema, annotated template, YAML -> namelist generation/validation.
 - **0.5+** Slurm backend, site profiles, multi-node MPI, forcing-data acquisition.
+
+
+## WRF real-data staging
+
+Real-data WRF execution remains explicit: `metgrid -> real -> wrf`.
+`wrfctl prepare wrf --case NAME` stages runtime tables and physics data by
+symlinking files from the pinned WRF source tree's `run/` directory into the
+case. The scientific `namelist.input` remains case-owned and is never replaced
+by the staging command. This separates runtime assets from scientific
+configuration while preserving WRF's native file layout expectations.

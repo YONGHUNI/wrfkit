@@ -48,3 +48,23 @@ A successful ungrib run should produce `FILE:2026-09-30_00`,
 
 NOMADS is an operational, rolling service, so this fixed date is suitable for
 the immediate smoke test but is not a long-term archival fixture.
+
+
+## WRF real-data stage
+
+The case includes a minimal single-domain `namelist.input` aligned with the
+00-06 UTC GFS/WPS window. Before running WRF programs, stage the runtime tables
+and data from the pinned WRF 4.8.0 source tree:
+
+```bash
+./wrfctl prepare wrf --case athens-smoke
+./wrfctl exec real --case athens-smoke
+```
+
+`prepare wrf` creates case-local symlinks for WRF's runtime tables/data while
+leaving the tracked `namelist.input` under case control. A successful
+`real` run should create `wrfinput_d01` and `wrfbdy_d01`.
+
+The `namelist.input` is intentionally a smoke-test configuration, not a
+research-quality physics recommendation. It uses one 12 km domain, a 72 s time
+step, 45 vertical levels, and WRF's `CONUS` physics suite.

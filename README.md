@@ -244,6 +244,7 @@ per-node environment realization.
 ./wrfctl fetch geog                download low-res mandatory WPS geography for smoke tests
 ./wrfctl fetch gfs --case NAME     download configured GFS forcing from NOMADS
 ./wrfctl prepare gfs --case NAME   stage Vtable.GFS and GRIBFILE links
+./wrfctl prepare wrf --case NAME   stage WRF runtime tables/data
 ./wrfctl fetch all                 materialize both software source trees
 ./wrfctl build wrf --jobs N        build WRF with N parallel jobs
 ./wrfctl build wps --jobs N        build WPS against the existing WRF install
@@ -367,3 +368,18 @@ documentation, validation, and comments will be generated from a schema, while
 the final native namelist files will always be preserved for provenance.
 
 See [`docs/design.md`](docs/design.md) for the working design notes.
+
+
+### WRF real-data smoke stage
+
+After `metgrid` has produced `met_em.*` files, stage WRF runtime data and run
+the explicit real-data initializer:
+
+```bash
+./wrfctl prepare wrf --case athens-smoke
+./wrfctl exec real --case athens-smoke
+```
+
+`real` remains an explicit workflow step. wrfkit does not silently run it as
+part of another command. The expected outputs are `wrfinput_d01` and
+`wrfbdy_d01`; a later smoke step will run `wrf` itself.

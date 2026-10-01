@@ -20,3 +20,12 @@ cases/*/rsl.error.*
 # Generated WPS forcing staging
 cases/*/Vtable
 cases/*/GRIBFILE.???
+
+# Generated WRF real/run products
+cases/*/wrfinput_d0*
+cases/*/wrfbdy_d0*
+cases/*/wrflowinp_d0*
+cases/*/wrfrst_d0*
+cases/*/wrfout_d0*
+cases/*/rsl.out.*
+cases/*/rsl.error.*
