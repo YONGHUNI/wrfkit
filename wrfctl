@@ -17,7 +17,7 @@ Commands:
                             Installed WRF program names (wrf, real, ndown, tc)
                             are resolved automatically.
   clean                     Remove generated build/install state.
-  shell                     Enter the project Nix development shell (debugging).
+  shell                     Enter the interactive wrfkit environment.
   help                      Show this help.
 USAGE
 }
@@ -66,6 +66,7 @@ MSG
 run_dev() {
   ensure_compute_context
   ensure_nix
+  export WRFKIT_ROOT="$ROOT"
   exec nix develop --no-write-lock-file "$ROOT" -c "$@"
 }
 
@@ -112,6 +113,7 @@ case "$cmd" in
   shell)
     ensure_compute_context
     ensure_nix
+    export WRFKIT_ROOT="$ROOT"
     cd "$ROOT"
     exec nix develop --no-write-lock-file
     ;;
