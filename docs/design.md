@@ -66,7 +66,19 @@ disposable -> site/system scratch when configured
 
 A site-specific scratch path must not leak into scientific case configuration.
 
-## Case and log model
+## Case, workspace, and log model
+
+Tracked `cases/<name>` directories are configuration sources, not execution
+directories. Native WPS/WRF programs run from a generated workspace:
+
+```text
+<project>/.wrfkit/work/<case>/
+```
+
+The workspace contains symlinks to case-owned namelists, pinned WPS/WRF runtime
+tables, reusable forcing/geography, and generated WPS/WRF products. This keeps
+Git status focused on intentional case-configuration changes while preserving
+WRF's native file-based pipeline in one directory.
 
 Execution logs are persistent provenance rather than disposable scratch data.
 wrfkit therefore collects native WPS/WRF diagnostic logs under:
@@ -79,15 +91,15 @@ A run directory records the invoked command, working directory, exit status,
 Slurm job/step identifiers when available, and the native program logs. WPS logs
 (`geogrid.log*`, `metgrid.log*`, `ungrib.log`) and WRF RSL logs
 (`rsl.out.*`, `rsl.error.*`) are moved there after execution. Model products
-and scientific inputs remain in the case working directory.
+remain in the generated workspace; scientific configuration remains under
+`cases/<name>`.
 
 Until `wrfctl init` establishes a first-class case manifest, `wrfctl exec`
-accepts `--case NAME` and resolves it to `cases/NAME`. wrfkit changes the
-working directory only inside its own process, so users can launch case commands
-from the repository root while WPS/WRF still see native relative paths such as
-`namelist.wps`, `GEOGRID.TBL`, and future forcing links. The selected case name
-is also exported as `WRFKIT_CASE_NAME` so execution logs are routed to
-`.wrfkit/logs/NAME`.
+accepts `--case NAME`, resolves configuration from `cases/NAME`, stages
+`.wrfkit/work/NAME`, and executes from that workspace. Users can launch case
+commands from the repository root while WPS/WRF still see their native relative
+filenames. The selected case name is also exported as `WRFKIT_CASE_NAME` so
+execution logs are routed to `.wrfkit/logs/NAME`.
 
 Without `--case`, case identity continues to fall back to `WRFKIT_CASE_NAME`,
 a `cases/<name>/...` current path, or the current working directory.
@@ -131,8 +143,8 @@ The smoke case keeps its native `namelist.wps` tracked under
 The first forcing path is GFS 0.25-degree data from NOAA/NCEP NOMADS. Case-level
 forcing metadata is tracked in `forcing.conf`. `wrfctl fetch gfs --case NAME`
 stores reusable GRIB2 files under persistent `.wrfkit/data/gfs`, while
-`wrfctl prepare gfs --case NAME` creates case-local `Vtable` and
-`GRIBFILE.???` symlinks without duplicating the forcing data. The initial
+`wrfctl prepare gfs --case NAME` creates `Vtable` and `GRIBFILE.???`
+symlinks under `.wrfkit/work/NAME` without duplicating the forcing data. The initial
 Athens smoke case deliberately uses a fixed short NOMADS window; because NOMADS
 is a rolling operational service, a durable archived forcing backend remains a
 future reproducibility improvement.
@@ -244,7 +256,8 @@ MPI assumptions.
 
 Real-data WRF execution remains explicit: `metgrid -> real -> wrf`.
 `wrfctl prepare wrf --case NAME` stages runtime tables and physics data by
-symlinking files from the pinned WRF source tree's `run/` directory into the
-case. The scientific `namelist.input` remains case-owned and is never replaced
-by the staging command. This separates runtime assets from scientific
-configuration while preserving WRF's native file layout expectations.
+symlinking files from the pinned WRF source tree's `run/` directory into
+`.wrfkit/work/NAME`. The scientific `namelist.input` remains case-owned and
+is exposed to the workspace through a generated symlink. This separates runtime
+assets from scientific configuration while preserving WRF's native file layout
+expectations.

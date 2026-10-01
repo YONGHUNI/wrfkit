@@ -207,10 +207,17 @@ arguments if they contain wrfctl option names.
 
 ## Build layout
 
-Generated files are kept outside the tracked source tree:
+Generated files are kept outside the tracked source tree. Each case gets one
+native WPS/WRF execution workspace under `.wrfkit/work`:
 
 ```text
 .wrfkit/
+├── work/
+│   └── <case>/
+│       ├── namelist.wps -> cases/<case>/namelist.wps
+│       ├── namelist.input -> cases/<case>/namelist.input
+│       ├── WPS/WRF runtime links
+│       └── generated model products
 ├── src/
 │   ├── WRF-4.8.0/
 │   │   └── _build-wrfkit/
@@ -324,10 +331,11 @@ under `.wrfkit/cache`. The low-resolution package is for testing/education
 only; production or research simulations should use the appropriate
 higher-resolution static datasets.
 
-A successful geogrid run creates `geo_em.d01.nc` in the case directory. Native
-`geogrid.log` is collected under `.wrfkit/logs/athens-smoke/<run-id>/`.
-The command may be launched from the repository root; wrfkit changes only its
-own child-process working directory, not the user's shell directory.
+A successful geogrid run creates
+`.wrfkit/work/athens-smoke/geo_em.d01.nc`. Native `geogrid.log` is collected
+under `.wrfkit/logs/athens-smoke/<run-id>/`. The tracked
+`cases/athens-smoke` directory remains configuration-only; wrfkit changes only
+its own child-process working directory, not the user's shell directory.
 
 The next smoke stage uses a fixed 2026-09-30 00Z GFS cycle and f000/f003/f006
 files, regionally subset through the NOAA/NCEP NOMADS GFS 0.25-degree GRIB
@@ -340,8 +348,8 @@ filter:
 ```
 
 Downloaded forcing is cached under `.wrfkit/data/gfs/<date>/<cycle>/atmos`.
-The case keeps only symlinks to those files and to the pinned WPS
-`Vtable.GFS`.
+`prepare gfs` places only symlinks to those files and the pinned WPS
+`Vtable.GFS` in `.wrfkit/work/<case>`.
 
 ### Case-scoped execution logs
 
@@ -366,10 +374,11 @@ The case name is resolved in this order:
 4. otherwise, the current working directory name.
 
 If matching native logs already exist before a run, wrfkit preserves them under
-that run's `preexisting/` directory before launching the new program. Scientific
-outputs such as `geo_em*`, `met_em*`, `wrfinput*`, `wrfbdy*`, and
-`wrfout*` remain in the case/work directory; only native diagnostic logs are
-collected.
+that run's `preexisting/` directory before launching the new program.
+Scientific outputs such as `geo_em*`, `met_em*`, `wrfinput*`, `wrfbdy*`,
+and `wrfout*` remain in `.wrfkit/work/<case>`; only native diagnostic logs
+are collected. The tracked `cases/<case>` tree remains the source of truth for
+scientific configuration.
 
 ## Reproducibility boundary
 
@@ -416,5 +425,7 @@ the explicit real-data initializer:
 ```
 
 `real` remains an explicit workflow step. wrfkit does not silently run it as
-part of another command. The expected outputs are `wrfinput_d01` and
-`wrfbdy_d01`; a later smoke step will run `wrf` itself.
+part of another command. The expected outputs are
+`.wrfkit/work/athens-smoke/wrfinput_d01` and
+`.wrfkit/work/athens-smoke/wrfbdy_d01`; a later smoke step runs `wrf`
+itself.
