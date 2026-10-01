@@ -14,8 +14,7 @@ Usage: ./wrfctl <command> [options]
 Commands:
   doctor                              Check the pinned WRF/WPS build toolchain.
   fetch <wrf|wps|all>                 Materialize pinned source trees.
-  build [wrf|wps|all] [--jobs N]      Build WRF, WPS, or both.
-                                      Bare 'build' remains WRF-only for compatibility.
+  build <wrf|wps|all> [--jobs N]      Build WRF, WPS, or both.
   exec <command> [args...]            Run a command inside the pinned Nix environment.
                                       Installed WRF/WPS program names are resolved
                                       automatically.
@@ -74,11 +73,13 @@ run_dev() {
   # nest another rootless nix develop invocation. Nested namespace setup can
   # fail with EPERM on HPC systems such as Sapelo2.
   if [[ -n ${WRFKIT_NIX_SHELL:-} ]]; then
-    exec "$@"
+    "$@"
+    return $?
   fi
 
   ensure_nix
-  exec nix develop --no-write-lock-file "$ROOT" -c "$@"
+  nix develop --no-write-lock-file "$ROOT" -c "$@"
+  return $?
 }
 
 run_exec() {
