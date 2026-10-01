@@ -16,8 +16,8 @@ Commands:
   fetch <wrf|wps|all>                 Materialize pinned source trees.
   build <wrf|wps|all> [--jobs N]      Build WRF, WPS, or both.
   exec <command> [args...]            Run a command inside the pinned Nix environment.
-                                      Installed WRF/WPS program names are resolved
-                                      automatically.
+                                      MPI-capable WRF/WPS programs use an isolated
+                                      Slurm child step when inside an allocation.
   clean                               Remove generated build/install state.
   shell                               Enter the interactive wrfkit environment.
   help                                Show this help.
@@ -82,6 +82,45 @@ run_dev() {
   return $?
 }
 
+in_slurm_allocation() {
+  [[ -n ${SLURM_JOB_ID:-} ]] && command -v srun >/dev/null 2>&1
+}
+
+slurm_step_needs_overlap() {
+  case "${SLURM_STEP_ID:-}" in
+    ""|batch|extern) return 1 ;;
+    *) return 0 ;;
+  esac
+}
+
+run_slurm_mpi_step() {
+  local binary=$1
+  shift
+
+  local -a srun_args=(--ntasks=1)
+  if slurm_step_needs_overlap; then
+    # Interactive sessions created by srun already occupy a Slurm step.
+    # Put the MPI program in a separate overlapping child step so MPI_Abort
+    # cannot cancel the step hosting the user's shell.
+    srun_args=(--overlap "${srun_args[@]}")
+  fi
+
+  printf 'wrfkit: launching MPI program in an isolated Slurm step (1 task)\n' >&2
+
+  # A Slurm child step is created outside the rootless-Nix mount namespace.
+  # Re-enter wrfkit's Nix environment inside that step instead of executing a
+  # /nix/store-linked binary directly.
+  srun "${srun_args[@]}" "$ROOT/wrfctl" __exec-direct "$binary" "$@"
+}
+
+run_mpi() {
+  if in_slurm_allocation; then
+    run_slurm_mpi_step "$@"
+  else
+    run_dev "$@"
+  fi
+}
+
 run_exec() {
   [[ $# -gt 0 ]] || {
     echo "Usage: ./wrfctl exec <command> [args...]" >&2
@@ -92,7 +131,16 @@ run_exec() {
   shift
 
   case "$command" in
-    wrf|real|ndown|tc|diffwrf_int|diffwrf_nc|registry)
+    wrf|real|ndown|tc|wrf.exe|real.exe|ndown.exe|tc.exe)
+      local binary="$WRF_BIN_DIR/$command"
+      [[ -x "$binary" ]] || {
+        printf 'wrfkit: installed WRF binary not found: %s\n' "$binary" >&2
+        printf 'Run ./wrfctl build wrf first.\n' >&2
+        exit 2
+      }
+      run_mpi "$binary" "$@"
+      ;;
+    diffwrf_int|diffwrf_nc|registry)
       local binary="$WRF_BIN_DIR/$command"
       [[ -x "$binary" ]] || {
         printf 'wrfkit: installed WRF binary not found: %s\n' "$binary" >&2
@@ -101,16 +149,16 @@ run_exec() {
       }
       run_dev "$binary" "$@"
       ;;
-    geogrid|ungrib|metgrid|g1print|g2print)
+    geogrid|metgrid|geogrid.exe|metgrid.exe)
       local binary="$WPS_BIN_DIR/$command"
       [[ -x "$binary" ]] || {
         printf 'wrfkit: installed WPS binary not found: %s\n' "$binary" >&2
         printf 'Run ./wrfctl build wps first, or ./wrfctl build all.\n' >&2
         exit 2
       }
-      run_dev "$binary" "$@"
+      run_mpi "$binary" "$@"
       ;;
-    geogrid.exe|ungrib.exe|metgrid.exe)
+    ungrib|g1print|g2print|ungrib.exe)
       local binary="$WPS_BIN_DIR/$command"
       [[ -x "$binary" ]] || {
         printf 'wrfkit: installed WPS binary not found: %s\n' "$binary" >&2
@@ -133,6 +181,14 @@ case "$cmd" in
   fetch)  run_dev "$ROOT/scripts/fetch.sh" "$@" ;;
   build)  run_dev "$ROOT/scripts/build.sh" "$@" ;;
   exec)   run_exec "$@" ;;
+  __exec-direct)
+    [[ $# -gt 0 ]] || {
+      echo "wrfkit: internal direct-exec command requires a program" >&2
+      exit 2
+    }
+    unset WRFKIT_NIX_SHELL WRFKIT_SHELL IN_NIX_SHELL
+    run_dev "$@"
+    ;;
   clean)
     rm -rf \
       "$ROOT/.wrfkit/src/WRF-4.8.0/_build-wrfkit" \

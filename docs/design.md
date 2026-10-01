@@ -95,31 +95,41 @@ working-directory staging will be added on top of this build layer.
 
 ## MPI policy
 
-The initial WRF build enables MPI and uses Nix-provided OpenMPI. Single-node MPI
-is the first validation target.
+The initial WRF build enables MPI and uses Nix-provided OpenMPI. WPS
+`geogrid`/`metgrid` are also built with MPI. Single-node MPI remains the first
+validated execution target.
 
-WPS geogrid/metgrid are also built with MPI. WPS 4.7.0's upstream fatal-error
-path calls `MPI_Abort` even when only one rank exists. That behavior is unsafe
-for a program launched directly in the Slurm step hosting an interactive shell:
-an ordinary WPS input error can cancel the shell's step. wrfkit therefore applies
-a pinned source patch with rank-aware error handling:
+WRF/WPS source error semantics are not modified to protect an interactive shell.
+Instead, execution isolation belongs to the scheduler backend. When
+`wrfctl exec` is used inside a Slurm allocation, MPI-capable programs are
+launched in a separate `srun` child step:
 
 ```text
-1 rank   -> MPI_Finalize -> non-zero process exit
-2+ ranks -> MPI_Abort(MPI_COMM_WORLD) -> terminate the distributed run
+interactive Slurm step
+└─ shell
+   └─ wrfctl
+      └─ child srun step
+         └─ MPI program
 ```
 
-The multi-rank branch deliberately retains `MPI_Abort`. `MPI_Finalize` is
-collective, so attempting a graceful finalize only on the rank that encounters
-a fatal distributed error could deadlock while other ranks remain in MPI work.
-The patch therefore protects interactive single-rank use without weakening the
-failure semantics needed for future multi-node execution.
+If the shell itself is already running in an `srun` step, wrfkit adds
+`--overlap` so the child step can coexist with it. An `MPI_Abort` then tears
+down the child step instead of the step hosting the interactive shell.
 
-wrfkit does not automatically wrap `exec` in `srun --nodes=1 --ntasks=1`.
-Doing so would bake a single-node topology into the generic execution layer and
-conflict with future multi-node launch policy. A Slurm backend should create
-dedicated job steps with an explicit task/node layout when multi-node support is
-implemented.
+A Slurm child step may be created outside the rootless-Nix mount namespace of
+its parent. The child therefore re-enters wrfkit's Nix environment before
+starting the WRF/WPS binary rather than inheriting a raw `/nix/store` path.
+
+The current `exec` launcher deliberately uses one MPI task. This is a
+single-rank execution and smoke-test path, not a multi-node topology decision.
+Future multi-node support should extend the Slurm backend with explicit
+`--nodes`, `--ntasks`, task placement, and site-specific MPI/PMIx settings
+without changing WRF/WPS source code.
+
+The default Sapelo2 rootless-Nix store under `/lscratch` is node-local and
+therefore cannot be assumed to exist on additional nodes. Multi-node execution
+must use a shared store such as the `sapelo2-shared` profile, or realize an
+equivalent environment independently on every participating node.
 
 Generic multi-node MPI portability is not considered solved merely because WRF
 compiles with MPI. HPC execution can depend on Slurm, PMIx, UCX, InfiniBand/RDMA,

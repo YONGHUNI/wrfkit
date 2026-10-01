@@ -29,7 +29,7 @@ Not yet claimed as supported:
 - automated `namelist.wps` / `namelist.input` generation
 - YAML configuration frontend
 - multi-node MPI portability across HPC systems
-- Slurm execution abstraction
+- general Slurm submission abstraction and validated multi-node MPI
 - WRF-Chem / WRFDA
 
 Those are planned after the base build has been validated on ordinary Linux and
@@ -221,15 +221,19 @@ wrfkit copies that immutable source into `.wrfkit/src` before compilation becaus
 the WPS CMake path can build its bundled GRIB2 libraries in-place. WPS is built
 against wrfkit's existing CMake-built WRF installation.
 
-wrfkit also applies a narrow compatibility patch to WPS' geogrid/metgrid error
-path. Upstream WPS calls `MPI_Abort` for fatal errors even with a single MPI
-rank; when the program is launched directly inside an interactive Slurm step,
-that can cancel the step hosting the user's shell. For one-rank runs, wrfkit
-finalizes MPI and exits non-zero instead. For two or more ranks, the upstream
-`MPI_Abort` behavior is preserved so a distributed failure terminates all ranks
-rather than leaving peers blocked. This does not select a Slurm topology or
-hard-code a single-node launcher; multi-node launch policy remains an execution-
-backend concern.
+WPS' upstream MPI error behavior is left unchanged. On Slurm, wrfkit instead
+isolates MPI-capable programs in their own `srun` child step. This prevents an
+`MPI_Abort` from a program such as `geogrid` from cancelling the Slurm step that
+hosts an interactive shell. The child step re-enters the wrfkit Nix environment
+before executing the binary, which is required for rootless-Nix setups where a
+new Slurm step does not share the parent's mount namespace.
+
+The current `wrfctl exec` path intentionally launches one MPI task; it is a
+single-rank execution/smoke-test path, not a multi-node scheduler policy. Future
+multi-node execution will parameterize task/node topology in the Slurm backend
+rather than modifying WRF/WPS source behavior. Multi-node rootless Nix will also
+require a shared store (for example the `sapelo2-shared` profile) or equivalent
+per-node environment realization.
 
 ## Commands
 
@@ -252,7 +256,10 @@ backend concern.
 ```
 
 `wrfctl build wps` requires a completed wrfkit WRF installation. Use
-`wrfctl build all` for a clean WRF -> WPS build sequence. The WPS build enables
+`wrfctl build all` for a clean WRF -> WPS build sequence. Inside a Slurm
+allocation, `wrfctl exec` launches MPI-capable WRF/WPS programs in an isolated
+one-task `srun` step; serial utilities continue to run directly in the current
+environment. The WPS build enables
 MPI for geogrid/metgrid and GRIB2 support, while a real-data WPS workflow
 (`namelist.wps`, geography, forcing, Vtable selection, and staging) remains the
 next milestone and is not yet claimed as validated.

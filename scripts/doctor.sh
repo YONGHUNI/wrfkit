@@ -24,6 +24,13 @@ for cmd in gcc g++ gfortran cmake make mpicc mpif90 mpirun nc-config nf-config g
   check_cmd "$cmd"
 done
 
+if [[ -n ${SLURM_JOB_ID:-} ]]; then
+  check_cmd srun
+  printf '\nSlurm allocation\n'
+  printf '  job:  %s\n' "$SLURM_JOB_ID"
+  printf '  step: %s\n' "${SLURM_STEP_ID:-not set}"
+fi
+
 printf '\nVersions\n'
 printf '  gcc:       %s\n' "$(gcc -dumpfullversion -dumpversion 2>/dev/null || true)"
 printf '  gfortran:  %s\n' "$(gfortran -dumpfullversion -dumpversion 2>/dev/null || true)"
