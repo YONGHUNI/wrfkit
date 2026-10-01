@@ -65,8 +65,16 @@ MSG
 
 run_dev() {
   ensure_compute_context
-  ensure_nix
   export WRFKIT_ROOT="$ROOT"
+
+  # If wrfctl is already running inside the project Nix environment, do not
+  # nest another rootless nix develop invocation. Nested namespace setup can
+  # fail with EPERM on HPC systems such as Sapelo2.
+  if [[ -n ${WRFKIT_NIX_SHELL:-} ]]; then
+    exec "$@"
+  fi
+
+  ensure_nix
   exec nix develop --no-write-lock-file "$ROOT" -c "$@"
 }
 
@@ -112,8 +120,14 @@ case "$cmd" in
     ;;
   shell)
     ensure_compute_context
-    ensure_nix
     export WRFKIT_ROOT="$ROOT"
+
+    if [[ -n ${WRFKIT_NIX_SHELL:-} ]]; then
+      echo "wrfkit: already inside the wrfkit environment."
+      exit 0
+    fi
+
+    ensure_nix
     cd "$ROOT"
     exec nix develop --no-write-lock-file
     ;;
