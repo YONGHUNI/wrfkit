@@ -144,36 +144,52 @@ The initial WRF build enables MPI and uses Nix-provided OpenMPI. WPS
 validated execution target.
 
 WRF/WPS source error semantics are not modified to protect an interactive shell.
-Instead, execution isolation belongs to the scheduler backend. When
-`wrfctl exec` is used inside a Slurm allocation, MPI-capable programs are
-launched in a separate `srun` child step:
+Instead, execution isolation belongs to the scheduler backend. When an
+interactive shell is already running inside an `srun` step, wrfkit uses a
+single-node bridge:
 
 ```text
 interactive Slurm step
 └─ shell
    └─ wrfctl
-      └─ child srun step
-         └─ MPI program
+      └─ overlapping child srun step
+         └─ 1 Slurm task × N CPUs
+            └─ rootless Nix entry (once)
+               └─ mpirun -np N
+                  └─ N WRF/WPS ranks
 ```
 
-If the shell itself is already running in an `srun` step, wrfkit adds
-`--overlap` so the child step can coexist with it. An `MPI_Abort` then tears
-down the child step instead of the step hosting the interactive shell.
+The child step uses `--overlap` so it can coexist with the step hosting the
+interactive shell. Before creating it, wrfkit removes inherited
+`SLURM_CPU_BIND*` variables: those bindings describe the parent step and can
+refer to CPUs outside a smaller child allocation. Slurm then computes a fresh
+binding/cpuset for the one child task.
 
 A Slurm child step may be created outside the rootless-Nix mount namespace of
-its parent. The child therefore re-enters wrfkit's Nix environment before
-starting the WRF/WPS binary rather than inheriting a raw `/nix/store` path.
+its parent. The child therefore re-enters wrfkit's Nix environment once. The
+pinned OpenMPI `mpirun` then creates all N ranks inside that same namespace,
+avoiding concurrent Nix evaluations and cross-namespace same-node MPI
+transports. The child Slurm step still owns exactly N CPUs.
 
-MPI execution is launcher-based. The first-class launcher values are
+Because the bridge intentionally creates one Slurm task with N CPUs, the inner
+OpenMPI process would otherwise see a one-slot Slurm allocation. Immediately
+before `mpirun`, wrfkit hides the child step's Slurm resource-manager variables.
+The kernel/Slurm cpuset remains in force, while OpenMPI discovers and binds
+ranks within those allowed CPUs.
+
+MPI execution remains launcher-based. The first-class launcher values are
 `auto`, `srun`, `mpirun`, `mpiexec`, and `custom`. With `auto`, an
-active Slurm allocation selects `srun`; otherwise wrfkit uses the OpenMPI
-`mpirun` provided by the pinned Nix environment.
+active Slurm allocation selects the Slurm backend; otherwise wrfkit uses the
+OpenMPI `mpirun` provided by the pinned Nix environment.
 
 The machine profile may set `mpi_tasks=N` for fixed non-Slurm servers or
 `mpi_tasks=auto`. For Slurm batch jobs, auto uses `SLURM_NTASKS`. For an
 interactive `srun` shell that reserves one task with multiple CPUs, auto may
-use `SLURM_CPUS_PER_TASK` and creates an overlapping child step with one CPU
-per MPI rank. `--ntasks N` and `--launcher NAME` are per-run overrides.
+use `SLURM_CPUS_PER_TASK` and the bridge above reserves that many CPUs before
+starting the same number of MPI ranks. `--ntasks N` and `--launcher NAME`
+are per-run overrides. The bridge has been validated only for single-node
+interactive Slurm execution; batch and multi-node rootless-Nix execution remain
+separate validation targets.
 
 This is still a single-node-first policy. Multi-node support must additionally
 validate node topology, task placement, rootless-Nix visibility, PMIx/UCX, and

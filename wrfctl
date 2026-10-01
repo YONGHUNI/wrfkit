@@ -228,19 +228,32 @@ run_slurm_mpi_step() {
     return 2
   }
 
-  local -a srun_args=(--ntasks="$tasks" --cpus-per-task=1)
   if slurm_step_needs_overlap; then
-    # Interactive sessions created by srun already occupy a Slurm step.
-    # Put the MPI program in a separate overlapping child step so MPI_Abort
-    # cannot cancel the step hosting the user's shell.
-    srun_args=(--overlap "${srun_args[@]}")
+    # An interactive srun shell is already a Slurm step. Its SLURM_CPU_BIND*
+    # variables describe the parent step and can point outside the CPU subset
+    # assigned to a nested step. Drop those inherited hints so Slurm computes a
+    # fresh binding for one isolated child task that owns exactly N CPUs.
+    #
+    # Rootless-Nix mount namespaces are not inherited by a new Slurm step. Enter
+    # the Nix environment once in that child task, then use the pinned OpenMPI
+    # launcher to create N ranks inside the same namespace. The child step still
+    # enforces the N-CPU cpuset. Before mpirun starts, hide the child Slurm
+    # resource-manager variables that would otherwise advertise one Slurm task
+    # as one OpenMPI slot.
+    export WRFKIT_EFFECTIVE_MPI_INNER_LAUNCHER=mpirun
+    printf 'wrfkit: MPI launcher=srun tasks=%s (isolated Slurm child step; inner=mpirun)\n' "$tasks" >&2
+
+    env       -u SLURM_CPU_BIND       -u SLURM_CPU_BIND_TYPE       -u SLURM_CPU_BIND_LIST       srun         --overlap         --ntasks=1         --cpus-per-task="$tasks"         env           -u SLURM_JOB_ID           -u SLURM_JOBID           -u SLURM_NTASKS           -u SLURM_NPROCS           -u SLURM_TASKS_PER_NODE           -u SLURM_NODELIST           -u SLURM_JOB_NODELIST         "$ROOT/wrfctl" __exec-direct         mpirun -np "$tasks" "$binary" "$@"
+    return $?
   fi
 
+  # Batch/allocation-shell path: let the child srun launch one rank per task.
+  # Clear inherited binding hints here as well so the new step can recompute a
+  # binding that matches its own allocation. Multi-node/rootless-Nix behavior
+  # on this path remains a separate validation target.
+  export WRFKIT_EFFECTIVE_MPI_INNER_LAUNCHER=""
   printf 'wrfkit: MPI launcher=srun tasks=%s (isolated Slurm child step)\n' "$tasks" >&2
-
-  # A Slurm child step is created outside the rootless-Nix mount namespace.
-  # Each rank re-enters wrfkit's Nix environment before executing the binary.
-  srun "${srun_args[@]}" "$ROOT/wrfctl" __exec-direct "$binary" "$@"
+  env     -u SLURM_CPU_BIND     -u SLURM_CPU_BIND_TYPE     -u SLURM_CPU_BIND_LIST     srun       --ntasks="$tasks"       --cpus-per-task=1       "$ROOT/wrfctl" __exec-direct "$binary" "$@"
 }
 
 run_generic_mpi() {
@@ -289,6 +302,7 @@ run_mpi() {
 
   export WRFKIT_EFFECTIVE_MPI_LAUNCHER="$launcher"
   export WRFKIT_EFFECTIVE_MPI_TASKS="$tasks"
+  export WRFKIT_EFFECTIVE_MPI_INNER_LAUNCHER=""
   export WRFKIT_MPI_CONFIG_SOURCE="$WRFKIT_CONFIG_SOURCE"
 
   case "$launcher" in
@@ -387,6 +401,7 @@ write_run_metadata() {
     printf 'slurm_job_id=%s\n' "${SLURM_JOB_ID:-}"
     printf 'slurm_step_id=%s\n' "${SLURM_STEP_ID:-}"
     printf 'mpi_launcher=%s\n' "${WRFKIT_EFFECTIVE_MPI_LAUNCHER:-}"
+    printf 'mpi_inner_launcher=%s\n' "${WRFKIT_EFFECTIVE_MPI_INNER_LAUNCHER:-}"
     printf 'mpi_tasks=%s\n' "${WRFKIT_EFFECTIVE_MPI_TASKS:-}"
     printf 'mpi_config_source=%s\n' "${WRFKIT_MPI_CONFIG_SOURCE:-}"
     printf 'finished_at=%s\n' "$(date --iso-8601=seconds 2>/dev/null || date)"
