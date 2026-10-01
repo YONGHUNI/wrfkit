@@ -72,7 +72,10 @@ case "$cmd" in
   fetch)  run_dev "$ROOT/scripts/fetch-wrf.sh" "$@" ;;
   build)  run_dev "$ROOT/scripts/build-wrf.sh" "$@" ;;
   clean)
-    rm -rf "$ROOT/.wrfkit/build" "$ROOT/.wrfkit/install"
+    rm -rf \
+      "$ROOT/.wrfkit/src/WRF-4.8.0/_build-wrfkit" \
+      "$ROOT/.wrfkit/build" \
+      "$ROOT/.wrfkit/install"
     printf 'Removed generated build/install state under %s/.wrfkit\n' "$ROOT"
     ;;
   shell)
