@@ -2,18 +2,23 @@
 set -Eeuo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+WRF_VERSION=4.8.0
+WRF_BIN_DIR="$ROOT/.wrfkit/install/wrf-$WRF_VERSION/bin"
 
 usage() {
   cat <<'USAGE'
 Usage: ./wrfctl <command> [options]
 
 Commands:
-  doctor              Check the pinned WRF build toolchain.
-  fetch               Extract the pinned WRF 4.8.0 release source.
-  build [--jobs N]    Configure and compile MPI-enabled WRF EM_REAL.
-  clean               Remove generated build/install state.
-  shell               Enter the project Nix development shell.
-  help                 Show this help.
+  doctor                    Check the pinned WRF build toolchain.
+  fetch                     Extract the pinned WRF 4.8.0 release source.
+  build [--jobs N]          Configure and compile MPI-enabled WRF EM_REAL.
+  exec <command> [args...]  Run a command inside the pinned Nix environment.
+                            Installed WRF program names (wrf, real, ndown, tc)
+                            are resolved automatically.
+  clean                     Remove generated build/install state.
+  shell                     Enter the project Nix development shell (debugging).
+  help                      Show this help.
 USAGE
 }
 
@@ -29,7 +34,7 @@ ensure_compute_context() {
     cat >&2 <<'MSG'
 wrfkit: Sapelo2 login node detected.
 
-Environment realization and WRF compilation must run on a compute node.
+Environment realization and WRF compilation/execution must run on a compute node.
 Start an allocation first, for example:
 
   interact -c 16 --mem=64G --time=02:00:00
@@ -64,6 +69,31 @@ run_dev() {
   exec nix develop --no-write-lock-file "$ROOT" -c "$@"
 }
 
+run_exec() {
+  [[ $# -gt 0 ]] || {
+    echo "Usage: ./wrfctl exec <command> [args...]" >&2
+    exit 2
+  }
+
+  local command=$1
+  shift
+
+  case "$command" in
+    wrf|real|ndown|tc|diffwrf_int|diffwrf_nc|registry)
+      local binary="$WRF_BIN_DIR/$command"
+      [[ -x "$binary" ]] || {
+        printf 'wrfkit: installed WRF binary not found: %s\n' "$binary" >&2
+        printf 'Run ./wrfctl build first.\n' >&2
+        exit 2
+      }
+      run_dev "$binary" "$@"
+      ;;
+    *)
+      run_dev "$command" "$@"
+      ;;
+  esac
+}
+
 cmd=${1:-help}
 shift || true
 
@@ -71,6 +101,7 @@ case "$cmd" in
   doctor) run_dev "$ROOT/scripts/doctor.sh" "$@" ;;
   fetch)  run_dev "$ROOT/scripts/fetch-wrf.sh" "$@" ;;
   build)  run_dev "$ROOT/scripts/build-wrf.sh" "$@" ;;
+  exec)   run_exec "$@" ;;
   clean)
     rm -rf \
       "$ROOT/.wrfkit/src/WRF-4.8.0/_build-wrfkit" \
