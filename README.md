@@ -47,9 +47,22 @@ cd wrfkit
 ```
 
 `wrfctl` enters the pinned Nix development environment automatically. You do
-not need to run `nix develop` yourself.
+not need to run `nix develop` yourself. Commands and installed WRF binaries can
+also be launched without first entering an interactive shell:
 
-To open the development shell explicitly:
+```bash
+./wrfctl exec ldd .wrfkit/install/wrf-4.8.0/bin/wrf
+./wrfctl exec wrf
+./wrfctl exec real
+```
+
+This matters for rootless Nix: the raw WRF binaries depend on libraries exposed
+inside the rootless `/nix/store` namespace. Running those binaries directly from
+the host shell can therefore report missing NetCDF/MPI libraries or host glibc
+version errors. `wrfctl exec` enters the managed Nix environment first and is
+the supported execution path.
+
+To open the development shell explicitly for debugging:
 
 ```bash
 ./wrfctl shell
@@ -159,12 +172,14 @@ Generated files are kept outside the tracked source tree:
 
 ```text
 .wrfkit/
-├── src/WRF-4.8.0/
-├── build/wrf-4.8.0/
-└── install/wrf-4.8.0/
-    └── bin/
-        ├── real
-        └── wrf
+├── src/
+│   └── WRF-4.8.0/
+│       └── _build-wrfkit/
+└── install/
+    └── wrf-4.8.0/
+        └── bin/
+            ├── real
+            └── wrf
 ```
 
 The official WRF 4.8.0 release archive is fetched through Nix with its published
@@ -179,8 +194,11 @@ mandatory bundled external code required for compilation.
 ./wrfctl fetch           extract the pinned WRF 4.8.0 source
 ./wrfctl build           configure and compile MPI-enabled EM_REAL
 ./wrfctl build --jobs N  compile with N parallel build jobs
+./wrfctl exec CMD ...    run CMD inside the pinned Nix environment
+./wrfctl exec wrf        run the installed WRF binary inside that environment
+./wrfctl exec real       run the installed real binary inside that environment
 ./wrfctl clean           remove generated build/install files
-./wrfctl shell           enter the Nix development shell
+./wrfctl shell           enter the Nix development shell for debugging
 ```
 
 The source tree is preserved by `clean`; use `rm -rf .wrfkit/src` when a complete
