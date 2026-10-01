@@ -40,6 +40,7 @@ Supported config keys:
   profile=...
   store_root=...
   backend=...
+  scratch_root=...
 USAGE
 }
 
@@ -139,6 +140,7 @@ fi
 config_profile=""
 config_store_root=""
 config_backend=""
+config_scratch_root=""
 config_source=""
 
 trim() {
@@ -163,9 +165,10 @@ read_config() {
     value=${value#\'}; value=${value%\'}
 
     case "$key" in
-      profile)    config_profile=$value ;;
-      store_root) config_store_root=$value ;;
-      backend)    config_backend=$value ;;
+      profile)      config_profile=$value ;;
+      store_root)   config_store_root=$value ;;
+      backend)      config_backend=$value ;;
+      scratch_root) config_scratch_root=$value ;;
       *) printf 'bootstrap: unsupported config key: %s\n' "$key" >&2; exit 2 ;;
     esac
   done < "$file"
@@ -195,6 +198,7 @@ fi
 
 store_root=${WRFKIT_NIX_STORE_ROOT:-$config_store_root}
 backend=${WRFKIT_NIX_BACKEND:-$config_backend}
+scratch_root=${WRFKIT_SCRATCH_ROOT:-$config_scratch_root}
 [[ -n "$cli_store_root" ]] && store_root=$cli_store_root
 [[ -n "$cli_backend" ]] && backend=$cli_backend
 
@@ -229,12 +233,14 @@ expand_path() {
   printf '%s' "$value"
 }
 [[ -n "$store_root" ]] && store_root=$(expand_path "$store_root")
+[[ -n "$scratch_root" ]] && scratch_root=$(expand_path "$scratch_root")
 
 printf 'wrfkit bootstrap\n'
-printf '  profile:    %s\n' "$profile"
-printf '  config:     %s\n' "${config_source:-built-in defaults}"
-printf '  store root: %s\n' "${store_root:-rootless-nix-bootstrap default}"
-printf '  backend:    %s\n\n' "${backend:-rootless-nix-bootstrap default}"
+printf '  profile:      %s\n' "$profile"
+printf '  config:       %s\n' "${config_source:-built-in defaults}"
+printf '  store root:   %s\n' "${store_root:-rootless-nix-bootstrap default}"
+printf '  scratch root: %s\n' "${scratch_root:-not configured}"
+printf '  backend:      %s\n\n' "${backend:-rootless-nix-bootstrap default}"
 
 prepare_rnb
 

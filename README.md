@@ -144,6 +144,17 @@ The default Sapelo2 profile now uses the fast, disposable node-local store:
 /lscratch/$USER/.nix
 ```
 
+and declares a separate disposable workspace:
+
+```text
+/lscratch/$USER/wrfkit
+```
+
+The latter is exposed as `scratch_root` for high-I/O temporary work as WPS and
+runtime staging are added. Persistent wrfkit state remains project-local under
+`.wrfkit` by default, so the generic project layout does not depend on Sapelo2
+filesystem conventions.
+
 This is intentional for the current single-node MVP: the Nix store can be
 recreated for each allocation and prioritizes local I/O speed over persistence.
 

@@ -33,6 +33,39 @@ checks, validation, full-template generation, and native namelist generation.
 
 Native mode treats `namelist.wps` and `namelist.input` as the source of truth.
 
+## Storage model
+
+wrfkit distinguishes storage by lifetime rather than by a particular HPC
+filesystem layout.
+
+**Persistent state** belongs with the project by default. This keeps the generic
+workflow portable and avoids assuming that a machine provides `/scratch` or
+`/lscratch`. The current default remains:
+
+```text
+<project>/.wrfkit/
+```
+
+Persistent state includes installed WRF/WPS artifacts, reusable downloaded data,
+configuration/provenance, and other state that should survive normal temporary
+workspace cleanup. Large reusable datasets may later support explicit path
+overrides without changing this generic default.
+
+**Disposable state** is high-I/O or reproducible temporary work that can be
+recreated safely: build intermediates, staging areas, temporary links, and WPS
+working files. A site profile may provide a `scratch_root` for this purpose.
+Generic environments should prefer `$TMPDIR` when temporary storage is needed
+rather than hard-coding `/tmp`.
+
+The storage split is therefore conceptual:
+
+```text
+persistent -> project-local by default
+disposable -> site/system scratch when configured
+```
+
+A site-specific scratch path must not leak into scientific case configuration.
+
 ## MPI policy
 
 The initial WRF build enables MPI and uses Nix-provided OpenMPI. Single-node MPI
@@ -44,19 +77,30 @@ and site-specific MPI configuration.
 
 ## Sapelo2 storage
 
-Default shared profile:
-
-```text
-/scratch/$USER/.nix
-```
-
-Explicit single-node local-I/O profile:
+The default Sapelo2 profile uses a disposable node-local Nix store:
 
 ```text
 /lscratch/$USER/.nix
 ```
 
-The latter is node-local and must not be the basis for generic multi-node MPI.
+and declares the site scratch workspace:
+
+```text
+scratch_root=/lscratch/$USER/wrfkit
+```
+
+The scratch root is for disposable high-I/O work. Persistent wrfkit state remains
+project-local by default; wrfkit does not require the repository itself to live
+on any particular Sapelo2 filesystem.
+
+The optional shared rootless-Nix profile uses:
+
+```text
+/scratch/$USER/.nix
+```
+
+The node-local `/lscratch` paths must not be the basis for generic multi-node
+MPI assumptions.
 
 ## Milestones
 
