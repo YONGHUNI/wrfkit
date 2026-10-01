@@ -198,8 +198,8 @@ resolve_mpi_tasks() {
           # multiple CPUs. WRF is MPI-only in the current build, so turn those
           # reserved CPUs into one-rank-per-CPU for the overlapping child step.
           if [[ ${SLURM_NTASKS:-1} =~ ^[1-9][0-9]*$ ]] &&
-             (( SLURM_NTASKS > 1 )); then
-            requested=$SLURM_NTASKS
+             (( ${SLURM_NTASKS:-1} > 1 )); then
+            requested=${SLURM_NTASKS:-1}
           elif [[ ${SLURM_CPUS_PER_TASK:-1} =~ ^[1-9][0-9]*$ ]]; then
             requested=$SLURM_CPUS_PER_TASK
           else
