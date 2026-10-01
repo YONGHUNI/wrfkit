@@ -4,7 +4,7 @@
 
 wrfkit separates three concerns:
 
-1. **Software environment** — Nix pins compiler, MPI, NetCDF, CMake, WRF, and eventually WPS.
+1. **Software environment** — Nix pins compiler, MPI, NetCDF, CMake, WRF, and WPS.
 2. **Scientific configuration** — YAML or native Fortran namelists.
 3. **Execution backend** — local execution, Slurm, and site-specific MPI integration.
 
@@ -66,6 +66,33 @@ disposable -> site/system scratch when configured
 
 A site-specific scratch path must not leak into scientific case configuration.
 
+## WPS build policy
+
+wrfkit pins WPS 4.7.0 to release commit
+`5feccecd63384381b6942371c7a837f66e4ccb84`. The WPS source is provided as a
+non-flake Nix input and copied into project-local state before building.
+
+The CMake workflow is used for both WRF and WPS. WPS is built only after a
+CMake-built WRF installation exists, with:
+
+```text
+WRF 4.8.0
+   ↓
+WPS 4.7.0
+   ├─ geogrid
+   ├─ ungrib
+   └─ metgrid
+```
+
+The initial WPS build enables MPI for geogrid/metgrid and enables GRIB2 by
+building the zlib/libpng/Jasper sources bundled with the pinned WPS release.
+This avoids coupling the build to whatever Jasper ABI a generic host happens to
+provide.
+
+Build integration is separate from the future real-data workflow. Geographic
+datasets, meteorological forcing, Vtable selection, `namelist.wps`, and WPS
+working-directory staging will be added on top of this build layer.
+
 ## MPI policy
 
 The initial WRF build enables MPI and uses Nix-provided OpenMPI. Single-node MPI
@@ -105,7 +132,7 @@ MPI assumptions.
 ## Milestones
 
 - **0.1** WRF 4.8.0, GNU, NetCDF, OpenMPI build, ordinary Linux + Sapelo2 validation.
-- **0.2** WPS and first real-data smoke case.
+- **0.2** WPS 4.7.0 build integration and first real-data smoke case.
 - **0.3** `wrfctl init`, native namelist workflow, provenance manifest.
 - **0.4** YAML schema, annotated template, YAML -> namelist generation/validation.
 - **0.5+** Slurm backend, site profiles, multi-node MPI, forcing-data acquisition.

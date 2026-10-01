@@ -13,17 +13,19 @@ compiler, MPI, NetCDF, CMake, or Linux-distribution differences manually.
 This repository is an early MVP. The first milestone is deliberately narrow:
 
 - WRF **4.8.0**
+- WPS **4.7.0** build integration (pending live Sapelo2 validation)
 - Linux **x86_64**
 - GNU C/C++/Fortran toolchain
 - OpenMPI-enabled WRF build
 - NetCDF-C / NetCDF-Fortran
-- WRF CMake workflow (`configure_new` / `compile_new`)
+- WRF/WPS CMake workflows (`configure_new` / `compile_new`)
+- WPS GRIB2 support using the GRIB2 libraries bundled with the pinned WPS source
 - normal Nix or rootless Nix on machines without administrator access
 - single-node MPI as the initial execution target
 
 Not yet claimed as supported:
 
-- WPS
+- WPS real-data preparation/data-acquisition workflow
 - automated `namelist.wps` / `namelist.input` generation
 - YAML configuration frontend
 - multi-node MPI portability across HPC systems
@@ -68,8 +70,8 @@ To enter the interactive wrfkit environment explicitly:
 ./wrfctl shell
 ```
 
-An interactive Bash prompt is marked with a conda-style `(wrfkit)` prefix, and
-installed WRF binaries are added to `PATH` for that shell session. This is
+An interactive Bash prompt is marked with a conda-style `(wrfkit)` suffix, and
+installed WRF/WPS binaries are added to `PATH` for that shell session. This is
 session-local only; wrfkit does not edit `~/.bashrc`, `~/.profile`, or other
 user shell configuration files.
 
@@ -192,13 +194,20 @@ Generated files are kept outside the tracked source tree:
 ```text
 .wrfkit/
 ├── src/
-│   └── WRF-4.8.0/
+│   ├── WRF-4.8.0/
+│   │   └── _build-wrfkit/
+│   └── WPS-4.7.0/
 │       └── _build-wrfkit/
 └── install/
-    └── wrf-4.8.0/
+    ├── wrf-4.8.0/
+    │   └── bin/
+    │       ├── real
+    │       └── wrf
+    └── wps-4.7.0/
         └── bin/
-            ├── real
-            └── wrf
+            ├── geogrid
+            ├── ungrib
+            └── metgrid
 ```
 
 The official WRF 4.8.0 release archive is fetched through Nix with its published
@@ -206,19 +215,37 @@ SHA-256 digest. This avoids accidentally using GitHub's automatically generated
 "Source code" archives, which WRF 4.8.0 explicitly warns do not contain the
 mandatory bundled external code required for compilation.
 
+WPS 4.7.0 is pinned to release commit
+`5feccecd63384381b6942371c7a837f66e4ccb84` as a non-flake Nix source input.
+wrfkit copies that immutable source into `.wrfkit/src` before compilation because
+the WPS CMake path can build its bundled GRIB2 libraries in-place. WPS is built
+against wrfkit's existing CMake-built WRF installation.
+
 ## Commands
 
 ```text
-./wrfctl doctor          check the Nix-provided WRF toolchain
-./wrfctl fetch           extract the pinned WRF 4.8.0 source
-./wrfctl build           configure and compile MPI-enabled EM_REAL
-./wrfctl build --jobs N  compile with N parallel build jobs
-./wrfctl exec CMD ...    run CMD inside the pinned Nix environment
-./wrfctl exec wrf        run the installed WRF binary inside that environment
-./wrfctl exec real       run the installed real binary inside that environment
-./wrfctl clean           remove generated build/install files
-./wrfctl shell           enter the interactive wrfkit environment
+./wrfctl doctor                    check the Nix-provided WRF/WPS toolchain
+./wrfctl fetch                     materialize WRF source (backward-compatible default)
+./wrfctl fetch wps                 materialize pinned WPS 4.7.0 source
+./wrfctl fetch all                 materialize both source trees
+./wrfctl build                     build WRF (backward-compatible default)
+./wrfctl build wps                 build WPS against the existing WRF install
+./wrfctl build all --jobs N        build WRF, then WPS, with N parallel jobs
+./wrfctl exec wrf                  run the installed WRF binary in the Nix environment
+./wrfctl exec real                 run the installed real binary in the Nix environment
+./wrfctl exec geogrid              run the installed WPS geogrid binary
+./wrfctl exec ungrib               run the installed WPS ungrib binary
+./wrfctl exec metgrid              run the installed WPS metgrid binary
+./wrfctl exec CMD ...              run any command inside the pinned Nix environment
+./wrfctl clean                     remove generated WRF/WPS build/install files
+./wrfctl shell                     enter the interactive wrfkit environment
 ```
+
+`wrfctl build wps` requires a completed wrfkit WRF installation. Use
+`wrfctl build all` for a clean WRF -> WPS build sequence. The WPS build enables
+MPI for geogrid/metgrid and GRIB2 support, while a real-data WPS workflow
+(`namelist.wps`, geography, forcing, Vtable selection, and staging) remains the
+next milestone and is not yet claimed as validated.
 
 The source tree is preserved by `clean`; use `rm -rf .wrfkit/src` when a complete
 source reset is needed.
@@ -229,7 +256,8 @@ The current MVP pins:
 
 - the nixpkgs Git revision in `flake.nix`;
 - the WRF release version and release-archive SHA-256;
-- the WRF CMake configuration used by `scripts/build-wrf.sh`.
+- the WPS 4.7.0 release commit;
+- the WRF/WPS CMake configurations used by the build scripts.
 
 Nix does **not** make the host kernel, Slurm, network fabric, or HPC interconnect
 reproducible. Multi-node MPI integration therefore remains a separate validation

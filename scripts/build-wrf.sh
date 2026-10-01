@@ -8,7 +8,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --jobs|-j) jobs=$2; shift 2 ;;
     -h|--help)
-      echo "Usage: ./wrfctl build [--jobs N]"
+      echo "Usage: ./wrfctl build wrf [--jobs N]"
       exit 0
       ;;
     *) printf 'build-wrf: unknown option: %s\n' "$1" >&2; exit 2 ;;

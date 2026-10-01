@@ -1,11 +1,19 @@
 {
-  description = "Reproducible WRF 4.8.0 development environment";
+  description = "Reproducible WRF 4.8.0 + WPS 4.7.0 development environment";
 
   # Pin nixpkgs by commit so the initial environment is reproducible even
   # before a flake.lock is committed.
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/7fc6f2c20af09cdcaf48b92ec3121860139ec668";
 
-  outputs = { nixpkgs, ... }:
+  # WPS 4.7.0 release commit. Keep this as a non-flake source input; wrfkit
+  # copies it into project-local state before building because WPS' bundled
+  # GRIB2 externals are built in-place.
+  inputs.wps = {
+    url = "github:wrf-model/WPS/5feccecd63384381b6942371c7a837f66e4ccb84";
+    flake = false;
+  };
+
+  outputs = { nixpkgs, wps, ... }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
@@ -15,6 +23,9 @@
         url = "https://github.com/wrf-model/WRF/releases/download/v${wrfVersion}/v${wrfVersion}.tar.gz";
         hash = "sha256-87mXJmN54XGdGGySRxqPRPgYXpdiRKveghRaf93q9Bg=";
       };
+
+      wpsVersion = "4.7.0";
+      wpsRevision = "5feccecd63384381b6942371c7a837f66e4ccb84";
     in {
       packages.${system}.wrf-source = wrfArchive;
 
@@ -37,6 +48,8 @@
           openmpi
           perl
           pkg-config
+          python3
+          tcsh
           which
           zlib
         ];
@@ -44,8 +57,13 @@
         shellHook = ''
           export WRFKIT_NIX_SHELL=1
           export WRFKIT_SHELL=1
+
           export WRFKIT_WRF_VERSION="${wrfVersion}"
           export WRFKIT_WRF_ARCHIVE="${wrfArchive}"
+
+          export WRFKIT_WPS_VERSION="${wpsVersion}"
+          export WRFKIT_WPS_REV="${wpsRevision}"
+          export WRFKIT_WPS_SOURCE="${wps}"
 
           export CC=gcc
           export CXX=g++
@@ -54,15 +72,10 @@
           export F90=gfortran
 
           if [[ -n "''${WRFKIT_ROOT:-}" ]]; then
-            # Make the wrfctl command itself available without ./ while this
-            # shell is active.
-            export PATH="$WRFKIT_ROOT:$PATH"
-
-            wrfkit_bin="$WRFKIT_ROOT/.wrfkit/install/wrf-${wrfVersion}/bin"
-            if [[ -d "$wrfkit_bin" ]]; then
-              export PATH="$wrfkit_bin:$PATH"
-            fi
-            unset wrfkit_bin
+            # Make wrfctl and installed WRF/WPS binaries available without ./
+            # while this shell is active. The paths may not exist yet; keeping
+            # them in PATH means binaries become visible after a build.
+            export PATH="$WRFKIT_ROOT:$WRFKIT_ROOT/.wrfkit/install/wrf-${wrfVersion}/bin:$WRFKIT_ROOT/.wrfkit/install/wps-${wpsVersion}/bin:$PATH"
           fi
 
           # Conda-style marker for interactive Bash prompts. Some prompt
@@ -73,7 +86,7 @@
             _wrfkit_prompt_marker() {
               case "''${PS1:-}" in
                 *"(wrfkit) "*) ;;
-                *) PS1="''${PS1:-\\u@\\h:\\w\\$ }(wrfkit) " ;;
+                *) PS1="''${PS1:-\u@\h:\w\$ }(wrfkit) " ;;
               esac
             }
 
