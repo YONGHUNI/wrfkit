@@ -53,8 +53,21 @@ cleanup() { rm -rf "$tmp"; }
 trap cleanup EXIT
 
 tar -xzf "$archive" -C "$tmp"
-source_dir="$tmp"
-[[ -d "$tmp/WPS_GEOG" ]] && source_dir="$tmp/WPS_GEOG"
+
+source_dir=""
+for candidate in "$tmp" "$tmp/WPS_GEOG" "$tmp/geog"; do
+  if [[ -d "$candidate/albedo_modis" ]]; then
+    source_dir="$candidate"
+    break
+  fi
+done
+
+[[ -n "$source_dir" ]] || {
+  echo "wrfkit: could not locate the geography dataset root in the downloaded archive" >&2
+  echo "Top-level archive entries:" >&2
+  tar -tzf "$archive" | sed -n '1,20p' >&2
+  exit 1
+}
 
 rm -rf "$WRFKIT_GEOG_DIR"
 mkdir -p "$WRFKIT_GEOG_DIR"
