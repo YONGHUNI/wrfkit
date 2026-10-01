@@ -4,9 +4,11 @@ set -Eeuo pipefail
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 WRF_VERSION=4.8.0
 WPS_VERSION=4.7.0
-WRF_BIN_DIR="$ROOT/.wrfkit/install/wrf-$WRF_VERSION/bin"
-WPS_BIN_DIR="$ROOT/.wrfkit/install/wps-$WPS_VERSION/bin"
-WRFKIT_LOG_ROOT="${WRFKIT_STATE_DIR:-$ROOT/.wrfkit}/logs"
+WRFKIT_STATE_ROOT="${WRFKIT_STATE_DIR:-$ROOT/.wrfkit}"
+WRFKIT_WORK_ROOT="$WRFKIT_STATE_ROOT/work"
+WRF_BIN_DIR="$WRFKIT_STATE_ROOT/install/wrf-$WRF_VERSION/bin"
+WPS_BIN_DIR="$WRFKIT_STATE_ROOT/install/wps-$WPS_VERSION/bin"
+WRFKIT_LOG_ROOT="$WRFKIT_STATE_ROOT/logs"
 
 usage() {
   cat <<'USAGE'
@@ -19,8 +21,8 @@ Commands:
   prepare gfs --case NAME              Stage Vtable.GFS and GRIBFILE links for a case.
   exec <command> [--case NAME] [--ntasks N] [--launcher NAME] [--] [args...]
                                       Run a command inside the pinned Nix environment.
-                                      --case NAME runs from cases/NAME without changing
-                                      the caller's working directory. MPI launchers:
+                                      --case NAME runs from .wrfkit/work/NAME while
+                                      cases/NAME remains configuration-only. MPI launchers:
                                       auto, srun, mpirun, mpiexec, custom.
   clean                               Remove generated build/install state.
   shell                               Enter the interactive wrfkit environment.
@@ -437,6 +439,46 @@ run_logged() {
   return "$status"
 }
 
+stage_workspace_link() {
+  local src=$1 dest=$2
+
+  if [[ -e "$dest" && ! -L "$dest" ]]; then
+    printf 'wrfkit: refusing to replace non-symlink workspace file: %s\n' "$dest" >&2
+    return 2
+  fi
+
+  rm -f "$dest"
+  ln -s "$src" "$dest"
+}
+
+stage_case_workspace() {
+  local case_name=$1 case_dir=$2 work_dir=$3
+  local name wps_src
+
+  mkdir -p "$work_dir"
+
+  # Case-owned scientific configuration remains under cases/<name>.
+  for name in namelist.wps namelist.input; do
+    if [[ -r "$case_dir/$name" ]]; then
+      stage_workspace_link "$case_dir/$name" "$work_dir/$name"
+    fi
+  done
+
+  # WPS tables are runtime plumbing, not case configuration.
+  wps_src="$WRFKIT_STATE_ROOT/src/WPS-$WPS_VERSION"
+  if [[ -r "$wps_src/geogrid/GEOGRID.TBL.ARW" ]]; then
+    stage_workspace_link "$wps_src/geogrid/GEOGRID.TBL.ARW" "$work_dir/GEOGRID.TBL"
+  fi
+  if [[ -r "$wps_src/metgrid/METGRID.TBL.ARW" ]]; then
+    stage_workspace_link "$wps_src/metgrid/METGRID.TBL.ARW" "$work_dir/METGRID.TBL"
+  fi
+
+  # The current smoke-case convention uses geog_data_path='geog'.
+  if [[ -r "$case_dir/namelist.wps" ]]; then
+    stage_workspace_link "$WRFKIT_STATE_ROOT/data/geog/low-res-mandatory" "$work_dir/geog"
+  fi
+}
+
 run_exec() {
   [[ $# -gt 0 ]] || {
     echo "Usage: ./wrfctl exec <command> [--case NAME] [--ntasks N] [--launcher NAME] [--] [args...]" >&2
@@ -446,6 +488,7 @@ run_exec() {
   local command=$1
   local case_name=""
   local case_dir=""
+  local work_dir=""
   local exec_ntasks=""
   local exec_launcher=""
   local -a command_args=()
@@ -528,8 +571,13 @@ run_exec() {
       exit 2
     }
 
+    work_dir="$WRFKIT_WORK_ROOT/$case_name"
+    stage_case_workspace "$case_name" "$case_dir" "$work_dir"
+
     export WRFKIT_CASE_NAME="$case_name"
-    cd "$case_dir"
+    export WRFKIT_CASE_DIR="$case_dir"
+    export WRFKIT_WORK_DIR="$work_dir"
+    cd "$work_dir"
   fi
 
   set -- "${command_args[@]}"

@@ -14,6 +14,7 @@ done
 
 [[ -n "$case_name" ]] || { usage; exit 2; }
 case_dir="$WRFKIT_ROOT/cases/$case_name"
+work_dir=$(stage_case_workspace "$case_name")
 forcing_conf="$case_dir/forcing.conf"
 [[ -r "$forcing_conf" ]] || { printf 'prepare gfs: forcing config not found: %s\n' "$forcing_conf" >&2; exit 2; }
 
@@ -28,9 +29,9 @@ vtable_src="$WRFKIT_WPS_SRC_DIR/ungrib/Variable_Tables/Vtable.GFS"
   exit 2
 }
 
-rm -f "$case_dir/Vtable"
-ln -s "../../.wrfkit/src/WPS-${WRFKIT_WPS_VERSION}/ungrib/Variable_Tables/Vtable.GFS" "$case_dir/Vtable"
-rm -f "$case_dir"/GRIBFILE.???
+rm -f "$work_dir/Vtable"
+ln -s "$vtable_src" "$work_dir/Vtable"
+rm -f "$work_dir"/GRIBFILE.???
 
 suffixes=(AAA AAB AAC AAD AAE AAF AAG AAH AAI AAJ AAK AAL AAM AAN AAO AAP)
 i=0
@@ -43,11 +44,11 @@ for fh in $GFS_FORECAST_HOURS; do
     exit 2
   }
   (( i < ${#suffixes[@]} )) || { echo "prepare gfs: too many forcing files for current smoke-test linker" >&2; exit 2; }
-  rel="../../.wrfkit/data/gfs/$GFS_DATE/$GFS_CYCLE/atmos/$file"
-  ln -s "$rel" "$case_dir/GRIBFILE.${suffixes[$i]}"
+  ln -s "$src" "$work_dir/GRIBFILE.${suffixes[$i]}"
   i=$((i + 1))
 done
 
 printf 'Prepared GFS forcing for case %s:\n' "$case_name"
-printf '  Vtable -> %s\n' "$(readlink "$case_dir/Vtable")"
+printf '  workspace: %s\n' "$work_dir"
+printf '  Vtable -> %s\n' "$(readlink "$work_dir/Vtable")"
 printf '  GRIB files: %d\n' "$i"

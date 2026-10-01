@@ -35,6 +35,7 @@ case_dir="$WRFKIT_ROOT/cases/$case_name"
   printf 'prepare wrf: case not found: %s\n' "$case_dir" >&2
   exit 2
 }
+work_dir=$(stage_case_workspace "$case_name")
 
 wrf_run_dir="$WRFKIT_SRC_DIR/run"
 [[ -d "$wrf_run_dir" ]] || {
@@ -57,17 +58,18 @@ for src in "$wrf_run_dir"/*; do
   # supplied by the pinned WRF source tree.
   [[ "$name" == "namelist.input" ]] && continue
 
-  dest="$case_dir/$name"
+  dest="$work_dir/$name"
   if [[ -e "$dest" && ! -L "$dest" ]]; then
-    printf 'prepare wrf: refusing to replace case-owned file: %s\n' "$dest" >&2
+    printf 'prepare wrf: refusing to replace workspace file: %s\n' "$dest" >&2
     exit 2
   fi
 
   rm -f "$dest"
-  ln -s "../../.wrfkit/src/WRF-${WRFKIT_WRF_VERSION}/run/$name" "$dest"
+  ln -s "$src" "$dest"
   linked=$((linked + 1))
 done
 
 printf 'Prepared WRF runtime data for case %s:\n' "$case_name"
 printf '  source: %s\n' "$wrf_run_dir"
+printf '  workspace: %s\n' "$work_dir"
 printf '  linked runtime files: %d\n' "$linked"

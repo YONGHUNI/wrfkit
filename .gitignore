@@ -5,27 +5,3 @@ result-*
 .DS_Store
 *.swp
 *~
-
-# Generated WPS/WRF case products
-cases/*/geo_em*.nc
-cases/*/FILE:*
-cases/*/PFILE:*
-cases/*/met_em*.nc
-cases/*/wrfinput_d*
-cases/*/wrfbdy_d*
-cases/*/wrfout_d*
-cases/*/rsl.out.*
-cases/*/rsl.error.*
-
-# Generated WPS forcing staging
-cases/*/Vtable
-cases/*/GRIBFILE.???
-
-# Generated WRF real/run products
-cases/*/wrfinput_d0*
-cases/*/wrfbdy_d0*
-cases/*/wrflowinp_d0*
-cases/*/wrfrst_d0*
-cases/*/wrfout_d0*
-cases/*/rsl.out.*
-cases/*/rsl.error.*

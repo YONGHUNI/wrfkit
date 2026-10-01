@@ -11,6 +11,7 @@ WRFKIT_DATA_DIR=${WRFKIT_DATA_DIR:-"$WRFKIT_STATE_DIR/data"}
 WRFKIT_CACHE_DIR=${WRFKIT_CACHE_DIR:-"$WRFKIT_STATE_DIR/cache"}
 WRFKIT_GEOG_DIR=${WRFKIT_GEOG_DIR:-"$WRFKIT_DATA_DIR/geog/low-res-mandatory"}
 WRFKIT_GFS_DIR=${WRFKIT_GFS_DIR:-"$WRFKIT_DATA_DIR/gfs"}
+WRFKIT_WORK_DIR=${WRFKIT_WORK_DIR:-"$WRFKIT_STATE_DIR/work"}
 
 WRFKIT_SRC_DIR=${WRFKIT_SRC_DIR:-"$WRFKIT_STATE_DIR/src/WRF-${WRFKIT_WRF_VERSION}"}
 
@@ -75,4 +76,50 @@ ensure_wps_source() {
 reset_wps_source() {
   rm -rf "$WRFKIT_WPS_SRC_DIR"
   ensure_wps_source
+}
+
+
+stage_workspace_link() {
+  local src=$1 dest=$2
+
+  if [[ -e "$dest" && ! -L "$dest" ]]; then
+    printf 'wrfkit: refusing to replace non-symlink workspace file: %s\n' "$dest" >&2
+    return 2
+  fi
+
+  rm -f "$dest"
+  ln -s "$src" "$dest"
+}
+
+stage_case_workspace() {
+  local case_name=$1
+  local case_dir="$WRFKIT_ROOT/cases/$case_name"
+  local work_dir="$WRFKIT_WORK_DIR/$case_name"
+  local name
+
+  [[ -d "$case_dir" ]] || {
+    printf 'wrfkit: case not found: %s\n' "$case_dir" >&2
+    return 2
+  }
+
+  mkdir -p "$work_dir"
+
+  for name in namelist.wps namelist.input; do
+    if [[ -r "$case_dir/$name" ]]; then
+      stage_workspace_link "$case_dir/$name" "$work_dir/$name"
+    fi
+  done
+
+  if [[ -r "$WRFKIT_WPS_SRC_DIR/geogrid/GEOGRID.TBL.ARW" ]]; then
+    stage_workspace_link "$WRFKIT_WPS_SRC_DIR/geogrid/GEOGRID.TBL.ARW" "$work_dir/GEOGRID.TBL"
+  fi
+  if [[ -r "$WRFKIT_WPS_SRC_DIR/metgrid/METGRID.TBL.ARW" ]]; then
+    stage_workspace_link "$WRFKIT_WPS_SRC_DIR/metgrid/METGRID.TBL.ARW" "$work_dir/METGRID.TBL"
+  fi
+
+  if [[ -r "$case_dir/namelist.wps" ]]; then
+    stage_workspace_link "$WRFKIT_GEOG_DIR" "$work_dir/geog"
+  fi
+
+  printf '%s' "$work_dir"
 }
