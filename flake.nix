@@ -53,7 +53,11 @@
           export F77=gfortran
           export F90=gfortran
 
-          if [[ -n "${WRFKIT_ROOT:-}" ]]; then
+          if [[ -n "''${WRFKIT_ROOT:-}" ]]; then
+            # Make the wrfctl command itself available without ./ while this
+            # shell is active.
+            export PATH="$WRFKIT_ROOT:$PATH"
+
             wrfkit_bin="$WRFKIT_ROOT/.wrfkit/install/wrf-${wrfVersion}/bin"
             if [[ -d "$wrfkit_bin" ]]; then
               export PATH="$wrfkit_bin:$PATH"
@@ -64,8 +68,8 @@
           # Conda-style marker for ordinary interactive Bash prompts.
           # This only changes the current nix develop session; no dotfiles
           # or shell profiles are modified.
-          if [[ $- == *i* ]] && [[ "${PS1:-}" != "(wrfkit) "* ]]; then
-            export PS1="(wrfkit) ${PS1:-\\u@\\h:\\w\\$ }"
+          if [[ $- == *i* ]] && [[ "''${PS1:-}" != "(wrfkit) "* ]]; then
+            export PS1="(wrfkit) ''${PS1:-\\u@\\h:\\w\\$ }"
           fi
         '';
       };
