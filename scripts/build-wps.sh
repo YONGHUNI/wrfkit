@@ -45,6 +45,10 @@ printf '  WRF root: %s\n  source: %s\n  build: %s\n  install: %s\n  jobs: %s\n\n
 
 cd "$WRFKIT_WPS_SRC_DIR"
 
+# WPS 4.7.0 builds its bundled Jasper/libpng/zlib under the install prefix
+# during CMake configure, but the internal g2 target does not propagate the
+# Jasper/libpng include directories to dec_jpeg2000.c/dec_png.c. Add the
+# bundled include root explicitly so the GRIB2 decoder sources compile.
 ./configure_new \
   -p gfortran \
   -x \
@@ -56,7 +60,8 @@ cd "$WRFKIT_WPS_SRC_DIR"
   -DUSE_WRF=ON \
   -DUSE_MPI=ON \
   -DUSE_OPENMP=OFF \
-  -DBUILD_EXTERNALS=ON
+  -DBUILD_EXTERNALS=ON \
+  -DCMAKE_C_FLAGS="-I$WRFKIT_WPS_INSTALL_DIR/grib2/include"
 
 ./compile_new "$WRFKIT_WPS_BUILD_DIR" -j "$jobs"
 
