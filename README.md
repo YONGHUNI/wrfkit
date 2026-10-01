@@ -44,8 +44,8 @@ git clone git@github.com:YONGHUNI/wrfkit.git
 cd wrfkit
 
 ./wrfctl doctor
-./wrfctl fetch
-./wrfctl build
+./wrfctl fetch all
+./wrfctl build all
 ```
 
 `wrfctl` enters the pinned Nix development environment automatically. You do
@@ -119,7 +119,7 @@ interact -c 16 --mem=64G --time=02:00:00 --gres=lscratch:100
 cd ~/work/project/wrfkit
 ./bootstrap --profile sapelo2
 ./wrfctl doctor
-./wrfctl build
+./wrfctl build all
 ```
 
 For reproducible/manual use, explicitly selecting `--profile sapelo2` is recommended. If no profile is supplied, `./bootstrap` still attempts Sapelo2 auto-detection as a convenience fallback.
@@ -225,11 +225,11 @@ against wrfkit's existing CMake-built WRF installation.
 
 ```text
 ./wrfctl doctor                    check the Nix-provided WRF/WPS toolchain
-./wrfctl fetch                     materialize WRF source (backward-compatible default)
+./wrfctl fetch wrf                 materialize pinned WRF 4.8.0 source
 ./wrfctl fetch wps                 materialize pinned WPS 4.7.0 source
 ./wrfctl fetch all                 materialize both source trees
-./wrfctl build                     build WRF (backward-compatible default)
-./wrfctl build wps                 build WPS against the existing WRF install
+./wrfctl build wrf --jobs N        build WRF with N parallel jobs
+./wrfctl build wps --jobs N        build WPS against the existing WRF install
 ./wrfctl build all --jobs N        build WRF, then WPS, with N parallel jobs
 ./wrfctl exec wrf                  run the installed WRF binary in the Nix environment
 ./wrfctl exec real                 run the installed real binary in the Nix environment

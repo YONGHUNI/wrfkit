@@ -5,9 +5,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 
 usage() {
   cat <<'USAGE'
-Usage: ./wrfctl build [wrf|wps|all] [--jobs N]
-
-Default target: wrf
+Usage: ./wrfctl build <wrf|wps|all> [--jobs N]
 
 Targets:
   wrf   Build WRF 4.8.0.
@@ -16,14 +14,13 @@ Targets:
 USAGE
 }
 
-target=wrf
-case "${1:-}" in
-  wrf|wps|all) target=$1; shift ;;
-  -h|--help) usage; exit 0 ;;
-  "") ;;
-  -*) ;;
-  *) printf 'build: unknown target: %s\n' "$1" >&2; usage >&2; exit 2 ;;
-esac
+[[ $# -gt 0 ]] || {
+  usage >&2
+  exit 2
+}
+
+target=$1
+shift
 
 case "$target" in
   wrf) exec "$SCRIPT_DIR/build-wrf.sh" "$@" ;;
@@ -31,5 +28,13 @@ case "$target" in
   all)
     "$SCRIPT_DIR/build-wrf.sh" "$@"
     "$SCRIPT_DIR/build-wps.sh" "$@"
+    ;;
+  -h|--help)
+    usage
+    ;;
+  *)
+    printf 'build: unknown target: %s\n' "$target" >&2
+    usage >&2
+    exit 2
     ;;
 esac

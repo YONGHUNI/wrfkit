@@ -5,20 +5,17 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 
 usage() {
   cat <<'USAGE'
-Usage: ./wrfctl fetch [wrf|wps|all]
-
-Default target: wrf
+Usage: ./wrfctl fetch <wrf|wps|all>
 USAGE
 }
 
-target=wrf
-case "${1:-}" in
-  wrf|wps|all) target=$1; shift ;;
-  -h|--help) usage; exit 0 ;;
-  "") ;;
-  -*) printf 'fetch: unknown option: %s\n' "$1" >&2; exit 2 ;;
-  *) printf 'fetch: unknown target: %s\n' "$1" >&2; usage >&2; exit 2 ;;
-esac
+[[ $# -gt 0 ]] || {
+  usage >&2
+  exit 2
+}
+
+target=$1
+shift
 
 [[ $# -eq 0 ]] || {
   printf 'fetch: unexpected argument: %s\n' "$1" >&2
@@ -31,5 +28,13 @@ case "$target" in
   all)
     "$SCRIPT_DIR/fetch-wrf.sh"
     "$SCRIPT_DIR/fetch-wps.sh"
+    ;;
+  -h|--help)
+    usage
+    ;;
+  *)
+    printf 'fetch: unknown target: %s\n' "$target" >&2
+    usage >&2
+    exit 2
     ;;
 esac

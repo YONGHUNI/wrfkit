@@ -13,7 +13,7 @@ Usage: ./wrfctl <command> [options]
 
 Commands:
   doctor                              Check the pinned WRF/WPS build toolchain.
-  fetch [wrf|wps|all]                 Materialize pinned source trees.
+  fetch <wrf|wps|all>                 Materialize pinned source trees.
   build [wrf|wps|all] [--jobs N]      Build WRF, WPS, or both.
                                       Bare 'build' remains WRF-only for compatibility.
   exec <command> [args...]            Run a command inside the pinned Nix environment.
