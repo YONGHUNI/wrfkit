@@ -65,11 +65,38 @@
             unset wrfkit_bin
           fi
 
-          # Conda-style marker for ordinary interactive Bash prompts.
-          # This only changes the current nix develop session; no dotfiles
-          # or shell profiles are modified.
-          if [[ $- == *i* ]] && [[ "''${PS1:-}" != "(wrfkit) "* ]]; then
-            export PS1="(wrfkit) ''${PS1:-\\u@\\h:\\w\\$ }"
+          # Conda-style marker for interactive Bash prompts. Some prompt
+          # frameworks rebuild PS1 before every prompt, so enforce the marker
+          # from PROMPT_COMMAND instead of setting PS1 only once.
+          # This is session-local; no user dotfiles are modified.
+          if [[ $- == *i* ]]; then
+            _wrfkit_prompt_marker() {
+              if [[ "''${PS1:-}" != "(wrfkit) "* ]]; then
+                PS1="(wrfkit) ''${PS1:-\\u@\\h:\\w\\$ }"
+              fi
+            }
+
+            if declare -p PROMPT_COMMAND 2>/dev/null | grep -q '^declare -a'; then
+              wrfkit_pc_present=0
+              for wrfkit_pc in "''${PROMPT_COMMAND[@]}"; do
+                [[ "$wrfkit_pc" == "_wrfkit_prompt_marker" ]] && wrfkit_pc_present=1
+              done
+              (( wrfkit_pc_present )) || PROMPT_COMMAND+=(_wrfkit_prompt_marker)
+              unset wrfkit_pc wrfkit_pc_present
+            else
+              case ";''${PROMPT_COMMAND:-};" in
+                *";_wrfkit_prompt_marker;"*) ;;
+                *)
+                  if [[ -n "''${PROMPT_COMMAND:-}" ]]; then
+                    PROMPT_COMMAND="''${PROMPT_COMMAND%;};_wrfkit_prompt_marker"
+                  else
+                    PROMPT_COMMAND="_wrfkit_prompt_marker"
+                  fi
+                  ;;
+              esac
+            fi
+
+            _wrfkit_prompt_marker
           fi
         '';
       };
