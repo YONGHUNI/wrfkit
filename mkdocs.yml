@@ -1,0 +1,82 @@
+site_name: wrfkit
+site_description: Reproducible WRF/WPS environments and single-node HPC workflows
+site_url: https://yonghuni.github.io/wrfkit/
+repo_url: https://github.com/YONGHUNI/wrfkit
+repo_name: YONGHUNI/wrfkit
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: en
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+    - content.action.edit
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+nav:
+  - Home: index.md
+  - Start here:
+      - Your first WRF run: tutorials/first-run.md
+      - What do these words mean?: reference/glossary.md
+  - Guides:
+      - Single-node research guide: single-node-guide.md
+      - Run WRF with sbatch: how-to/sapelo2-batch.md
+      - Make a research case: how-to/research-case.md
+      - Check whether a run succeeded: how-to/check-run.md
+      - Troubleshooting: troubleshooting.md
+  - Reference:
+      - wrfctl commands: reference/commands.md
+      - Files and folders: reference/files-and-folders.md
+      - Validation matrix: validation.md
+      - Caveats: caveats.md
+  - Learn:
+      - How wrfkit works: explanation/how-it-works.md
+      - Design notes: design.md
+  - Project:
+      - Documentation site: development/docs-site.md
+
+copyright: "wrfkit documentation"

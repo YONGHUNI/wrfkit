@@ -8,6 +8,10 @@ compiler, MPI, NetCDF, CMake, or Linux-distribution differences manually.
 
 > Hide the system complexity, not the scientific configuration.
 
+**Documentation:** https://yonghuni.github.io/wrfkit/
+
+New to WRF, HPC, or Nix? Start with the [first-run tutorial](https://yonghuni.github.io/wrfkit/tutorials/first-run/). It is written to be usable without prior HPC experience.
+
 ## Current status
 
 This repository is an early MVP. The first milestone is deliberately narrow:
