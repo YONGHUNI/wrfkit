@@ -55,12 +55,19 @@ trap cleanup EXIT
 tar -xzf "$archive" -C "$tmp"
 
 source_dir=""
-for candidate in "$tmp" "$tmp/WPS_GEOG" "$tmp/geog"; do
-  if [[ -d "$candidate/albedo_modis" ]]; then
-    source_dir="$candidate"
-    break
-  fi
-done
+if [[ -d "$tmp/albedo_modis" ]]; then
+  source_dir="$tmp"
+else
+  # NCAR geography archives may wrap the dataset in a release-specific
+  # top-level directory (for example WPS_GEOG_LOW_RES/). Detect the dataset
+  # root by looking for a direct child that contains a required field.
+  while IFS= read -r candidate; do
+    if [[ -d "$candidate/albedo_modis" ]]; then
+      source_dir="$candidate"
+      break
+    fi
+  done < <(find "$tmp" -mindepth 1 -maxdepth 1 -type d -print)
+fi
 
 [[ -n "$source_dir" ]] || {
   echo "wrfkit: could not locate the geography dataset root in the downloaded archive" >&2
