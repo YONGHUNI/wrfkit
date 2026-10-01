@@ -241,7 +241,8 @@ per-node environment realization.
 ./wrfctl doctor                    check the Nix-provided WRF/WPS toolchain
 ./wrfctl fetch wrf                 materialize pinned WRF 4.8.0 source
 ./wrfctl fetch wps                 materialize pinned WPS 4.7.0 source
-./wrfctl fetch all                 materialize both source trees
+./wrfctl fetch geog                download low-res mandatory WPS geography for smoke tests
+./wrfctl fetch all                 materialize both software source trees
 ./wrfctl build wrf --jobs N        build WRF with N parallel jobs
 ./wrfctl build wps --jobs N        build WPS against the existing WRF install
 ./wrfctl build all --jobs N        build WRF, then WPS, with N parallel jobs
@@ -266,6 +267,27 @@ next milestone and is not yet claimed as validated.
 
 The source tree is preserved by `clean`; use `rm -rf .wrfkit/src` when a complete
 source reset is needed.
+
+### First real-data smoke case
+
+The repository includes `cases/athens-smoke`, a one-domain 12 km geogrid smoke
+case centered near Athens, Georgia. Fetch the official NCAR low-resolution
+mandatory geography package and run geogrid with:
+
+```bash
+./wrfctl fetch geog
+cd cases/athens-smoke
+../../wrfctl exec geogrid
+```
+
+The geography is stored persistently at
+`.wrfkit/data/geog/low-res-mandatory`, while the downloaded archive is cached
+under `.wrfkit/cache`. The low-resolution package is for testing/education
+only; production or research simulations should use the appropriate
+higher-resolution static datasets.
+
+A successful smoke run creates `geo_em.d01.nc` in the case directory. Native
+`geogrid.log` is collected under `.wrfkit/logs/athens-smoke/<run-id>/`.
 
 ### Case-scoped execution logs
 

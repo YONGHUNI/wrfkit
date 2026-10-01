@@ -110,9 +110,17 @@ building the zlib/libpng/Jasper sources bundled with the pinned WPS release.
 This avoids coupling the build to whatever Jasper ABI a generic host happens to
 provide.
 
-Build integration is separate from the future real-data workflow. Geographic
-datasets, meteorological forcing, Vtable selection, `namelist.wps`, and WPS
-working-directory staging will be added on top of this build layer.
+Build integration is separate from the future real-data workflow. The first
+real-data milestone starts with a geogrid-only `athens-smoke` case. Its
+low-resolution mandatory WPS geography is downloaded into persistent state at
+`.wrfkit/data/geog/low-res-mandatory`; the source archive is cached separately
+under `.wrfkit/cache`. This low-resolution dataset is a validation fixture, not
+a production-data default.
+
+The smoke case keeps its native `namelist.wps` tracked under
+`cases/athens-smoke` and selects the `lowres` resolution defined by WPS
+4.7.0's `GEOGRID.TBL.ARW`. Meteorological forcing, Vtable selection, ungrib,
+and metgrid staging remain subsequent milestones.
 
 ## MPI policy
 
