@@ -13,7 +13,7 @@ compiler, MPI, NetCDF, CMake, or Linux-distribution differences manually.
 This repository is an early MVP. The first milestone is deliberately narrow:
 
 - WRF **4.8.0**
-- WPS **4.7.0** build integration (pending live Sapelo2 validation)
+- WPS **4.7.0** build integration (build and runtime linkage validated on Sapelo2)
 - Linux **x86_64**
 - GNU C/C++/Fortran toolchain
 - OpenMPI-enabled WRF build
@@ -220,6 +220,16 @@ WPS 4.7.0 is pinned to release commit
 wrfkit copies that immutable source into `.wrfkit/src` before compilation because
 the WPS CMake path can build its bundled GRIB2 libraries in-place. WPS is built
 against wrfkit's existing CMake-built WRF installation.
+
+wrfkit also applies a narrow compatibility patch to WPS' geogrid/metgrid error
+path. Upstream WPS calls `MPI_Abort` for fatal errors even with a single MPI
+rank; when the program is launched directly inside an interactive Slurm step,
+that can cancel the step hosting the user's shell. For one-rank runs, wrfkit
+finalizes MPI and exits non-zero instead. For two or more ranks, the upstream
+`MPI_Abort` behavior is preserved so a distributed failure terminates all ranks
+rather than leaving peers blocked. This does not select a Slurm topology or
+hard-code a single-node launcher; multi-node launch policy remains an execution-
+backend concern.
 
 ## Commands
 

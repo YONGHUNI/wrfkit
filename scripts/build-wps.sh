@@ -33,12 +33,31 @@ wrf_config="$WRFKIT_INSTALL_DIR/lib/cmake/WRF/WRFConfig.cmake"
 # WPS' bundled GRIB2 libraries are configured/built in-place. Start each WPS
 # build from a pristine copy of the pinned source so rebuilds are deterministic.
 reset_wps_source
+
+# WPS 4.7.0 calls MPI_Abort even when geogrid/metgrid run as a single MPI
+# process. Inside an interactive Slurm step that can cancel the shell's step
+# for ordinary input errors (for example a missing namelist.wps). Apply a
+# pinned compatibility patch that finalizes MPI for exactly one rank while
+# preserving MPI_Abort for multi-rank runs, where a collective failure must
+# terminate all ranks rather than risk leaving peers blocked.
+wps_abort_patch="$WRFKIT_ROOT/patches/wps-4.7.0/0001-single-rank-graceful-abort.patch"
+[[ -r "$wps_abort_patch" ]] || {
+  printf 'wrfkit: missing WPS compatibility patch: %s\n' "$wps_abort_patch" >&2
+  exit 2
+}
+(
+  cd "$WRFKIT_WPS_SRC_DIR"
+  git apply --check "$wps_abort_patch"
+  git apply "$wps_abort_patch"
+)
+
 rm -rf "$WRFKIT_WPS_BUILD_DIR" "$WRFKIT_WPS_INSTALL_DIR"
 mkdir -p "$WRFKIT_WPS_BUILD_DIR" "$WRFKIT_WPS_INSTALL_DIR"
 
 printf 'WPS build configuration\n'
 printf '  version: %s\n  revision: %s\n  MPI: enabled\n  GRIB2: bundled externals\n' \
   "$WRFKIT_WPS_VERSION" "$WRFKIT_WPS_REV"
+printf '  MPI error policy: single-rank graceful exit; multi-rank MPI_Abort\n'
 printf '  WRF root: %s\n  source: %s\n  build: %s\n  install: %s\n  jobs: %s\n\n' \
   "$WRFKIT_INSTALL_DIR" "$WRFKIT_WPS_SRC_DIR" "$WRFKIT_WPS_BUILD_DIR" \
   "$WRFKIT_WPS_INSTALL_DIR" "$jobs"

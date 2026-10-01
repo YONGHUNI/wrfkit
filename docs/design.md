@@ -98,6 +98,29 @@ working-directory staging will be added on top of this build layer.
 The initial WRF build enables MPI and uses Nix-provided OpenMPI. Single-node MPI
 is the first validation target.
 
+WPS geogrid/metgrid are also built with MPI. WPS 4.7.0's upstream fatal-error
+path calls `MPI_Abort` even when only one rank exists. That behavior is unsafe
+for a program launched directly in the Slurm step hosting an interactive shell:
+an ordinary WPS input error can cancel the shell's step. wrfkit therefore applies
+a pinned source patch with rank-aware error handling:
+
+```text
+1 rank   -> MPI_Finalize -> non-zero process exit
+2+ ranks -> MPI_Abort(MPI_COMM_WORLD) -> terminate the distributed run
+```
+
+The multi-rank branch deliberately retains `MPI_Abort`. `MPI_Finalize` is
+collective, so attempting a graceful finalize only on the rank that encounters
+a fatal distributed error could deadlock while other ranks remain in MPI work.
+The patch therefore protects interactive single-rank use without weakening the
+failure semantics needed for future multi-node execution.
+
+wrfkit does not automatically wrap `exec` in `srun --nodes=1 --ntasks=1`.
+Doing so would bake a single-node topology into the generic execution layer and
+conflict with future multi-node launch policy. A Slurm backend should create
+dedicated job steps with an explicit task/node layout when multi-node support is
+implemented.
+
 Generic multi-node MPI portability is not considered solved merely because WRF
 compiles with MPI. HPC execution can depend on Slurm, PMIx, UCX, InfiniBand/RDMA,
 and site-specific MPI configuration.
