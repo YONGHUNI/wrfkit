@@ -81,17 +81,20 @@ Git status focused on intentional case-configuration changes while preserving
 WRF's native file-based pipeline in one directory.
 
 Execution logs are persistent provenance rather than disposable scratch data.
-wrfkit therefore collects native WPS/WRF diagnostic logs under:
+wrfkit therefore snapshots native WPS/WRF diagnostic logs under:
 
 ```text
 <project>/.wrfkit/logs/<case>/<run-id>/
 ```
 
 A run directory records the invoked command, working directory, exit status,
-Slurm job/step identifiers when available, and the native program logs. WPS logs
-(`geogrid.log*`, `metgrid.log*`, `ungrib.log`) and WRF RSL logs
-(`rsl.out.*`, `rsl.error.*`) are moved there after execution. Model products
-remain in the generated workspace; scientific configuration remains under
+Slurm job/step identifiers when available, a run-start marker, and one
+`native-logs.tar` archive. WPS logs (`geogrid.log*`, `metgrid.log*`,
+`ungrib.log`) and WRF RSL logs (`rsl.out.*`, `rsl.error.*`) remain in the
+execution workspace and are archived only when modified by the current run.
+This deliberately avoids many per-file rename operations on shared filesystems,
+where metadata latency can dominate a short model run. Model products remain in
+the generated workspace; scientific configuration remains under
 `cases/<name>`.
 
 Until `wrfctl init` establishes a first-class case manifest, `wrfctl exec`
@@ -232,7 +235,11 @@ scratch_root=/lscratch/$USER/wrfkit
 
 The scratch root is for disposable high-I/O work. Persistent wrfkit state remains
 project-local by default; wrfkit does not require the repository itself to live
-on any particular Sapelo2 filesystem.
+on any particular Sapelo2 filesystem. Case workspaces currently remain
+project-local because they contain scientific products that must survive across
+job/node boundaries. A future scratch-backed workspace policy must first define
+explicit persistence for outputs such as `wrfout*`; `scratch_root` is therefore
+not used implicitly for case execution yet.
 
 The optional shared rootless-Nix profile uses:
 

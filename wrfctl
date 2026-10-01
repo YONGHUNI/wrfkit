@@ -362,10 +362,11 @@ create_run_log_dir() {
   printf '%s' "$candidate"
 }
 
-move_program_logs() {
-  local program=$1 destination=$2
-  local pattern file
+archive_program_logs() {
+  local program=$1 destination=$2 marker=$3
+  local pattern file archive
   local -a patterns=()
+  local -a files=()
 
   case "$program" in
     geogrid|geogrid.exe) patterns=(geogrid.log geogrid.log.*) ;;
@@ -378,17 +379,32 @@ move_program_logs() {
   esac
 
   shopt -s nullglob
-  local -a files=()
   for pattern in "${patterns[@]}"; do
     for file in "$PWD"/$pattern; do
-      [[ -f "$file" ]] && files+=("$file")
+      [[ -f "$file" ]] || continue
+
+      # Native WRF/WPS log names are reused between runs. Archive only files
+      # touched by this invocation so stale files from a larger prior MPI run
+      # are not mixed into the current run's provenance.
+      [[ "$file" -nt "$marker" ]] || continue
+      files+=("${file#"$PWD"/}")
     done
   done
   shopt -u nullglob
 
-  ((${#files[@]})) || return 0
+  (("${#files[@]}")) || return 0
+
   mkdir -p "$destination"
-  mv -- "${files[@]}" "$destination"/
+  archive="$destination/native-logs.tar"
+
+  # Keep native logs in the execution workspace and write one archival object
+  # to persistent provenance storage. Some shared HPC filesystems make a batch
+  # of per-file rename(2) operations disproportionately expensive even within
+  # one filesystem.
+  (
+    cd "$PWD"
+    tar -cf "$archive" -- "${files[@]}"
+  )
 }
 
 write_run_metadata() {
@@ -419,12 +435,14 @@ run_logged() {
   local program=$1 runner=$2
   shift 2
 
-  local log_dir status
+  local log_dir marker status
   log_dir=$(create_run_log_dir "$program")
+  marker="$log_dir/run.started"
 
-  # Preserve matching logs that predate this invocation instead of silently
-  # overwriting them. This also migrates logs left by older wrfkit versions.
-  move_program_logs "$program" "$log_dir/preexisting"
+  # Mark the invocation before the native program starts. Existing RSL/WPS
+  # logs may remain in the workspace from an earlier run; mtime filtering in
+  # archive_program_logs keeps those stale files out of this run's archive.
+  : > "$marker"
 
   if "$runner" "$@"; then
     status=0
@@ -432,7 +450,7 @@ run_logged() {
     status=$?
   fi
 
-  move_program_logs "$program" "$log_dir"
+  archive_program_logs "$program" "$log_dir" "$marker"
   write_run_metadata "$log_dir" "$program" "$status" "$@"
 
   printf 'wrfkit: logs: %s\n' "$log_dir" >&2

@@ -353,8 +353,10 @@ Downloaded forcing is cached under `.wrfkit/data/gfs/<date>/<cycle>/atmos`.
 
 ### Case-scoped execution logs
 
-Native WPS/WRF logs are collected after each supported execution instead of
-being left in the case working directory. The persistent layout is:
+Native WPS/WRF logs are snapshotted after each supported execution. The native
+files remain in the generated workspace, where WRF/WPS naturally reuse their
+fixed filenames. Persistent provenance stores one archive per run instead of
+renaming every native log file individually:
 
 ```text
 .wrfkit/logs/
@@ -362,9 +364,14 @@ being left in the case working directory. The persistent layout is:
     └── YYYYMMDD_HHMMSS_<program>/
         ├── command.txt
         ├── run.env
-        ├── geogrid.log / metgrid.log / ungrib.log
-        └── rsl.out.* / rsl.error.*
+        ├── run.started
+        └── native-logs.tar
 ```
+
+Only native log files modified after `run.started` are included. This prevents
+stale RSL files from a previous run with a larger MPI rank count from being
+mixed into the current archive and avoids pathological per-file rename latency
+on some shared HPC filesystems.
 
 The case name is resolved in this order:
 
@@ -373,12 +380,11 @@ The case name is resolved in this order:
 3. `default` when running from the repository root;
 4. otherwise, the current working directory name.
 
-If matching native logs already exist before a run, wrfkit preserves them under
-that run's `preexisting/` directory before launching the new program.
 Scientific outputs such as `geo_em*`, `met_em*`, `wrfinput*`, `wrfbdy*`,
-and `wrfout*` remain in `.wrfkit/work/<case>`; only native diagnostic logs
-are collected. The tracked `cases/<case>` tree remains the source of truth for
-scientific configuration.
+and `wrfout*` remain in `.wrfkit/work/<case>`. Native diagnostic logs also
+remain there as reusable working files, while the run-specific snapshot is
+stored in `native-logs.tar`. The tracked `cases/<case>` tree remains the
+source of truth for scientific configuration.
 
 ## Reproducibility boundary
 
