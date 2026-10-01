@@ -43,6 +43,7 @@
 
         shellHook = ''
           export WRFKIT_NIX_SHELL=1
+          export WRFKIT_SHELL=1
           export WRFKIT_WRF_VERSION="${wrfVersion}"
           export WRFKIT_WRF_ARCHIVE="${wrfArchive}"
 
@@ -51,6 +52,21 @@
           export FC=gfortran
           export F77=gfortran
           export F90=gfortran
+
+          if [[ -n "${WRFKIT_ROOT:-}" ]]; then
+            wrfkit_bin="$WRFKIT_ROOT/.wrfkit/install/wrf-${wrfVersion}/bin"
+            if [[ -d "$wrfkit_bin" ]]; then
+              export PATH="$wrfkit_bin:$PATH"
+            fi
+            unset wrfkit_bin
+          fi
+
+          # Conda-style marker for ordinary interactive Bash prompts.
+          # This only changes the current nix develop session; no dotfiles
+          # or shell profiles are modified.
+          if [[ $- == *i* ]] && [[ "${PS1:-}" != "(wrfkit) "* ]]; then
+            export PS1="(wrfkit) ${PS1:-\\u@\\h:\\w\\$ }"
+          fi
         '';
       };
     };
