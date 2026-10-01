@@ -267,6 +267,34 @@ next milestone and is not yet claimed as validated.
 The source tree is preserved by `clean`; use `rm -rf .wrfkit/src` when a complete
 source reset is needed.
 
+### Case-scoped execution logs
+
+Native WPS/WRF logs are collected after each supported execution instead of
+being left in the case working directory. The persistent layout is:
+
+```text
+.wrfkit/logs/
+└── <case>/
+    └── YYYYMMDD_HHMMSS_<program>/
+        ├── command.txt
+        ├── run.env
+        ├── geogrid.log / metgrid.log / ungrib.log
+        └── rsl.out.* / rsl.error.*
+```
+
+The case name is resolved in this order:
+
+1. `WRFKIT_CASE_NAME`, when explicitly set;
+2. the first path component below `cases/` for a future `cases/<name>/...` layout;
+3. `default` when running from the repository root;
+4. otherwise, the current working directory name.
+
+If matching native logs already exist before a run, wrfkit preserves them under
+that run's `preexisting/` directory before launching the new program. Scientific
+outputs such as `geo_em*`, `met_em*`, `wrfinput*`, `wrfbdy*`, and
+`wrfout*` remain in the case/work directory; only native diagnostic logs are
+collected.
+
 ## Reproducibility boundary
 
 The current MVP pins:

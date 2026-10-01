@@ -6,6 +6,7 @@ WRF_VERSION=4.8.0
 WPS_VERSION=4.7.0
 WRF_BIN_DIR="$ROOT/.wrfkit/install/wrf-$WRF_VERSION/bin"
 WPS_BIN_DIR="$ROOT/.wrfkit/install/wps-$WPS_VERSION/bin"
+WRFKIT_LOG_ROOT="${WRFKIT_STATE_DIR:-$ROOT/.wrfkit}/logs"
 
 usage() {
   cat <<'USAGE'
@@ -121,6 +122,128 @@ run_mpi() {
   fi
 }
 
+sanitize_log_component() {
+  local value=$1
+  value=${value//\//_}
+  value=${value//[^[:alnum:]._-]/_}
+  [[ -n "$value" ]] || value=default
+  printf '%s' "$value"
+}
+
+resolve_case_name() {
+  local case_name rest
+
+  if [[ -n ${WRFKIT_CASE_NAME:-} ]]; then
+    sanitize_log_component "$WRFKIT_CASE_NAME"
+    return
+  fi
+
+  # Reserve cases/<name>/... as the future first-class case layout.
+  if [[ "$PWD" == "$ROOT/cases/"* ]]; then
+    rest=${PWD#"$ROOT/cases/"}
+    case_name=${rest%%/*}
+    sanitize_log_component "$case_name"
+    return
+  fi
+
+  if [[ "$PWD" == "$ROOT" ]]; then
+    printf 'default'
+  else
+    sanitize_log_component "$(basename "$PWD")"
+  fi
+}
+
+create_run_log_dir() {
+  local program=$1
+  local case_name run_id base candidate suffix=0
+
+  case_name=$(resolve_case_name)
+  run_id="$(date +%Y%m%d_%H%M%S)_$(sanitize_log_component "$program")"
+  base="$WRFKIT_LOG_ROOT/$case_name"
+  mkdir -p "$base"
+
+  candidate="$base/$run_id"
+  while ! mkdir "$candidate" 2>/dev/null; do
+    suffix=$((suffix + 1))
+    candidate="$base/${run_id}_$suffix"
+  done
+
+  printf '%s' "$candidate"
+}
+
+move_program_logs() {
+  local program=$1 destination=$2
+  local pattern file
+  local -a patterns=()
+
+  case "$program" in
+    geogrid|geogrid.exe) patterns=(geogrid.log geogrid.log.*) ;;
+    metgrid|metgrid.exe) patterns=(metgrid.log metgrid.log.*) ;;
+    ungrib|ungrib.exe)   patterns=(ungrib.log) ;;
+    wrf|wrf.exe|real|real.exe|ndown|ndown.exe|tc|tc.exe)
+      patterns=(rsl.out.* rsl.error.*)
+      ;;
+    *) return 0 ;;
+  esac
+
+  shopt -s nullglob
+  local -a files=()
+  for pattern in "${patterns[@]}"; do
+    for file in "$PWD"/$pattern; do
+      [[ -f "$file" ]] && files+=("$file")
+    done
+  done
+  shopt -u nullglob
+
+  ((${#files[@]})) || return 0
+  mkdir -p "$destination"
+  mv -- "${files[@]}" "$destination"/
+}
+
+write_run_metadata() {
+  local log_dir=$1 program=$2 status=$3
+  shift 3
+
+  {
+    printf 'case=%s\n' "$(resolve_case_name)"
+    printf 'program=%s\n' "$program"
+    printf 'cwd=%s\n' "$PWD"
+    printf 'exit_status=%s\n' "$status"
+    printf 'slurm_job_id=%s\n' "${SLURM_JOB_ID:-}"
+    printf 'slurm_step_id=%s\n' "${SLURM_STEP_ID:-}"
+    printf 'finished_at=%s\n' "$(date --iso-8601=seconds 2>/dev/null || date)"
+  } > "$log_dir/run.env"
+
+  {
+    printf '%q ' "$@"
+    printf '\n'
+  } > "$log_dir/command.txt"
+}
+
+run_logged() {
+  local program=$1 runner=$2
+  shift 2
+
+  local log_dir status
+  log_dir=$(create_run_log_dir "$program")
+
+  # Preserve matching logs that predate this invocation instead of silently
+  # overwriting them. This also migrates logs left by older wrfkit versions.
+  move_program_logs "$program" "$log_dir/preexisting"
+
+  if "$runner" "$@"; then
+    status=0
+  else
+    status=$?
+  fi
+
+  move_program_logs "$program" "$log_dir"
+  write_run_metadata "$log_dir" "$program" "$status" "$@"
+
+  printf 'wrfkit: logs: %s\n' "$log_dir" >&2
+  return "$status"
+}
+
 run_exec() {
   [[ $# -gt 0 ]] || {
     echo "Usage: ./wrfctl exec <command> [args...]" >&2
@@ -138,7 +261,7 @@ run_exec() {
         printf 'Run ./wrfctl build wrf first.\n' >&2
         exit 2
       }
-      run_mpi "$binary" "$@"
+      run_logged "$command" run_mpi "$binary" "$@"
       ;;
     diffwrf_int|diffwrf_nc|registry)
       local binary="$WRF_BIN_DIR/$command"
@@ -156,7 +279,7 @@ run_exec() {
         printf 'Run ./wrfctl build wps first, or ./wrfctl build all.\n' >&2
         exit 2
       }
-      run_mpi "$binary" "$@"
+      run_logged "$command" run_mpi "$binary" "$@"
       ;;
     ungrib|g1print|g2print|ungrib.exe)
       local binary="$WPS_BIN_DIR/$command"
@@ -165,7 +288,10 @@ run_exec() {
         printf 'Run ./wrfctl build wps first, or ./wrfctl build all.\n' >&2
         exit 2
       }
-      run_dev "$binary" "$@"
+      case "$command" in
+        ungrib|ungrib.exe) run_logged "$command" run_dev "$binary" "$@" ;;
+        *)                 run_dev "$binary" "$@" ;;
+      esac
       ;;
     *)
       run_dev "$command" "$@"

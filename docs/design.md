@@ -66,6 +66,27 @@ disposable -> site/system scratch when configured
 
 A site-specific scratch path must not leak into scientific case configuration.
 
+## Case and log model
+
+Execution logs are persistent provenance rather than disposable scratch data.
+wrfkit therefore collects native WPS/WRF diagnostic logs under:
+
+```text
+<project>/.wrfkit/logs/<case>/<run-id>/
+```
+
+A run directory records the invoked command, working directory, exit status,
+Slurm job/step identifiers when available, and the native program logs. WPS logs
+(`geogrid.log*`, `metgrid.log*`, `ungrib.log`) and WRF RSL logs
+(`rsl.out.*`, `rsl.error.*`) are moved there after execution. Model products
+and scientific inputs remain in the case working directory.
+
+Until `wrfctl init` establishes a first-class case manifest, the case identity
+is resolved from `WRFKIT_CASE_NAME`, a `cases/<name>/...` path, or the current
+working directory. Repository-root executions use the transitional case name
+`default`. This keeps today's MVP compatible with the planned case-oriented
+workflow without coupling log storage to Sapelo2 or to a particular scheduler.
+
 ## WPS build policy
 
 wrfkit pins WPS 4.7.0 to release commit
