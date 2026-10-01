@@ -17,11 +17,12 @@ From the repository root:
 
 ```bash
 ./wrfctl fetch geog
-cd cases/athens-smoke
-../../wrfctl exec geogrid
+./wrfctl exec geogrid --case athens-smoke
 ```
 
-A successful run should create `geo_em.d01.nc`.
+A successful run should create `cases/athens-smoke/geo_em.d01.nc`.
+The command is intentionally launched from the repository root; wrfkit enters
+the selected case directory internally.
 
 The tracked `GEOGRID.TBL` symlink points to the ARW table from wrfkit's pinned
 WPS 4.7.0 source tree. Build or fetch WPS before running this case.

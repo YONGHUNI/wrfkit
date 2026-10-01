@@ -81,11 +81,18 @@ Slurm job/step identifiers when available, and the native program logs. WPS logs
 (`rsl.out.*`, `rsl.error.*`) are moved there after execution. Model products
 and scientific inputs remain in the case working directory.
 
-Until `wrfctl init` establishes a first-class case manifest, the case identity
-is resolved from `WRFKIT_CASE_NAME`, a `cases/<name>/...` path, or the current
-working directory. Repository-root executions use the transitional case name
-`default`. This keeps today's MVP compatible with the planned case-oriented
-workflow without coupling log storage to Sapelo2 or to a particular scheduler.
+Until `wrfctl init` establishes a first-class case manifest, `wrfctl exec`
+accepts `--case NAME` and resolves it to `cases/NAME`. wrfkit changes the
+working directory only inside its own process, so users can launch case commands
+from the repository root while WPS/WRF still see native relative paths such as
+`namelist.wps`, `GEOGRID.TBL`, and future forcing links. The selected case name
+is also exported as `WRFKIT_CASE_NAME` so execution logs are routed to
+`.wrfkit/logs/NAME`.
+
+Without `--case`, case identity continues to fall back to `WRFKIT_CASE_NAME`,
+a `cases/<name>/...` current path, or the current working directory.
+Repository-root executions without a selected case use the transitional name
+`default`.
 
 ## WPS build policy
 

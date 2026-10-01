@@ -249,8 +249,9 @@ per-node environment realization.
 ./wrfctl exec wrf                  run the installed WRF binary in the Nix environment
 ./wrfctl exec real                 run the installed real binary in the Nix environment
 ./wrfctl exec geogrid              run the installed WPS geogrid binary
-./wrfctl exec ungrib               run the installed WPS ungrib binary
-./wrfctl exec metgrid              run the installed WPS metgrid binary
+./wrfctl exec geogrid --case NAME  run geogrid from cases/NAME
+./wrfctl exec ungrib --case NAME   run ungrib from cases/NAME
+./wrfctl exec metgrid --case NAME  run metgrid from cases/NAME
 ./wrfctl exec CMD ...              run any command inside the pinned Nix environment
 ./wrfctl clean                     remove generated WRF/WPS build/install files
 ./wrfctl shell                     enter the interactive wrfkit environment
@@ -276,8 +277,7 @@ mandatory geography package and run geogrid with:
 
 ```bash
 ./wrfctl fetch geog
-cd cases/athens-smoke
-../../wrfctl exec geogrid
+./wrfctl exec geogrid --case athens-smoke
 ```
 
 The geography is stored persistently at
@@ -288,6 +288,8 @@ higher-resolution static datasets.
 
 A successful smoke run creates `geo_em.d01.nc` in the case directory. Native
 `geogrid.log` is collected under `.wrfkit/logs/athens-smoke/<run-id>/`.
+The command may be launched from the repository root; wrfkit changes only its
+own child-process working directory, not the user's shell directory.
 
 ### Case-scoped execution logs
 
