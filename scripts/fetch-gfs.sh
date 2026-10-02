@@ -17,19 +17,17 @@ done
 [[ "$case_name" =~ ^[A-Za-z0-9._-]+$ ]] || { printf 'fetch gfs: invalid case name: %s\n' "$case_name" >&2; exit 2; }
 
 case_dir="$WRFKIT_ROOT/cases/$case_name"
-forcing_conf="$case_dir/forcing.conf"
-[[ -r "$forcing_conf" ]] || { printf 'fetch gfs: forcing config not found: %s\n' "$forcing_conf" >&2; exit 2; }
+[[ -r "$case_dir/case.toml" ]] || { printf 'fetch gfs: case config not found: %s\n' "$case_dir/case.toml" >&2; exit 2; }
 
-# shellcheck disable=SC1090
-source "$forcing_conf"
+load_case_env "$case_name"
 
-: "${GFS_DATE:?forcing.conf must define GFS_DATE}"
-: "${GFS_CYCLE:?forcing.conf must define GFS_CYCLE}"
-: "${GFS_FORECAST_HOURS:?forcing.conf must define GFS_FORECAST_HOURS}"
-: "${GFS_LEFTLON:?forcing.conf must define GFS_LEFTLON}"
-: "${GFS_RIGHTLON:?forcing.conf must define GFS_RIGHTLON}"
-: "${GFS_TOPLAT:?forcing.conf must define GFS_TOPLAT}"
-: "${GFS_BOTTOMLAT:?forcing.conf must define GFS_BOTTOMLAT}"
+: "${GFS_DATE:?case.toml did not resolve a GFS date}"
+: "${GFS_CYCLE:?case.toml did not resolve a GFS cycle}"
+: "${GFS_FORECAST_HOURS:?case.toml did not resolve forecast hours}"
+: "${GFS_LEFTLON:?case.toml did not resolve forcing.subset.west}"
+: "${GFS_RIGHTLON:?case.toml did not resolve forcing.subset.east}"
+: "${GFS_TOPLAT:?case.toml did not resolve forcing.subset.north}"
+: "${GFS_BOTTOMLAT:?case.toml did not resolve forcing.subset.south}"
 
 [[ "$GFS_DATE" =~ ^[0-9]{8}$ ]] || { echo "fetch gfs: invalid GFS_DATE" >&2; exit 2; }
 [[ "$GFS_CYCLE" =~ ^(00|06|12|18)$ ]] || { echo "fetch gfs: invalid GFS_CYCLE" >&2; exit 2; }
@@ -117,7 +115,7 @@ mkdir -p "$target_dir"
 
 cat > "$target_dir/.wrfkit-request" <<EOF
 provider=gfs
-product=0p25
+product=$GFS_PRODUCT
 date=$GFS_DATE
 cycle=$GFS_CYCLE
 leftlon=$GFS_LEFTLON

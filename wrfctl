@@ -19,6 +19,7 @@ Commands:
   fetch <wrf|wps|geog|gfs|all>        Fetch software, geography, or GFS forcing.
   build <wrf|wps|all> [--jobs N]      Build WRF and/or WPS. WPS builds serially;
                                       --jobs N applies to WRF.
+  config --case NAME [--check]         Validate case.toml and optionally update managed namelists.
   prep --case NAME [--ntasks N]       Prepare case inputs through metgrid and WRF staging.
   prepare gfs --case NAME              Stage Vtable.GFS and GRIBFILE links for a case.
   exec <command> [--case NAME] [--ntasks N] [--launcher NAME] [--] [args...]
@@ -744,6 +745,7 @@ case "$cmd" in
   doctor) run_dev "$ROOT/scripts/doctor.sh" "$@" ;;
   fetch)   run_dev "$ROOT/scripts/fetch.sh" "$@" ;;
   build)   run_dev "$ROOT/scripts/build.sh" "$@" ;;
+  config)  run_dev "$ROOT/scripts/case-config.py" config "$@" ;;
   prep)    run_dev "$ROOT/scripts/prep.sh" "$@" ;;
   prepare) run_dev "$ROOT/scripts/prepare.sh" "$@" ;;
   exec)    run_exec "$@" ;;

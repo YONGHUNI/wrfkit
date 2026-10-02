@@ -129,7 +129,7 @@ gfs_request_key() {
   local fingerprint
   fingerprint=$(printf '%s\n' \
     "provider=gfs" \
-    "product=0p25" \
+    "product=${GFS_PRODUCT:-0p25}" \
     "levels=all" \
     "variables=all" \
     "leftlon=$GFS_LEFTLON" \
@@ -145,4 +145,11 @@ gfs_target_dir() {
   request_key=$(gfs_request_key)
   printf '%s/%s/%s/%s/atmos' \
     "$WRFKIT_GFS_DIR" "$GFS_DATE" "$GFS_CYCLE" "$request_key"
+}
+
+
+load_case_env() {
+  local case_name=$1 output
+  output=$("$WRFKIT_ROOT/scripts/case-config.py" env --case "$case_name") || return $?
+  eval "$output"
 }

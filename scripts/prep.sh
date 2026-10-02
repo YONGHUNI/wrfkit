@@ -74,37 +74,33 @@ case "$launcher" in
 esac
 
 case_dir="$WRFKIT_ROOT/cases/$case_name"
-forcing_conf="$case_dir/forcing.conf"
 [[ -d "$case_dir" ]] || {
   printf 'prep: case not found: %s\n' "$case_dir" >&2
   exit 2
 }
-[[ -r "$case_dir/namelist.wps" ]] || {
-  printf 'prep: namelist.wps not found: %s\n' "$case_dir/namelist.wps" >&2
+[[ -r "$case_dir/case.toml" ]] || {
+  printf 'prep: case config not found: %s\n' "$case_dir/case.toml" >&2
   exit 2
 }
 
-# Automatic geography acquisition currently supports the bundled low-resolution
-# WPS package only. Do not silently substitute it for a research case that asks
-# for another static-data resolution.
-if ! grep -Eiq "^[[:space:]]*geog_data_res[[:space:]]*=.*['\"]lowres['\"]" "$case_dir/namelist.wps"; then
+# Render TOML-managed namelist values before any native WPS/WRF stage runs.
+"$WRFKIT_ROOT/wrfctl" config --case "$case_name"
+load_case_env "$case_name"
+
+if [[ "$GEOG_DATASET" != "wps-lowres-mandatory" || "$GEOG_RESOLUTION" != "lowres" ]]; then
   cat >&2 <<MSG
-prep: automatic geography acquisition currently supports geog_data_res='lowres' only.
+prep: automatic geography acquisition currently supports only:
+  dataset = "wps-lowres-mandatory"
+  resolution = "lowres"
 
 Case: $case_name
-Use the lower-level geography workflow for custom/high-resolution WPS static
-data until a research-grade geography selector is implemented.
+Requested: dataset=$GEOG_DATASET resolution=$GEOG_RESOLUTION
+Use the lower-level geography workflow until research-grade geography selection
+is implemented.
 MSG
   exit 2
 fi
 
-[[ -r "$forcing_conf" ]] || {
-  printf 'prep: forcing config not found: %s\n' "$forcing_conf" >&2
-  exit 2
-}
-
-# shellcheck disable=SC1090
-source "$forcing_conf"
 forcing_provider=${FORCING_PROVIDER:-gfs}
 case "$forcing_provider" in
   gfs) ;;

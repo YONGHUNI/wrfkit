@@ -15,11 +15,9 @@ done
 [[ -n "$case_name" ]] || { usage; exit 2; }
 case_dir="$WRFKIT_ROOT/cases/$case_name"
 work_dir=$(stage_case_workspace "$case_name")
-forcing_conf="$case_dir/forcing.conf"
-[[ -r "$forcing_conf" ]] || { printf 'prepare gfs: forcing config not found: %s\n' "$forcing_conf" >&2; exit 2; }
+[[ -r "$case_dir/case.toml" ]] || { printf 'prepare gfs: case config not found: %s\n' "$case_dir/case.toml" >&2; exit 2; }
 
-# shellcheck disable=SC1090
-source "$forcing_conf"
+load_case_env "$case_name"
 
 target_dir=$(gfs_target_dir)
 vtable_src="$WRFKIT_WPS_SRC_DIR/ungrib/Variable_Tables/Vtable.GFS"
