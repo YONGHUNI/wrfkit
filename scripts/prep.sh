@@ -83,6 +83,21 @@ forcing_conf="$case_dir/forcing.conf"
   printf 'prep: namelist.wps not found: %s\n' "$case_dir/namelist.wps" >&2
   exit 2
 }
+
+# Automatic geography acquisition currently supports the bundled low-resolution
+# WPS package only. Do not silently substitute it for a research case that asks
+# for another static-data resolution.
+if ! grep -Eiq "^[[:space:]]*geog_data_res[[:space:]]*=.*['\"]lowres['\"]" "$case_dir/namelist.wps"; then
+  cat >&2 <<MSG
+prep: automatic geography acquisition currently supports geog_data_res='lowres' only.
+
+Case: $case_name
+Use the lower-level geography workflow for custom/high-resolution WPS static
+data until a research-grade geography selector is implemented.
+MSG
+  exit 2
+fi
+
 [[ -r "$forcing_conf" ]] || {
   printf 'prep: forcing config not found: %s\n' "$forcing_conf" >&2
   exit 2

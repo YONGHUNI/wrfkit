@@ -143,6 +143,6 @@ gfs_request_key() {
 gfs_target_dir() {
   local request_key
   request_key=$(gfs_request_key)
-  printf '%s/gfs/%s/%s/%s/atmos' \
-    "$WRFKIT_DATA_DIR" "$GFS_DATE" "$GFS_CYCLE" "$request_key"
+  printf '%s/%s/%s/%s/atmos' \
+    "$WRFKIT_GFS_DIR" "$GFS_DATE" "$GFS_CYCLE" "$request_key"
 }
