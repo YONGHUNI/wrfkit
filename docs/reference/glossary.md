@@ -69,7 +69,9 @@ whole sequence first, use the [first-run tutorial](../tutorials/first-run.md).
 
 | Term | Plain-language meaning |
 | --- | --- |
-| [**node**](https://slurm.schedmd.com/overview.html){ target="_blank" rel="noopener noreferrer" } | A computer in a cluster. In Slurm, nodes are the compute resources from which jobs receive CPUs, memory, and other resources. |
+| [**HPC**](https://en.wikipedia.org/wiki/High-performance_computing){ target="_blank" rel="noopener noreferrer" } | High-performance computing: using powerful computing resources, often many CPUs or nodes working together, to run calculations that would be too large or slow for an ordinary computer. |
+| [**cluster**](https://en.wikipedia.org/wiki/Computer_cluster){ target="_blank" rel="noopener noreferrer" } | A group of networked computers operated together as a shared computing system. HPC clusters commonly include login or service nodes plus many compute nodes. |
+| [**node**](https://slurm.schedmd.com/overview.html){ target="_blank" rel="noopener noreferrer" } | One computer in a cluster. In Slurm, nodes are the compute resources from which jobs receive CPUs, memory, and other resources. |
 | [**login node**](https://docs.hpc.ethz.ch/hardware/login_nodes/){ target="_blank" rel="noopener noreferrer" } | A shared access point used on many HPC clusters for SSH, file management, job preparation, and job submission. Heavy computation normally runs on compute nodes. Login nodes are a common cluster design, not a requirement imposed by Slurm itself. |
 | [**compute node**](https://hpcdocs.hpc.arizona.edu/registration_and_access/system_overview/){ target="_blank" rel="noopener noreferrer" } | A cluster server intended to perform the actual computational workload. Scheduler-managed jobs are assigned resources on one or more compute nodes. |
 | [**Slurm**](https://slurm.schedmd.com/overview.html){ target="_blank" rel="noopener noreferrer" } | A workload manager used on many HPC clusters. It manages resources, queues jobs, and launches work on allocated nodes. |
