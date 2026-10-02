@@ -208,7 +208,7 @@ def patch_namelist(path: pathlib.Path, patches) -> bool:
             # value should not create unrelated formatting churn in Git diffs.
             existing = lines[index]
             value_match = re.match(
-                rf"^(\\s*{re.escape(key)}\\s*=\\s*)(.*?)(\\s*,\\s*)(!.*)?$",
+                rf"^(\s*{re.escape(key)}\s*=\s*)(.*?)(\s*,\s*)(!.*)?$",
                 existing,
                 re.IGNORECASE,
             )
