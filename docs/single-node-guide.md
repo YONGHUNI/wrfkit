@@ -104,9 +104,9 @@ Tracked scientific configuration lives under:
 
 ```text
 cases/<case>/
+├── case.toml
 ├── namelist.wps
-├── namelist.input
-└── forcing.conf
+└── namelist.input
 ```
 
 Generated execution state lives under:

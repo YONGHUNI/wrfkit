@@ -10,9 +10,9 @@ know what the wrapper is doing for you.
    Nix pins compiler + MPI + NetCDF + WRF + WPS
 
 2. Scientific configuration
+   cases/<case>/case.toml
    cases/<case>/namelist.wps
    cases/<case>/namelist.input
-   cases/<case>/forcing.conf
 
 3. Execution backend
    local shell or Slurm single-node execution
@@ -42,7 +42,8 @@ Equivalent low-level path:
 
 wrfkit therefore keeps both layers. `prep` orchestrates the case, while
 `fetch`, `prepare`, and `exec` remain available when you need direct
-control over one stage.
+control over one stage. `wrfctl config` resolves `case.toml` first and,
+when allowed, overlays TOML-owned values onto the native namelists.
 
 Reusable downloaded inputs may also be separated from a particular repository
 with a machine-level `data_root`. Generated case workspaces stay under the

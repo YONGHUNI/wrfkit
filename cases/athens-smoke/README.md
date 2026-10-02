@@ -2,6 +2,10 @@
 
 Minimal single-domain WPS smoke case centered near Athens, Georgia.
 
+The case uses `case.toml` for wrfkit-owned configuration. Its native
+`namelist.wps` and `namelist.input` remain visible and are overlaid only
+for values explicitly managed by TOML.
+
 - ARW
 - 1 domain
 - 12 km grid spacing
@@ -27,7 +31,7 @@ reproducible configuration. `GEOGRID.TBL`, `METGRID.TBL`, and the `geog`
 link are staged automatically from wrfkit-managed data.
 
 The case now uses a fixed GFS smoke-test window: 2026-09-30 00 UTC through
-06 UTC at 3-hour intervals. The forcing metadata is tracked in `forcing.conf`.
+06 UTC at 3-hour intervals. The forcing metadata is tracked in `case.toml`.
 The files are fetched as a regional subset from the NOAA/NCEP NOMADS GFS
 0.25-degree GRIB filter.
 
