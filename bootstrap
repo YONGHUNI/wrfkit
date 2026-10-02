@@ -10,6 +10,11 @@ profile=""
 config_file=""
 cli_store_root=""
 cli_backend=""
+cli_scheduler=""
+cli_require_allocation=""
+force_configure=0
+explicit_profile=0
+explicit_config=0
 reset=0
 purge=0
 rnb_dir=""
@@ -19,16 +24,26 @@ usage() {
 Usage: ./bootstrap [options]
 
 Options:
-  --profile NAME       generic, sapelo2, or sapelo2-shared
+  --profile NAME       Use a bundled profile (generic, sapelo2, sapelo2-shared)
   --config FILE        Read bootstrap configuration from FILE
+  --configure          Run the interactive machine-configuration wizard
   --store-root PATH    Override rootless Nix physical store path
   --backend NAME       Override rootless-nix-bootstrap backend
+  --scheduler NAME     Override scheduler policy (none or slurm)
+  --require-allocation Require an active Slurm allocation
+  --no-require-allocation
+                       Do not require an active Slurm allocation
   --reset              Purge managed rootless Nix, then reinstall with this profile
   --purge              Purge managed rootless Nix and exit
   -h, --help           Show this help
 
+If neither --profile nor --config is supplied, wrfkit reuses
+~/.config/wrfkit/bootstrap.conf when it exists. Otherwise, in an interactive
+terminal it asks a few questions and creates that file. Non-interactive runs
+must supply a profile/config or configure the machine once beforehand.
+
 Precedence:
-  CLI > environment > user config > bundled profile config > built-in fallback
+  CLI > environment > selected config > bundled profile config > built-in fallback
 
 User config:
   ~/.config/wrfkit/bootstrap.conf
@@ -41,6 +56,8 @@ Supported config keys:
   store_root=...
   backend=...
   scratch_root=...
+  scheduler=none|slurm
+  require_allocation=true|false
   mpi_launcher=auto|srun|mpirun|mpiexec|custom
   mpi_tasks=N|auto
   mpi_launcher_command=...
@@ -50,12 +67,38 @@ USAGE
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --profile)    profile=$2; shift 2 ;;
-    --config)     config_file=$2; shift 2 ;;
-    --store-root) cli_store_root=$2; shift 2 ;;
-    --backend)    cli_backend=$2; shift 2 ;;
-    --reset)      reset=1; shift ;;
-    --purge)      purge=1; shift ;;
+    --profile)
+      [[ $# -ge 2 ]] || { echo "bootstrap: --profile requires a value" >&2; exit 2; }
+      profile=$2
+      explicit_profile=1
+      shift 2
+      ;;
+    --config)
+      [[ $# -ge 2 ]] || { echo "bootstrap: --config requires a value" >&2; exit 2; }
+      config_file=$2
+      explicit_config=1
+      shift 2
+      ;;
+    --configure) force_configure=1; shift ;;
+    --store-root)
+      [[ $# -ge 2 ]] || { echo "bootstrap: --store-root requires a value" >&2; exit 2; }
+      cli_store_root=$2
+      shift 2
+      ;;
+    --backend)
+      [[ $# -ge 2 ]] || { echo "bootstrap: --backend requires a value" >&2; exit 2; }
+      cli_backend=$2
+      shift 2
+      ;;
+    --scheduler)
+      [[ $# -ge 2 ]] || { echo "bootstrap: --scheduler requires a value" >&2; exit 2; }
+      cli_scheduler=$2
+      shift 2
+      ;;
+    --require-allocation) cli_require_allocation=true; shift ;;
+    --no-require-allocation) cli_require_allocation=false; shift ;;
+    --reset) reset=1; shift ;;
+    --purge) purge=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) printf 'bootstrap: unknown option: %s\n' "$1" >&2; exit 2 ;;
   esac
@@ -66,21 +109,10 @@ if (( reset && purge )); then
   exit 2
 fi
 
-case "$(hostname -s 2>/dev/null || hostname 2>/dev/null || true)" in
-  ss-sub*)
-    cat >&2 <<'MSG'
-wrfkit: Sapelo2 login node detected.
-
-Do not install/realize or purge the managed WRF environment on a login node.
-Start a compute allocation first, for example:
-
-  interact -c 4 --mem=16G --time=01:00:00 --gres=lscratch:100
-
-Then run ./bootstrap from the allocated compute node.
-MSG
-    exit 2
-    ;;
-esac
+if (( force_configure && (explicit_profile || explicit_config) )); then
+  echo "bootstrap: --configure cannot be combined with --profile or --config" >&2
+  exit 2
+fi
 
 cleanup() {
   if [[ -n "$rnb_dir" && -d "$rnb_dir" ]]; then
@@ -100,6 +132,353 @@ prepare_rnb() {
   git clone --quiet "$RNB_REPO" "$rnb_dir"
   git -C "$rnb_dir" checkout --quiet "$RNB_REF"
 }
+
+trim() {
+  local value=$1
+  value=${value#"${value%%[![:space:]]*}"}
+  value=${value%"${value##*[![:space:]]}"}
+  printf '%s' "$value"
+}
+
+normalize_bool() {
+  case "${1:-}" in
+    1|true|TRUE|yes|YES|on|ON) printf 'true' ;;
+    0|false|FALSE|no|NO|off|OFF) printf 'false' ;;
+    *) return 1 ;;
+  esac
+}
+
+has_active_slurm_allocation() {
+  [[ -n ${SLURM_JOB_ID:-${SLURM_JOBID:-}} ]]
+}
+
+slurm_command_list() {
+  local cmd
+  local -a found=()
+  for cmd in srun sbatch squeue sinfo salloc; do
+    command -v "$cmd" >/dev/null 2>&1 && found+=("$cmd")
+  done
+  printf '%s' "${found[*]}"
+}
+
+has_slurm_signal() {
+  local commands
+  commands=$(slurm_command_list)
+  [[ -n "$commands" || -n ${SLURM_JOB_ID:-${SLURM_JOBID:-}} || -n ${SLURM_CLUSTER_NAME:-} ]]
+}
+
+ask_yes_no() {
+  local prompt=$1 default=$2 answer
+  while true; do
+    if [[ "$default" == "yes" ]]; then
+      read -r -p "$prompt [Y/n] " answer
+      answer=${answer:-y}
+    else
+      read -r -p "$prompt [y/N] " answer
+      answer=${answer:-n}
+    fi
+
+    case "$answer" in
+      y|Y|yes|YES) return 0 ;;
+      n|N|no|NO) return 1 ;;
+      *) echo "Please answer y or n." ;;
+    esac
+  done
+}
+
+write_guided_config() {
+  local system_type=$1 selected_profile=$2 scheduler_value=$3 require_value=$4
+  local user_config="${XDG_CONFIG_HOME:-$HOME/.config}/wrfkit/bootstrap.conf"
+  local config_dir
+  config_dir=$(dirname "$user_config")
+  mkdir -p "$config_dir"
+
+  {
+    echo "# Generated by ./bootstrap --configure"
+    echo "# Re-run ./bootstrap --configure to change these machine settings."
+    echo "profile=$selected_profile"
+
+    case "$selected_profile" in
+      sapelo2)
+        echo 'store_root=/lscratch/$USER/.nix'
+        echo "backend=auto"
+        echo 'scratch_root=/lscratch/$USER/wrfkit'
+        ;;
+      sapelo2-shared)
+        echo 'store_root=/scratch/$USER/.nix'
+        echo "backend=auto"
+        ;;
+      generic)
+        echo "backend=auto"
+        ;;
+    esac
+
+    echo "scheduler=$scheduler_value"
+    echo "require_allocation=$require_value"
+
+    if [[ "$system_type" == "slurm" ]]; then
+      echo "mpi_launcher=srun"
+      echo "mpi_tasks=auto"
+    else
+      echo "mpi_launcher=auto"
+      echo "mpi_tasks=1"
+    fi
+  } > "$user_config"
+
+  printf '\nSaved machine configuration to:\n  %s\n\n' "$user_config"
+  printf '%s' "$user_config"
+}
+
+run_configuration_wizard() {
+  [[ -t 0 && -t 1 ]] || {
+    cat >&2 <<'MSG'
+wrfkit: no bootstrap profile/config is available, and this shell is not interactive.
+
+Run ./bootstrap --configure once in an interactive terminal, or specify one of:
+  ./bootstrap --profile generic
+  ./bootstrap --profile sapelo2
+  ./bootstrap --config FILE
+MSG
+    exit 2
+  }
+
+  local commands default_system choice keep selected_profile default_profile
+  local scheduler_value require_value
+  commands=$(slurm_command_list)
+
+  if has_slurm_signal; then
+    default_system=2
+  else
+    default_system=1
+  fi
+
+  cat <<'MSG'
+wrfkit machine setup
+
+Choose the environment that best describes this machine. If you are unsure,
+press Enter to accept the detected default.
+
+  1) Standalone Linux workstation/server
+  2) Slurm HPC cluster
+MSG
+
+  while true; do
+    read -r -p "System type [1/2] (default: $default_system): " choice
+    choice=${choice:-$default_system}
+    [[ "$choice" == "1" || "$choice" == "2" ]] && break
+    echo "Please choose 1 or 2."
+  done
+
+  if [[ "$choice" == "1" ]] && has_slurm_signal; then
+    echo
+    echo "wrfkit found Slurm-related signals on this system."
+    [[ -n "$commands" ]] && echo "  commands: $commands"
+    has_active_slurm_allocation && echo "  active allocation: yes"
+    [[ -n ${SLURM_CLUSTER_NAME:-} ]] && echo "  cluster: ${SLURM_CLUSTER_NAME}"
+    echo
+    if ! ask_yes_no "Keep the standalone Linux selection?" "no"; then
+      choice=2
+    fi
+  elif [[ "$choice" == "2" ]] && [[ -z "$commands" ]] &&
+       [[ -z ${SLURM_JOB_ID:-${SLURM_JOBID:-}} ]] &&
+       [[ -z ${SLURM_CLUSTER_NAME:-} ]]; then
+    echo
+    echo "wrfkit could not find common Slurm commands or Slurm environment variables."
+    echo "The site's Slurm environment may simply not be loaded yet."
+    echo
+    if ! ask_yes_no "Keep the Slurm HPC selection?" "no"; then
+      choice=1
+    fi
+  fi
+
+  if [[ "$choice" == "1" ]]; then
+    printf '\nSelected: standalone Linux workstation/server\n'
+    write_guided_config "standalone" "generic" "none" "false"
+    return
+  fi
+
+  scheduler_value=slurm
+
+  if command -v sinfo-gacrc >/dev/null 2>&1; then
+    default_profile=2
+  else
+    default_profile=1
+  fi
+
+  cat <<'MSG'
+
+Choose a site profile. The generic profile works for Slurm clusters that do not
+need Sapelo2-specific storage paths.
+
+  1) Generic Slurm HPC
+  2) UGA Sapelo2 (node-local /lscratch Nix store)
+  3) UGA Sapelo2 shared-store profile (/scratch)
+MSG
+
+  while true; do
+    read -r -p "Site profile [1/2/3] (default: $default_profile): " choice
+    choice=${choice:-$default_profile}
+    case "$choice" in
+      1) selected_profile=generic; break ;;
+      2) selected_profile=sapelo2; break ;;
+      3) selected_profile=sapelo2-shared; break ;;
+      *) echo "Please choose 1, 2, or 3." ;;
+    esac
+  done
+
+  echo
+  if ask_yes_no     "Require an active Slurm compute allocation before bootstrap setup/build work?"     "yes"; then
+    require_value=true
+  else
+    require_value=false
+  fi
+
+  printf '\nSelected: Slurm HPC cluster (%s)\n' "$selected_profile"
+  write_guided_config "slurm" "$selected_profile" "$scheduler_value" "$require_value"
+}
+
+peek_profile() {
+  local file=$1 line key value
+  [[ -r "$file" ]] || return 1
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line=$(trim "$line")
+    [[ -z "$line" || ${line:0:1} == "#" || "$line" != *=* ]] && continue
+    key=$(trim "${line%%=*}")
+    [[ "$key" == "profile" ]] || continue
+    value=$(trim "${line#*=}")
+    value=${value#\"}; value=${value%\"}
+    value=${value#\'}; value=${value%\'}
+    printf '%s' "$value"
+    return 0
+  done < "$file"
+  return 1
+}
+
+config_profile=""
+config_store_root=""
+config_backend=""
+config_scratch_root=""
+config_scheduler=""
+config_require_allocation=""
+config_mpi_launcher=""
+config_mpi_tasks=""
+config_mpi_launcher_command=""
+config_mpi_task_flag=""
+config_source=""
+
+read_config() {
+  local file=$1 line key value
+  [[ -r "$file" ]] || { printf 'bootstrap: cannot read config: %s\n' "$file" >&2; exit 2; }
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line=$(trim "$line")
+    [[ -z "$line" || ${line:0:1} == "#" ]] && continue
+    [[ "$line" == *=* ]] || { printf 'bootstrap: malformed line: %s\n' "$line" >&2; exit 2; }
+
+    key=$(trim "${line%%=*}")
+    value=$(trim "${line#*=}")
+    value=${value#\"}; value=${value%\"}
+    value=${value#\'}; value=${value%\'}
+
+    case "$key" in
+      profile)              config_profile=$value ;;
+      store_root)           config_store_root=$value ;;
+      backend)              config_backend=$value ;;
+      scratch_root)         config_scratch_root=$value ;;
+      scheduler)            config_scheduler=$value ;;
+      require_allocation)   config_require_allocation=$value ;;
+      mpi_launcher)         config_mpi_launcher=$value ;;
+      mpi_tasks)            config_mpi_tasks=$value ;;
+      mpi_launcher_command) config_mpi_launcher_command=$value ;;
+      mpi_task_flag)        config_mpi_task_flag=$value ;;
+      *) printf 'bootstrap: unsupported config key: %s\n' "$key" >&2; exit 2 ;;
+    esac
+  done < "$file"
+  config_source=$file
+}
+
+user_config="${XDG_CONFIG_HOME:-$HOME/.config}/wrfkit/bootstrap.conf"
+selected_config=""
+
+if (( force_configure )); then
+  selected_config=$(run_configuration_wizard)
+elif (( explicit_config )); then
+  selected_config=$config_file
+elif (( explicit_profile )); then
+  selected_config=""
+elif [[ -n ${WRFKIT_BOOTSTRAP_PROFILE:-} ]]; then
+  profile=$WRFKIT_BOOTSTRAP_PROFILE
+  selected_config=""
+elif [[ -r "$user_config" ]]; then
+  selected_config=$user_config
+else
+  selected_config=$(run_configuration_wizard)
+fi
+
+if [[ -z "$profile" && -n "$selected_config" ]]; then
+  profile=$(peek_profile "$selected_config" || true)
+fi
+profile=${profile:-generic}
+
+bundled_config="$ROOT/config/bootstrap/${profile}.conf"
+if [[ -r "$bundled_config" ]]; then
+  read_config "$bundled_config"
+fi
+if [[ -n "$selected_config" ]]; then
+  read_config "$selected_config"
+fi
+
+# CLI/environment profile selection wins over any profile key in config files.
+if (( explicit_profile )); then
+  :
+elif [[ -n ${WRFKIT_BOOTSTRAP_PROFILE:-} ]]; then
+  profile=$WRFKIT_BOOTSTRAP_PROFILE
+elif [[ -n "$config_profile" ]]; then
+  profile=$config_profile
+fi
+
+store_root=${WRFKIT_NIX_STORE_ROOT:-$config_store_root}
+backend=${WRFKIT_NIX_BACKEND:-$config_backend}
+scratch_root=${WRFKIT_SCRATCH_ROOT:-$config_scratch_root}
+scheduler=${WRFKIT_SCHEDULER:-${config_scheduler:-none}}
+require_allocation=${WRFKIT_REQUIRE_ALLOCATION:-${config_require_allocation:-false}}
+mpi_launcher=${WRFKIT_MPI_LAUNCHER:-${config_mpi_launcher:-auto}}
+mpi_tasks=${WRFKIT_MPI_TASKS:-${config_mpi_tasks:-1}}
+mpi_launcher_command=${WRFKIT_MPI_LAUNCHER_COMMAND:-$config_mpi_launcher_command}
+mpi_task_flag=${WRFKIT_MPI_TASK_FLAG:-${config_mpi_task_flag:--n}}
+
+[[ -n "$cli_store_root" ]] && store_root=$cli_store_root
+[[ -n "$cli_backend" ]] && backend=$cli_backend
+[[ -n "$cli_scheduler" ]] && scheduler=$cli_scheduler
+[[ -n "$cli_require_allocation" ]] && require_allocation=$cli_require_allocation
+
+case "$scheduler" in
+  none|slurm) ;;
+  *) printf 'bootstrap: unsupported scheduler policy: %s\n' "$scheduler" >&2; exit 2 ;;
+esac
+
+require_allocation=$(normalize_bool "$require_allocation") || {
+  printf 'bootstrap: require_allocation must be true or false, got: %s\n' "$require_allocation" >&2
+  exit 2
+}
+
+if [[ "$scheduler" == "slurm" && "$require_allocation" == "true" ]] &&
+   ! has_active_slurm_allocation; then
+  cat >&2 <<'MSG'
+wrfkit: this machine configuration requires an active Slurm compute allocation.
+
+You appear to be outside a Slurm allocation. Request a compute allocation using
+your site's normal workflow, enter the allocated shell, and run ./bootstrap
+again.
+
+UGA Sapelo2 example:
+  interact -c 4 --mem=16G --time=01:00:00 --gres=lscratch:100
+
+To change this policy, run:
+  ./bootstrap --configure
+MSG
+  exit 2
+fi
 
 purge_managed_nix() {
   prepare_rnb
@@ -144,83 +523,6 @@ else
   fi
 fi
 
-config_profile=""
-config_store_root=""
-config_backend=""
-config_scratch_root=""
-config_mpi_launcher=""
-config_mpi_tasks=""
-config_mpi_launcher_command=""
-config_mpi_task_flag=""
-config_source=""
-
-trim() {
-  local value=$1
-  value=${value#"${value%%[![:space:]]*}"}
-  value=${value%"${value##*[![:space:]]}"}
-  printf '%s' "$value"
-}
-
-read_config() {
-  local file=$1 line key value
-  [[ -r "$file" ]] || { printf 'bootstrap: cannot read config: %s\n' "$file" >&2; exit 2; }
-
-  while IFS= read -r line || [[ -n "$line" ]]; do
-    line=$(trim "$line")
-    [[ -z "$line" || ${line:0:1} == "#" ]] && continue
-    [[ "$line" == *=* ]] || { printf 'bootstrap: malformed line: %s\n' "$line" >&2; exit 2; }
-
-    key=$(trim "${line%%=*}")
-    value=$(trim "${line#*=}")
-    value=${value#\"}; value=${value%\"}
-    value=${value#\'}; value=${value%\'}
-
-    case "$key" in
-      profile)      config_profile=$value ;;
-      store_root)   config_store_root=$value ;;
-      backend)      config_backend=$value ;;
-      scratch_root)         config_scratch_root=$value ;;
-      mpi_launcher)         config_mpi_launcher=$value ;;
-      mpi_tasks)            config_mpi_tasks=$value ;;
-      mpi_launcher_command) config_mpi_launcher_command=$value ;;
-      mpi_task_flag)        config_mpi_task_flag=$value ;;
-      *) printf 'bootstrap: unsupported config key: %s\n' "$key" >&2; exit 2 ;;
-    esac
-  done < "$file"
-  config_source=$file
-}
-
-if [[ -n "$config_file" ]]; then
-  read_config "$config_file"
-else
-  user_config="${XDG_CONFIG_HOME:-$HOME/.config}/wrfkit/bootstrap.conf"
-  [[ -r "$user_config" ]] && read_config "$user_config"
-fi
-
-profile=${profile:-${WRFKIT_BOOTSTRAP_PROFILE:-$config_profile}}
-if [[ -z "$profile" ]]; then
-  if command -v sinfo-gacrc >/dev/null 2>&1 && [[ -d "/lscratch" ]]; then
-    profile=sapelo2
-  else
-    profile=generic
-  fi
-fi
-
-if [[ -z "$config_source" ]]; then
-  bundled_config="$ROOT/config/bootstrap/${profile}.conf"
-  [[ -r "$bundled_config" ]] && read_config "$bundled_config"
-fi
-
-store_root=${WRFKIT_NIX_STORE_ROOT:-$config_store_root}
-backend=${WRFKIT_NIX_BACKEND:-$config_backend}
-scratch_root=${WRFKIT_SCRATCH_ROOT:-$config_scratch_root}
-mpi_launcher=${WRFKIT_MPI_LAUNCHER:-${config_mpi_launcher:-auto}}
-mpi_tasks=${WRFKIT_MPI_TASKS:-${config_mpi_tasks:-1}}
-mpi_launcher_command=${WRFKIT_MPI_LAUNCHER_COMMAND:-$config_mpi_launcher_command}
-mpi_task_flag=${WRFKIT_MPI_TASK_FLAG:-${config_mpi_task_flag:--n}}
-[[ -n "$cli_store_root" ]] && store_root=$cli_store_root
-[[ -n "$cli_backend" ]] && backend=$cli_backend
-
 case "$profile" in
   generic)
     ;;
@@ -242,8 +544,8 @@ case "$profile" in
     ;;
   *)
     # Custom site/profile names are allowed when they come from an explicit
-    # user/config file. They inherit generic filesystem behavior.
-    [[ -n "$config_source" ]] || {
+    # config file. They inherit generic filesystem behavior.
+    [[ -n "$selected_config" ]] || {
       printf 'bootstrap: unknown profile: %s\n' "$profile" >&2
       exit 2
     }
@@ -264,6 +566,8 @@ expand_path() {
 printf 'wrfkit bootstrap\n'
 printf '  profile:      %s\n' "$profile"
 printf '  config:       %s\n' "${config_source:-built-in defaults}"
+printf '  scheduler:    %s\n' "$scheduler"
+printf '  allocation:   %s\n' "${require_allocation}"
 printf '  store root:   %s\n' "${store_root:-rootless-nix-bootstrap default}"
 printf '  scratch root: %s\n' "${scratch_root:-not configured}"
 printf '  backend:      %s\n' "${backend:-rootless-nix-bootstrap default}"
