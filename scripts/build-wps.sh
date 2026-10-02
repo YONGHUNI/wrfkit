@@ -2,26 +2,38 @@
 set -Eeuo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
 
-jobs=${WRFKIT_BUILD_JOBS:-${SLURM_CPUS_PER_TASK:-}}
+jobs=1
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --jobs|-j) jobs=$2; shift 2 ;;
+    --jobs|-j)
+      requested_jobs=$2
+      [[ "$requested_jobs" =~ ^[1-9][0-9]*$ ]] || {
+        printf 'build-wps: invalid job count: %s\n' "$requested_jobs" >&2
+        exit 2
+      }
+      if [[ "$requested_jobs" != "1" ]]; then
+        cat >&2 <<MSG
+build-wps: WPS ${WRFKIT_WPS_VERSION} is built serially by wrfkit.
+
+Parallel WPS builds can race while multiple targets write shared Fortran
+module files (for example ungrib filelist.mod/gridinfo.mod).
+
+Use:
+  ./wrfctl build wps
+MSG
+        exit 2
+      fi
+      shift 2
+      ;;
     -h|--help)
-      echo "Usage: ./wrfctl build wps [--jobs N]"
+      echo "Usage: ./wrfctl build wps"
+      echo "WPS is built serially to avoid upstream Fortran module-file races."
       exit 0
       ;;
     *) printf 'build-wps: unknown option: %s\n' "$1" >&2; exit 2 ;;
   esac
 done
-
-if [[ -z "$jobs" ]]; then
-  jobs=$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf '4')
-fi
-[[ "$jobs" =~ ^[1-9][0-9]*$ ]] || {
-  printf 'build-wps: invalid job count: %s\n' "$jobs" >&2
-  exit 2
-}
 
 wrf_config="$WRFKIT_INSTALL_DIR/lib/cmake/WRF/WRFConfig.cmake"
 [[ -r "$wrf_config" ]] || {
@@ -39,7 +51,7 @@ mkdir -p "$WRFKIT_WPS_BUILD_DIR" "$WRFKIT_WPS_INSTALL_DIR"
 printf 'WPS build configuration\n'
 printf '  version: %s\n  revision: %s\n  MPI: enabled\n  GRIB2: bundled externals\n' \
   "$WRFKIT_WPS_VERSION" "$WRFKIT_WPS_REV"
-printf '  WRF root: %s\n  source: %s\n  build: %s\n  install: %s\n  jobs: %s\n\n' \
+printf '  WRF root: %s\n  source: %s\n  build: %s\n  install: %s\n  jobs: %s (serial)\n\n' \
   "$WRFKIT_INSTALL_DIR" "$WRFKIT_WPS_SRC_DIR" "$WRFKIT_WPS_BUILD_DIR" \
   "$WRFKIT_WPS_INSTALL_DIR" "$jobs"
 
