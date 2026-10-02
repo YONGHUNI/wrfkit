@@ -363,12 +363,14 @@ use the same software stack.
 
 ## Step 5 — prepare the map
 
-!!! tip "The same preparation can be automated"
-    `./wrfctl prep --case athens-smoke` is the high-level command that
-    orchestrates Steps 5 through 7: geography, GFS forcing, WPS processing, and
-    WRF runtime staging. The tutorial keeps the individual commands visible so
-    a first-time user can see what each native stage does and recognize its
-    success output. The same low-level commands remain useful for debugging.
+!!! tip "The same workflow can be automated"
+    `./wrfctl plan --case athens-smoke` shows the resolved science and stages
+    without changing files. `./wrfctl prep --case athens-smoke` orchestrates
+    Steps 5 through 7 **including `real.exe`**, and
+    `./wrfctl run --case athens-smoke` runs WRF with preparation-freshness
+    checks. This tutorial intentionally keeps the individual native commands
+    visible so a first-time user can learn each stage. If you follow those
+    low-level steps directly, continue to use `wrfctl exec wrf` in Step 8.
 
 This step has two separate jobs: first download the reusable static geography
 data, then use `geogrid` to place those data onto the `athens-smoke` model

@@ -18,7 +18,9 @@ merely implemented or planned.
 | Single-node `sbatch` MPI | Validated | 16-rank Sapelo2 run completed successfully |
 | One-Nix-namespace Slurm bridge | Validated | Inner OpenMPI launch confirmed in batch |
 | Per-run native log archive | Validated | `native-logs.tar` with current-run filtering |
-| High-level `wrfctl prep` orchestration | Validated | `athens-smoke` completed on Lambda Vector and Sapelo2: TOML config -> geography -> GFS -> geogrid -> ungrib -> metgrid -> WRF runtime staging |
+| High-level `wrfctl prep` through `real` | Implemented, not yet regression-validated | Previous prep contract was validated through WRF runtime staging; current contract adds `real`, artifact checks, and a prep manifest |
+| `wrfctl plan` / `prep --dry-run` | Implemented, not yet regression-validated | Read-only resolved-science and stage view |
+| High-level `wrfctl run` | Implemented, not yet regression-validated | Checks prep freshness, current WRF success marker, and new `wrfout_d01_*` |
 | Optional shared `data_root` | Implemented, not yet regression-validated | Reusable geography/GFS may live outside a repository; default remains project-local |
 | GFS regional-subset cache identity | Implemented, not yet regression-validated | Cache path includes a request key derived from product and bounding box |
 | TOML `case.toml` parser + namelist overlay | Validated | `--check` and managed overlay exercised on Lambda Vector and Sapelo2; unspecified native keys are preserved |
@@ -67,9 +69,12 @@ Sapelo2 printed IEEE floating-point exception flags after `metgrid`, but
 pipeline continued to WRF runtime staging. The flags are therefore recorded as
 non-fatal output for this smoke regression, not as a clean-output guarantee.
 
-This validates the current `athens-smoke` TOML/GFS/low-resolution-geography
-path. It does not yet validate other forcing providers, research-grade static
-geography, shared `data_root`, or every advanced namelist passthrough.
+This validated the earlier high-level prep contract through WRF runtime
+staging. The current contract additionally runs `real.exe`, verifies
+`wrfinput`/`wrfbdy`, writes a preparation manifest, and pairs with
+`wrfctl run`; those newly added high-level pieces require a fresh regression.
+The result also does not validate other forcing providers, research-grade
+static geography, shared `data_root`, or every advanced namelist passthrough.
 
 ## Single-node Slurm validation
 

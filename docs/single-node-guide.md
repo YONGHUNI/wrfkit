@@ -66,34 +66,22 @@ environment will simply report that bootstrap is not needed and continue.
 The repository includes `cases/athens-smoke`, a deliberately small
 single-domain case for workflow validation.
 
-Fetch static geography and run geogrid:
+Inspect the resolved science and planned stages without changing files:
 
 ```bash
-./wrfctl fetch geog
-./wrfctl exec geogrid --case athens-smoke
+./wrfctl plan --case athens-smoke
 ```
 
-Fetch and stage the fixed GFS test window, then run WPS:
+Prepare the entire case through `real.exe`, then run WRF:
 
 ```bash
-./wrfctl fetch gfs --case athens-smoke
-./wrfctl prepare gfs --case athens-smoke
-./wrfctl exec ungrib --case athens-smoke
-./wrfctl exec metgrid --case athens-smoke
+./wrfctl prep --case athens-smoke
+./wrfctl run  --case athens-smoke
 ```
 
-Stage the WRF runtime files and initialize the model:
-
-```bash
-./wrfctl prepare wrf --case athens-smoke
-./wrfctl exec real --case athens-smoke
-```
-
-Then run WRF:
-
-```bash
-./wrfctl exec wrf --case athens-smoke
-```
+For debugging or teaching, the individual
+`fetch -> geogrid -> ungrib -> metgrid -> real -> wrf` commands remain
+available through the low-level interface.
 
 A successful run should leave `wrfout_d01_*` under
 `.wrfkit/work/athens-smoke/`.

@@ -76,10 +76,14 @@ For the currently supported low-resolution geography + GFS path, use the
 high-level preparation command:
 
 ```bash
+./wrfctl plan --case my-case   # optional, read-only
 ./wrfctl prep --case my-case
-./wrfctl exec real --case my-case
-./wrfctl exec wrf --case my-case
+./wrfctl run  --case my-case
 ```
+
+`prep` includes `real.exe`; its success condition is a current set of
+`wrfinput_d0*` and `wrfbdy_d01`. `run` checks that the scientific
+configuration has not changed since prep before launching `wrf.exe`.
 
 `case.toml` contains wrfkit-owned data/workflow settings and optional
 namelist overlays. The native `namelist.wps` and `namelist.input` remain
@@ -110,6 +114,8 @@ rerunning only one stage:
 ./wrfctl exec metgrid --case my-case
 
 ./wrfctl prepare wrf --case my-case
+./wrfctl exec real --case my-case
+./wrfctl exec wrf --case my-case
 ```
 
 Automatic `prep` currently accepts the bundled `lowres` geography path and
