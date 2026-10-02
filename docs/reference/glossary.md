@@ -65,15 +65,20 @@ whole sequence first, use the [first-run tutorial](../tutorials/first-run.md).
 | [**MPI**](https://www.mpi-forum.org/){ target="_blank" rel="noopener noreferrer" } | Message Passing Interface, a standard for communication among multiple processes in a parallel program. |
 | [**MPI rank**](https://www.mpi-forum.org/docs/mpi-4.1/mpi41-report/node187.htm){ target="_blank" rel="noopener noreferrer" } | One participating MPI process, identified by a rank number within an MPI communicator. A 16-rank WRF run has 16 cooperating MPI processes. |
 
-### Cluster and scheduler
+### HPC clusters
 
 | Term | Plain-language meaning |
 | --- | --- |
-| [**HPC**](https://en.wikipedia.org/wiki/High-performance_computing){ target="_blank" rel="noopener noreferrer" } | High-performance computing: using powerful computing resources, often many CPUs or nodes working together, to run calculations that would be too large or slow for an ordinary computer. |
-| [**cluster**](https://en.wikipedia.org/wiki/Computer_cluster){ target="_blank" rel="noopener noreferrer" } | A group of networked computers operated together as a shared computing system. HPC clusters commonly include login or service nodes plus many compute nodes. |
-| [**node**](https://slurm.schedmd.com/overview.html){ target="_blank" rel="noopener noreferrer" } | One computer in a cluster. In Slurm, nodes are the compute resources from which jobs receive CPUs, memory, and other resources. |
-| [**login node**](https://docs.hpc.ethz.ch/hardware/login_nodes/){ target="_blank" rel="noopener noreferrer" } | A shared access point used on many HPC clusters for SSH, file management, job preparation, and job submission. Heavy computation normally runs on compute nodes. Login nodes are a common cluster design, not a requirement imposed by Slurm itself. |
-| [**compute node**](https://hpcdocs.hpc.arizona.edu/registration_and_access/system_overview/){ target="_blank" rel="noopener noreferrer" } | A cluster server intended to perform the actual computational workload. Scheduler-managed jobs are assigned resources on one or more compute nodes. |
+| [**HPC**](https://docs.hpc.shef.ac.uk/en/latest/hpc/what-is-hpc.html){ target="_blank" rel="noopener noreferrer" } | High-performance computing: using powerful computing resources, often many CPUs or nodes working together, to run calculations that would be too large or slow for an ordinary computer. |
+| [**cluster**](https://www.hpc.caltech.edu/docs/documentation/glossary.html){ target="_blank" rel="noopener noreferrer" } | A group of networked computers operated together as a shared computing system. HPC clusters commonly include login or service nodes plus many compute nodes. |
+| [**node**](https://www.hpc.caltech.edu/docs/documentation/glossary.html){ target="_blank" rel="noopener noreferrer" } | One computer in a cluster. A node may serve a specialized role, such as providing user access or running computational workloads. |
+| [**login node**](https://www.hpc.caltech.edu/docs/documentation/glossary.html){ target="_blank" rel="noopener noreferrer" } | A shared access point used on many HPC clusters for SSH, file management, job preparation, and job submission. Heavy computation normally runs on compute nodes. Login nodes are a common cluster design, not a requirement imposed by Slurm itself. |
+| [**compute node**](https://www.hpc.caltech.edu/docs/documentation/glossary.html){ target="_blank" rel="noopener noreferrer" } | A cluster server intended to perform the actual computational workload. Scheduler-managed jobs are assigned resources on one or more compute nodes. |
+
+### Slurm scheduling
+
+| Term | Plain-language meaning |
+| --- | --- |
 | [**Slurm**](https://slurm.schedmd.com/overview.html){ target="_blank" rel="noopener noreferrer" } | A workload manager used on many HPC clusters. It manages resources, queues jobs, and launches work on allocated nodes. |
 | [**partition**](https://slurm.schedmd.com/overview.html){ target="_blank" rel="noopener noreferrer" } | A logical group of Slurm nodes that acts like a job queue with its own limits and policies. |
 | [**job**](https://slurm.schedmd.com/overview.html){ target="_blank" rel="noopener noreferrer" } | A user's request for resources and work to run under Slurm for a specified period of time. |
@@ -81,7 +86,7 @@ whole sequence first, use the [first-run tutorial](../tutorials/first-run.md).
 | [**job step**](https://slurm.schedmd.com/job_launch.html){ target="_blank" rel="noopener noreferrer" } | A set of tasks launched inside an existing Slurm job allocation. wrfkit's single-node bridge creates a child job step before starting MPI ranks. |
 | [**sbatch**](https://slurm.schedmd.com/sbatch.html){ target="_blank" rel="noopener noreferrer" } | The Slurm command that submits a batch script to the scheduler. |
 | [**srun**](https://slurm.schedmd.com/srun.html){ target="_blank" rel="noopener noreferrer" } | The Slurm command used to launch tasks or job steps. wrfkit uses a child `srun` step internally for its validated single-node Slurm path. |
-| [**interactive allocation**](https://slurm.schedmd.com/salloc.html){ target="_blank" rel="noopener noreferrer" } | Reserved compute resources used interactively from a shell rather than through a fully unattended batch script. Sapelo2 provides its own `interact` convenience command for this workflow. |
+| [**interactive job / allocation**](https://slurm.schedmd.com/salloc.html){ target="_blank" rel="noopener noreferrer" } | Reserved compute resources used interactively from a shell rather than through a fully unattended batch script. Sapelo2 provides its own `interact` convenience command for this workflow. |
 
 ## wrfkit workflow & files
 
