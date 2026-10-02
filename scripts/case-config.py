@@ -203,8 +203,21 @@ def patch_namelist(path: pathlib.Path, patches) -> bool:
                 end += 1
                 continue
 
-            indent = key_re.search(lines[index]).group(1)
-            lines[index] = f"{indent}{key:<35} = {value},"
+            # Preserve the native file's existing whitespace and inline comment.
+            # case.toml is an overlay, not a namelist formatter: changing one
+            # value should not create unrelated formatting churn in Git diffs.
+            existing = lines[index]
+            value_match = re.match(
+                rf"^(\\s*{re.escape(key)}\\s*=\\s*)(.*?)(\\s*,\\s*)(!.*)?$",
+                existing,
+                re.IGNORECASE,
+            )
+            if value_match:
+                prefix, _, comma, comment = value_match.groups()
+                lines[index] = f"{prefix}{value}{comma}{comment or ''}"
+            else:
+                indent = key_re.search(existing).group(1)
+                lines[index] = f"{indent}{key:<35} = {value},"
 
             # If the overwritten value was a multiline array, discard plain
             # continuation lines while retaining following comments/assignments.
@@ -271,24 +284,38 @@ def build_patches(data):
         set_value(wps, "share", "start_date", [start.strftime("%Y-%m-%d_%H:%M:%S")] * max_dom)
         set_value(wps, "share", "end_date", [end.strftime("%Y-%m-%d_%H:%M:%S")] * max_dom)
 
-        for key, attribute in (
-            ("start_year", "year"),
-            ("start_month", "month"),
-            ("start_day", "day"),
-            ("start_hour", "hour"),
-            ("start_minute", "minute"),
-            ("start_second", "second"),
+        for key, attribute, width in (
+            ("start_year", "year", 4),
+            ("start_month", "month", 2),
+            ("start_day", "day", 2),
+            ("start_hour", "hour", 2),
+            ("start_minute", "minute", 2),
+            ("start_second", "second", 2),
         ):
-            set_value(wrf, "time_control", key, [getattr(start, attribute)] * max_dom)
-        for key, attribute in (
-            ("end_year", "year"),
-            ("end_month", "month"),
-            ("end_day", "day"),
-            ("end_hour", "hour"),
-            ("end_minute", "minute"),
-            ("end_second", "second"),
+            component = getattr(start, attribute)
+            set_value(
+                wrf,
+                "time_control",
+                key,
+                ", ".join(f"{component:0{width}d}" for _ in range(max_dom)),
+                raw=True,
+            )
+        for key, attribute, width in (
+            ("end_year", "year", 4),
+            ("end_month", "month", 2),
+            ("end_day", "day", 2),
+            ("end_hour", "hour", 2),
+            ("end_minute", "minute", 2),
+            ("end_second", "second", 2),
         ):
-            set_value(wrf, "time_control", key, [getattr(end, attribute)] * max_dom)
+            component = getattr(end, attribute)
+            set_value(
+                wrf,
+                "time_control",
+                key,
+                ", ".join(f"{component:0{width}d}" for _ in range(max_dom)),
+                raw=True,
+            )
 
         duration = int((end - start).total_seconds())
         days, remainder = divmod(duration, 86400)
