@@ -20,6 +20,34 @@ know what the wrapper is doing for you.
 
 Keeping these layers separate is the main design idea.
 
+## Why does `prep` exist if the individual commands still exist?
+
+The native preparation chain contains several distinct programs and staging
+steps. Those distinctions are useful when diagnosing a failure, but they are
+usually plumbing rather than separate user intentions.
+
+```text
+Normal workflow:
+  wrfctl prep --case NAME
+
+Equivalent low-level path:
+  fetch geography
+  -> geogrid
+  -> fetch forcing
+  -> stage forcing
+  -> ungrib
+  -> metgrid
+  -> stage WRF runtime data
+```
+
+wrfkit therefore keeps both layers. `prep` orchestrates the case, while
+`fetch`, `prepare`, and `exec` remain available when you need direct
+control over one stage.
+
+Reusable downloaded inputs may also be separated from a particular repository
+with a machine-level `data_root`. Generated case workspaces stay under the
+repository because they depend on that case's scientific configuration.
+
 ## Why Nix?
 
 WRF depends on a collection of compilers and libraries. On different computers,

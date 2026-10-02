@@ -18,6 +18,9 @@ merely implemented or planned.
 | Single-node `sbatch` MPI | Validated | 16-rank Sapelo2 run completed successfully |
 | One-Nix-namespace Slurm bridge | Validated | Inner OpenMPI launch confirmed in batch |
 | Per-run native log archive | Validated | `native-logs.tar` with current-run filtering |
+| High-level `wrfctl prep` orchestration | Implemented, not yet regression-validated | Wraps geography, GFS, WPS, and WRF runtime staging while retaining low-level commands |
+| Optional shared `data_root` | Implemented, not yet regression-validated | Reusable geography/GFS may live outside a repository; default remains project-local |
+| GFS regional-subset cache identity | Implemented, not yet regression-validated | Cache path includes a request key derived from product and bounding box |
 | Multi-node MPI | Not validated | Do not treat as supported research execution |
 | WRF restart/recovery workflow | Not validated | Requires dedicated workflow testing |
 | Scratch-backed execution workspace | Not implemented | `scratch_root` is currently configuration metadata |

@@ -8,7 +8,7 @@ wrfkit separates **things you edit** from **things programs generate**.
 cases/                 you edit and commit these
 .wrfkit/work/          generated working files and model products
 .wrfkit/logs/          run-by-run provenance and archived native logs
-.wrfkit/data/          reusable downloaded input data
+.wrfkit/data/          reusable downloaded input data (default)
 .wrfkit/install/       built WRF/WPS programs
 ```
 
@@ -81,3 +81,26 @@ workspaces still live under:
 ```
 
 Do not assume scientific outputs are automatically staged to `/lscratch`.
+
+
+## Reuse downloaded data across projects
+
+The default data location is project-local:
+
+```text
+<repository>/.wrfkit/data/
+```
+
+For large or repeatedly reused inputs, a machine can instead define:
+
+```ini
+data_root=/path/to/shared/wrfkit-data
+```
+
+in `~/.config/wrfkit/bootstrap.conf`. Static geography and GFS downloads then
+use that shared root, while case workspaces, logs, builds, and model output stay
+with the repository.
+
+This split is intentional: geography and forcing can be reusable inputs, while
+`geo_em.*`, `met_em.*`, `wrfinput*`, and `wrfout*` depend on a specific
+case.
