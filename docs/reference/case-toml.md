@@ -122,6 +122,23 @@ planned WPS/WRF overlays without writing files. To apply them:
 
 `wrfctl prep --case my-case` invokes the configuration step automatically.
 
+For a read-only view closer to the scientific intent than the raw override
+count, use:
+
+```bash
+./wrfctl plan --case my-case
+```
+
+It prints the simulation period, forcing/cycle/hours/subset, geography, domain
+dimensions, timestep, physics suite, output interval, and native override
+counts, followed by the high-level stages. `prep --dry-run` uses the same
+planning path.
+
+A successful high-level prep continues through `real.exe`, verifies
+`wrfinput_d0*` and `wrfbdy_d01`, and records a preparation fingerprint.
+`wrfctl run` requires that fingerprint to still match `case.toml` and the
+native namelists.
+
 !!! note "Implementation boundary"
     The namelist passthrough is intentionally broad, but automatic data
     acquisition is still narrower. The current provider is GFS 0.25° and the

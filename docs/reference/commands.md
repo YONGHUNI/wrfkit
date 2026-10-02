@@ -7,12 +7,15 @@ Commands below are run from the repository root unless noted otherwise.
 | Command | Purpose |
 | --- | --- |
 | `./wrfctl config --case NAME` | Validate `case.toml` and update TOML-managed values in the native namelists |
-| `./wrfctl config --case NAME --check` | Validate and show the overlay plan without writing namelist files |
-| `./wrfctl prep --case NAME` | Resolve the case configuration and prepare inputs through `geogrid -> ungrib -> metgrid`, then stage WRF runtime data |
-| `./wrfctl exec real --case NAME` | Create WRF initial and boundary files |
-| `./wrfctl exec wrf --case NAME` | Run WRF |
+| `./wrfctl config --case NAME --check` | Validate TOML/native mapping without writing namelist files |
+| `./wrfctl plan --case NAME` | Show resolved scientific configuration, input-cache state, and planned stages without changes |
+| `./wrfctl prep --case NAME --dry-run` | Show the same read-only preparation plan |
+| `./wrfctl prep --case NAME` | Prepare through `geogrid -> ungrib -> metgrid -> real`; verify `wrfinput`/`wrfbdy` |
+| `./wrfctl run --case NAME` | Verify the prep manifest, run WRF, and require a current success marker/output |
+| `./wrfctl exec real --case NAME` | Low-level direct `real.exe` execution |
+| `./wrfctl exec wrf --case NAME` | Low-level direct `wrf.exe` execution |
 
-`prep` is the normal orchestration layer. The lower-level commands below remain
+`prep` + `run` is the normal orchestration layer. The lower-level commands below remain
 available when you want to inspect, teach, debug, or rerun only one stage.
 
 Current automatic `prep` support is deliberately narrow: bundled
@@ -121,3 +124,17 @@ native namelists.
 Advanced users can set arbitrary upstream namelist keys under
 `[advanced.wps.<group>]` and `[advanced.wrf.<group>]`. See
 [case.toml configuration](case-toml.md).
+
+
+## Preparation freshness guard
+
+A successful high-level `prep` writes
+`.wrfkit/work/<case>/.wrfkit-prep-manifest`. It records a stable fingerprint
+of preparation-relevant TOML, hashes of both native namelists, and the pinned
+WRF/WPS versions. `wrfctl run` checks that manifest before launching WRF.
+
+This prevents a common mistake: editing the domain, forcing, physics, or native
+namelist after `real.exe` has produced `wrfinput`/`wrfbdy`, then
+accidentally running WRF with stale prepared inputs. If the guard fires, rerun
+`wrfctl prep --case NAME`. Direct `wrfctl exec wrf` remains available as
+the explicit low-level escape hatch.

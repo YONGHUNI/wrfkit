@@ -52,9 +52,13 @@ meanings, example values, and documented upstream defaults/recommendations.
 wrfkit keeps the native WRF/WPS programs visible but does not require normal
 users to invoke every plumbing step manually.
 
-The high-level preparation contract is:
+The high-level contract is:
 
 ```text
+wrfctl plan --case NAME
+  -> show resolved scientific configuration and planned native stages
+  -> make no changes
+
 wrfctl prep --case NAME
   -> ensure reusable static geography
   -> geogrid
@@ -63,6 +67,22 @@ wrfctl prep --case NAME
   -> ungrib
   -> metgrid
   -> stage WRF runtime data
+  -> real
+  -> verify wrfinput_d0* + wrfbdy_d01
+  -> write preparation manifest
+
+wrfctl run --case NAME
+  -> verify case/preparation fingerprints
+  -> wrf
+  -> require current SUCCESS COMPLETE WRF + new wrfout
+```
+
+The abstraction boundary is deliberate:
+
+```text
+case.toml   tells you WHAT experiment you are running.
+namelist.*  shows WHAT WRF/WPS actually receive.
+wrfctl      hides HOW the machine executes the workflow.
 ```
 
 The existing `fetch`, `prepare`, and `exec` commands remain first-class
@@ -317,10 +337,19 @@ MPI assumptions.
 
 ## WRF real-data staging
 
-Real-data WRF execution remains explicit: `metgrid -> real -> wrf`.
-`wrfctl prepare wrf --case NAME` stages runtime tables and physics data by
-symlinking files from the pinned WRF source tree's `run/` directory into
+The native pipeline remains explicit and inspectable:
+`metgrid -> real -> wrf`. The normal high-level boundary groups
+`metgrid -> real` under `wrfctl prep`, because preparation is complete only
+when WRF initial and lateral-boundary files exist; `wrfctl run` then owns the
+actual `wrf.exe` simulation.
+
+`wrfctl prepare wrf --case NAME` still stages runtime tables and physics data
+by symlinking files from the pinned WRF source tree's `run/` directory into
 `.wrfkit/work/NAME`. The scientific `namelist.input` remains case-owned and
-is exposed to the workspace through a generated symlink. This separates runtime
-assets from scientific configuration while preserving WRF's native file layout
-expectations.
+is exposed to the workspace through a generated symlink.
+
+After successful `real`, prep writes a small manifest containing a
+preparation-relevant TOML fingerprint, native namelist hashes, and pinned
+WRF/WPS versions. High-level `run` refuses stale prepared inputs when those
+inputs no longer match the tracked scientific configuration. Advanced users can
+still invoke every native stage through `wrfctl exec`.
