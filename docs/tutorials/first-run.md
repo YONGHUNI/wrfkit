@@ -327,9 +327,28 @@ Then build WRF and WPS:
 
 The first build can take time. wrfkit parallelizes the WRF build using the
 available CPU count (or `--jobs N` when you set one), then builds WPS
-serially. WPS 4.7.0 can race when multiple build targets write the same
-Fortran module files in parallel, so wrfkit deliberately uses one WPS build
-job for reliability.
+serially. You do not need to choose a separate WPS job count.
+
+Near the end of a successful build, you should see:
+
+```text
+WPS build completed.
+  geogrid: .../.wrfkit/install/wps-4.7.0/bin/geogrid
+  ungrib:  .../.wrfkit/install/wps-4.7.0/bin/ungrib
+  metgrid: .../.wrfkit/install/wps-4.7.0/bin/metgrid
+```
+
+Because `build all` builds WRF first and WPS second, reaching this final WPS
+completion block means the complete build sequence finished successfully.
+
+!!! note "Compiler warnings do not always mean the build failed"
+    A validated Sapelo2 build printed several WPS compiler warnings and still
+    reached 100%, installed the WPS programs, and ended with
+    `WPS build completed.`
+
+    Use the final completion block above as the checkpoint. If the command
+    stops before that point or prints an `error:`, use the
+    [troubleshooting guide](../troubleshooting.md).
 
 wrfkit pins the compiler, MPI, NetCDF, WRF, and WPS environment so later runs
 use the same software stack.

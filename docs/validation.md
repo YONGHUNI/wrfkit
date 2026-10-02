@@ -7,8 +7,8 @@ merely implemented or planned.
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| WRF 4.8.0 build | Validated | CMake workflow, GNU toolchain |
-| WPS 4.7.0 build | Validated | Built against the wrfkit WRF installation |
+| WRF 4.8.0 build | Validated | Clean `build all --jobs 16` regression completed on Lambda Vector and Sapelo2 |
+| WPS 4.7.0 build | Validated | Serial WPS stage completed on Lambda Vector and Sapelo2; `geogrid`, `ungrib`, and `metgrid` installed |
 | Rootless Nix on Sapelo2 | Validated | Default single-node profile uses node-local `/lscratch` |
 | Static geography staging | Validated | Bundled low-resolution smoke-test geography |
 | GFS acquisition/staging | Validated | Fixed GFS smoke window through NOMADS |
@@ -22,6 +22,25 @@ merely implemented or planned.
 | WRF restart/recovery workflow | Not validated | Requires dedicated workflow testing |
 | Scratch-backed execution workspace | Not implemented | `scratch_root` is currently configuration metadata |
 | YAML case frontend | Planned | Native namelists remain the source of truth |
+
+## Clean build regression
+
+The current build policy was re-tested from a clean generated state with:
+
+```bash
+./wrfctl clean
+./wrfctl build all --jobs 16
+```
+
+The sequence completed successfully on both a standalone Lambda Vector Linux
+workstation and a Sapelo2 compute node. In both environments, the final WPS
+stage installed `geogrid`, `ungrib`, and `metgrid` and printed
+`WPS build completed.`
+
+The Sapelo2 WPS compilation printed compiler warnings while building
+`read_geogrid.c`, but those warnings did not stop compilation or installation.
+The final completion message, rather than the absence of warnings, is the
+build-level success checkpoint.
 
 ## Single-node Slurm validation
 
