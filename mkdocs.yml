@@ -74,6 +74,7 @@ nav:
       - Troubleshooting: troubleshooting.md
   - Reference:
       - wrfctl commands: reference/commands.md
+      - case.toml configuration: reference/case-toml.md
       - Files and folders: reference/files-and-folders.md
       - Validation matrix: validation.md
       - Caveats: caveats.md
