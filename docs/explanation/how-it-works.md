@@ -35,11 +35,12 @@ Nix.
 
 A naive rootless design can make every MPI rank enter Nix separately:
 
-```text
-rank 0 -> Nix
-rank 1 -> Nix
-rank 2 -> Nix
-...
+```mermaid
+flowchart LR
+    R0["MPI rank 0"] --> N0["Nix entry"]
+    R1["MPI rank 1"] --> N1["Nix entry"]
+    R2["MPI rank 2"] --> N2["Nix entry"]
+    RX["MPI rank …"] --> NX["Nix entry"]
 ```
 
 During development on Sapelo2 this led to repeated Nix evaluation, SQLite cache
@@ -47,20 +48,15 @@ contention, and UCX namespace errors.
 
 The validated single-node design is instead:
 
-```text
-Slurm allocation
-      |
-      v
-one child task owns N CPUs
-      |
-      v
-enter rootless Nix once
-      |
-      v
-OpenMPI mpirun -np N
-      |
-      v
-N WRF ranks in the same Nix namespace
+```mermaid
+flowchart TB
+    A["Slurm allocation<br/>N CPUs"]
+    B["One child task owns N CPUs"]
+    C["Enter rootless Nix once"]
+    D["Pinned OpenMPI<br/>mpirun -np N"]
+    E["N WRF ranks<br/>same Nix namespace"]
+
+    A --> B --> C --> D --> E
 ```
 
 Interactive allocations use the same basic bridge with the Slurm overlap option

@@ -58,21 +58,15 @@ Slurm HPC systems such as UGA Sapelo2.
 
 ## The whole idea in one picture
 
-```text
-Your scientific settings
-cases/<case>/
-      |
-      v
-    wrfkit
-      |
-      +--> WPS prepares maps + weather input
-      |        geogrid -> ungrib -> metgrid
-      |
-      +--> WRF prepares + runs the model
-               real -> wrf
-                         |
-                         v
-                    wrfout_d01_*
+```mermaid
+flowchart LR
+    A["Scientific configuration<br/>cases/&lt;case&gt;/"]
+    B["wrfkit"]
+    C["WPS<br/>prepare model inputs"]
+    D["WRF<br/>run the simulation"]
+    E["Model output<br/>wrfout_d01_*"]
+
+    A --> B --> C --> D --> E
 ```
 
 wrfkit tries to hide **computer setup complexity**, not **scientific choices**.

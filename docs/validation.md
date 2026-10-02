@@ -27,20 +27,15 @@ merely implemented or planned.
 
 The validated batch topology is:
 
-```text
-Slurm allocation: 1 node, N CPUs
-        |
-        v
-one child srun task with N CPUs
-        |
-        v
-one rootless-Nix namespace entry
-        |
-        v
-pinned OpenMPI: mpirun -np N
-        |
-        v
-WRF MPI ranks
+```mermaid
+flowchart TB
+    A["Slurm allocation<br/>1 node · N CPUs"]
+    B["Child srun step<br/>1 task · N CPUs"]
+    C["One rootless-Nix namespace entry"]
+    D["Pinned OpenMPI<br/>mpirun -np N"]
+    E["N WRF MPI ranks"]
+
+    A --> B --> C --> D --> E
 ```
 
 A Sapelo2 16-rank batch validation on an Intel Xeon Gold 6130 node completed

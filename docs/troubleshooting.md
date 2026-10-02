@@ -2,6 +2,15 @@
 
 Start here before reading hundreds of log lines.
 
+```mermaid
+flowchart TB
+    A["What failed?"]
+    A -->|Environment / launcher| B["Bootstrap, Nix, MPI"]
+    A -->|Input preparation| C["GFS or WPS"]
+    A -->|WRF stopped| D["Inspect RSL logs"]
+    A -->|Batch exited| E["Inspect stdout/stderr and sacct"]
+```
+
 ## `mpirun: command not found`
 
 If you typed `mpirun` directly in the normal host/login shell, this can be

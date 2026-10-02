@@ -45,6 +45,16 @@ At minimum, review:
 
 ## 3. Keep configuration separate from generated files
 
+```mermaid
+flowchart LR
+    A["Tracked configuration<br/>cases/my-case/"]
+    B["wrfkit stages the case"]
+    C["Generated workspace<br/>.wrfkit/work/my-case/"]
+    D["Model products<br/>wrfout · logs · intermediates"]
+
+    A --> B --> C --> D
+```
+
 Edit:
 
 ```text

@@ -6,15 +6,25 @@ to a fixed Linux workstation or server.
 
 **Validated path**
 
-```text
-case configuration
-    -> geogrid
-    -> GFS forcing
-    -> ungrib
-    -> metgrid
-    -> real
-    -> WRF
-    -> wrfout*
+```mermaid
+flowchart LR
+    C["Case configuration"]
+    G["Static geography"]
+    F["GFS forcing"]
+    GEO["geogrid"]
+    U["ungrib"]
+    M["metgrid"]
+    R["real"]
+    W["WRF"]
+    O["wrfout*"]
+
+    C --> GEO
+    C --> U
+    G --> GEO
+    F --> U
+    GEO --> M
+    U --> M
+    M --> R --> W --> O
 ```
 
 > [!IMPORTANT]

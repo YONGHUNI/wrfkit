@@ -224,14 +224,13 @@ ls .wrfkit/work/athens-smoke/wrfout_d01_*
 
 ## You just used the full pipeline
 
-```text
-geogrid
-   -> GFS download
-   -> ungrib
-   -> metgrid
-   -> real
-   -> wrf
-   -> wrfout
+```mermaid
+flowchart LR
+    G["Static geography"] --> GEO["geogrid"]
+    F["GFS weather data"] --> PG["prepare gfs"] --> U["ungrib"]
+    GEO --> M["metgrid"]
+    U --> M
+    M --> PW["prepare wrf"] --> R["real"] --> W["wrf"] --> O["wrfout"]
 ```
 
 Next, read [Make a research case](../how-to/research-case.md). It explains why

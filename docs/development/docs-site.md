@@ -47,9 +47,15 @@ The workflow is:
 .github/workflows/docs.yml
 ```
 
-A documentation/configuration push to `main` builds the MkDocs site, uploads
-the `site/` directory as a GitHub Pages artifact, and deploys it through the
-`github-pages` environment.
+A documentation/configuration push to `main` follows this deployment path:
+
+```mermaid
+flowchart LR
+    A["Push to main"] --> B["mkdocs build --strict"]
+    B --> C["Upload site/ as Pages artifact"]
+    C --> D["Deploy through github-pages"]
+    D --> E["Published documentation site"]
+```
 
 If Pages has never been enabled for the repository, an administrator must make
 the one-time choice in **Settings -> Pages** to use **GitHub Actions** as the

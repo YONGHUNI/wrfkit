@@ -1,6 +1,16 @@
 # Check whether a run succeeded
 
-Use three levels of checking: Slurm, WRF, and output files.
+Use three levels of technical checking, then do scientific quality control.
+
+```mermaid
+flowchart LR
+    A["Slurm<br/>COMPLETED · 0:0"]
+    B["WRF<br/>SUCCESS COMPLETE WRF"]
+    C["Outputs<br/>expected wrfout files"]
+    D["Science<br/>quality control"]
+
+    A --> B --> C --> D
+```
 
 ## 1. Did Slurm finish normally?
 

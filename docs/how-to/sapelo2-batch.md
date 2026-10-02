@@ -79,20 +79,15 @@ You request resources from Slurm:
 
 wrfkit then uses the validated single-node bridge:
 
-```text
-Slurm allocation
-      |
-      v
-one child srun task holding 16 CPUs
-      |
-      v
-enter Nix once
-      |
-      v
-mpirun -np 16
-      |
-      v
-16 WRF MPI ranks
+```mermaid
+flowchart TB
+    A["Slurm allocation<br/>1 node · 16 CPUs"]
+    B["Child srun step<br/>1 task · 16 CPUs"]
+    C["Enter rootless Nix once"]
+    D["Pinned OpenMPI<br/>mpirun -np 16"]
+    E["16 WRF MPI ranks"]
+
+    A --> B --> C --> D --> E
 ```
 
 This avoids entering the rootless-Nix environment once per MPI rank.

@@ -59,9 +59,10 @@ rather than hard-coding `/tmp`.
 
 The storage split is therefore conceptual:
 
-```text
-persistent -> project-local by default
-disposable -> site/system scratch when configured
+```mermaid
+flowchart LR
+    P["Persistent state"] --> PP["Project-local storage<br/>by default"]
+    D["Disposable state"] --> DS["Site/system scratch<br/>when configured"]
 ```
 
 A site-specific scratch path must not leak into scientific case configuration.
@@ -118,13 +119,12 @@ non-flake Nix input and copied into project-local state before building.
 The CMake workflow is used for both WRF and WPS. WPS is built only after a
 CMake-built WRF installation exists, with:
 
-```text
-WRF 4.8.0
-   ↓
-WPS 4.7.0
-   ├─ geogrid
-   ├─ ungrib
-   └─ metgrid
+```mermaid
+flowchart TB
+    WRF["WRF 4.8.0"] --> WPS["WPS 4.7.0"]
+    WPS --> G["geogrid"]
+    WPS --> U["ungrib"]
+    WPS --> M["metgrid"]
 ```
 
 The initial WPS build enables MPI for geogrid/metgrid and enables GRIB2 by
@@ -162,14 +162,17 @@ WRF/WPS source error semantics are not modified to protect a Slurm shell or
 batch job. Instead, execution isolation belongs to the scheduler backend.
 Single-node Slurm execution uses one bridge topology:
 
-```text
-single-node Slurm allocation
-└─ wrfctl
-   └─ child srun step
-      └─ 1 Slurm task × N CPUs
-         └─ rootless Nix entry (once)
-            └─ mpirun -np N
-               └─ N WRF/WPS ranks
+```mermaid
+flowchart TB
+    A["Single-node Slurm allocation"]
+    B["wrfctl"]
+    C["Child srun step"]
+    D["1 Slurm task × N CPUs"]
+    E["Rootless Nix entry<br/>once"]
+    F["Pinned OpenMPI<br/>mpirun -np N"]
+    G["N WRF/WPS ranks"]
+
+    A --> B --> C --> D --> E --> F --> G
 ```
 
 An interactive shell that already occupies an `srun` step adds `--overlap`
@@ -204,8 +207,7 @@ The machine profile may set `mpi_tasks=N` for fixed non-Slurm servers or
 interactive `srun` shell that reserves one task with multiple CPUs, auto may
 use `SLURM_CPUS_PER_TASK`. In either single-node case, the bridge reserves N
 CPUs before starting N MPI ranks. `--ntasks N` and `--launcher NAME` are
-per-run overrides. Interactive single-node Slurm execution is validated; the
-single-node batch bridge is implemented but awaits post-change validation.
+per-run overrides. Interactive and batch single-node Slurm execution are both validated.
 Multi-node rootless-Nix execution remains a separate validation target.
 
 This is still a single-node-first policy. Multi-node support must additionally

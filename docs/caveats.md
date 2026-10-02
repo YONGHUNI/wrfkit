@@ -78,21 +78,23 @@ are appropriate for another location, process, season, or research question.
 
 **Avoid**
 
-```text
-copy athens-smoke
--> change dates
--> call it a research experiment
+```mermaid
+flowchart LR
+    A["Copy athens-smoke"] --> B["Change dates only"] --> C["Call it a research experiment"]
 ```
 
 **Use instead**
 
-```text
-copy configuration as a starting point
--> redesign domain and resolution
--> choose and justify physics
--> set forcing and spin-up
--> test numerical stability
--> validate the resulting fields
+```mermaid
+flowchart LR
+    A["Copy configuration<br/>as a starting point"]
+    B["Redesign domain<br/>and resolution"]
+    C["Choose and justify<br/>physics"]
+    D["Set forcing<br/>and spin-up"]
+    E["Test numerical<br/>stability"]
+    F["Validate the<br/>resulting fields"]
+
+    A --> B --> C --> D --> E --> F
 ```
 
 ## 4. `scratch_root` is not yet the workspace location
