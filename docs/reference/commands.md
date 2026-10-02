@@ -6,6 +6,8 @@ Commands below are run from the repository root unless noted otherwise.
 
 | Command | Purpose |
 | --- | --- |
+| `./wrfctl config --case NAME` | Validate `case.toml` and update TOML-managed values in the native namelists |
+| `./wrfctl config --case NAME --check` | Validate and show the overlay plan without writing namelist files |
 | `./wrfctl prep --case NAME` | Resolve the case configuration and prepare inputs through `geogrid -> ungrib -> metgrid`, then stage WRF runtime data |
 | `./wrfctl exec real --case NAME` | Create WRF initial and boundary files |
 | `./wrfctl exec wrf --case NAME` | Run WRF |
@@ -100,3 +102,22 @@ reusable downloaded inputs move to the shared data root.
 GFS cache directories include a request identity derived from the product and
 spatial subset. Two cases using the same date/cycle but different bounding boxes
 therefore no longer reuse the same regional-subset file accidentally.
+
+
+## Case configuration
+
+`case.toml` is the wrfkit-facing configuration file. Native
+`namelist.wps` and `namelist.input` remain the files WPS/WRF actually read.
+
+```toml
+[namelist]
+managed = true
+```
+
+With `managed=true`, TOML-owned values are overlaid onto the native files and
+everything else is preserved. With `managed=false`, wrfkit never modifies the
+native namelists.
+
+Advanced users can set arbitrary upstream namelist keys under
+`[advanced.wps.<group>]` and `[advanced.wrf.<group>]`. See
+[case.toml configuration](case-toml.md).

@@ -16,7 +16,7 @@ Now you have:
 ```text
 cases/my-case/
 ├── README.md
-├── forcing.conf
+├── case.toml
 ├── namelist.input
 └── namelist.wps
 ```
@@ -81,9 +81,19 @@ high-level preparation command:
 ./wrfctl exec wrf --case my-case
 ```
 
-`prep` reads the tracked case configuration rather than replacing it. The
-exact contents of `forcing.conf`, `namelist.wps`, and `namelist.input`
-still define the experiment and must remain scientifically consistent.
+`case.toml` contains wrfkit-owned data/workflow settings and optional
+namelist overlays. The native `namelist.wps` and `namelist.input` remain
+visible and must remain scientifically consistent.
+
+Inspect the TOML/native relationship without writing files:
+
+```bash
+./wrfctl config --case my-case --check
+```
+
+If `namelist.managed=true`, `prep` runs `wrfctl config` automatically
+before WPS. Set `managed=false` when you want wrfkit to leave both native
+namelists completely untouched.
 
 ### When you need one stage at a time
 

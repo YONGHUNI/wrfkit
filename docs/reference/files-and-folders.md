@@ -16,13 +16,15 @@ cases/                 you edit and commit these
 
 ```text
 cases/my-case/
-├── forcing.conf
+├── case.toml
 ├── namelist.wps
 ├── namelist.input
 └── README.md
 ```
 
-Treat this as the source of truth for the experiment.
+`case.toml` is the wrfkit-facing case configuration. The two native
+namelists remain the exact WPS/WRF configuration files. Whether wrfkit may
+modify TOML-owned namelist values is controlled by `namelist.managed`.
 
 ## A workspace
 
