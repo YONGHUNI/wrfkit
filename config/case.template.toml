@@ -31,7 +31,8 @@ start = 2026-01-01T00:00:00Z
 end   = 2026-01-02T00:00:00Z
 
 # Seconds between external meteorological input times.
-# GFS 0.25-degree forcing is commonly available every 3 h -> 10800 s.
+# This example uses a 3-hour forcing interval -> 10800 s. Choose an interval
+# that matches the actual input times you acquire.
 forcing_interval_seconds = 10800
 
 [forcing]

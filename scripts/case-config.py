@@ -115,6 +115,10 @@ def validate_time_forcing(data) -> None:
         return
     if not isinstance(interval, int) or interval <= 0:
         die("time.forcing_interval_seconds must be a positive integer")
+    duration_seconds = int((end - start).total_seconds())
+    if duration_seconds % interval != 0:
+        die("time range must be an integer multiple of time.forcing_interval_seconds")
+
     required = set()
     current = start
     while current <= end:
@@ -243,6 +247,20 @@ def build_patches(data):
     max_dom = int(domain.get("max_dom", 1))
     if max_dom < 1:
         die("domain.max_dom must be >= 1")
+
+    for key in (
+        "parent_id",
+        "parent_grid_ratio",
+        "i_parent_start",
+        "j_parent_start",
+        "e_we",
+        "e_sn",
+        "e_vert",
+        "parent_time_step_ratio",
+    ):
+        value = domain.get(key)
+        if isinstance(value, list) and len(value) != max_dom:
+            die(f"domain.{key} must contain exactly domain.max_dom values")
 
     time = data.get("time", {})
     if "start" in time and "end" in time:
@@ -402,7 +420,6 @@ def build_patches(data):
 
 def configure(name: str, check_only: bool) -> None:
     case_dir, data = load_case(name)
-    forcing_settings(data)
     validate_time_forcing(data)
     managed, wps, wrf = build_patches(data)
 
