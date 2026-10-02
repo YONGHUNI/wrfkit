@@ -17,7 +17,8 @@ Usage: ./wrfctl <command> [options]
 Commands:
   doctor                              Check the pinned WRF/WPS build toolchain.
   fetch <wrf|wps|geog|gfs|all>        Fetch software, geography, or GFS forcing.
-  build <wrf|wps|all> [--jobs N]      Build WRF, WPS, or both.
+  build <wrf|wps|all> [--jobs N]      Build WRF and/or WPS. WPS builds serially;
+                                      --jobs N applies to WRF.
   prepare gfs --case NAME              Stage Vtable.GFS and GRIBFILE links for a case.
   exec <command> [--case NAME] [--ntasks N] [--launcher NAME] [--] [args...]
                                       Run a command inside the pinned Nix environment.

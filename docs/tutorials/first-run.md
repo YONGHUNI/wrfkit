@@ -318,8 +318,14 @@ Then build WRF and WPS:
 ./wrfctl build all
 ```
 
-The first build can take time. wrfkit pins the compiler, MPI, NetCDF, WRF, and
-WPS environment so later runs use the same software stack.
+The first build can take time. wrfkit parallelizes the WRF build using the
+available CPU count (or `--jobs N` when you set one), then builds WPS
+serially. WPS 4.7.0 can race when multiple build targets write the same
+Fortran module files in parallel, so wrfkit deliberately uses one WPS build
+job for reliability.
+
+wrfkit pins the compiler, MPI, NetCDF, WRF, and WPS environment so later runs
+use the same software stack.
 
 **Checkpoint:** after the build, the installed programs are under:
 

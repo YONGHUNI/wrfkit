@@ -11,9 +11,9 @@ Commands below are run from the repository root unless noted otherwise.
 | `./wrfctl fetch wrf` | Materialize the pinned WRF source |
 | `./wrfctl fetch wps` | Materialize the pinned WPS source |
 | `./wrfctl fetch all` | Materialize both source trees |
-| `./wrfctl build wrf --jobs N` | Build WRF |
-| `./wrfctl build wps --jobs N` | Build WPS against wrfkit WRF |
-| `./wrfctl build all --jobs N` | Build WRF, then WPS |
+| `./wrfctl build wrf --jobs N` | Build WRF with N parallel jobs |
+| `./wrfctl build wps` | Build WPS serially against wrfkit WRF |
+| `./wrfctl build all --jobs N` | Build WRF with N jobs, then WPS serially |
 | `./wrfctl clean` | Remove generated build/install files managed by wrfkit |
 
 ## Real-data preparation
@@ -58,3 +58,10 @@ Example:
 
 Running raw WRF binaries directly from the host shell is not the supported
 rootless-Nix path.
+
+## Build parallelism
+
+`--jobs N` controls WRF compilation. WPS 4.7.0 is built with one job even
+when `build all --jobs N` is used. The pinned WPS CMake build can race when
+parallel targets write shared Fortran module files (notably `filelist.mod`
+and `gridinfo.mod`), so wrfkit uses serial WPS compilation for reliability.

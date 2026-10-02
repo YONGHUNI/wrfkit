@@ -306,8 +306,8 @@ multi-node portability is not yet claimed.
 ./wrfctl prepare wrf --case NAME   stage WRF runtime tables/data
 ./wrfctl fetch all                 materialize both software source trees
 ./wrfctl build wrf --jobs N        build WRF with N parallel jobs
-./wrfctl build wps --jobs N        build WPS against the existing WRF install
-./wrfctl build all --jobs N        build WRF, then WPS, with N parallel jobs
+./wrfctl build wps                 build WPS serially against the existing WRF install
+./wrfctl build all --jobs N        build WRF with N jobs, then build WPS serially
 ./wrfctl exec wrf                  run the installed WRF binary with the configured MPI launcher
 ./wrfctl exec wrf --ntasks 12       override the MPI rank count for this run
 ./wrfctl exec wrf --launcher mpirun select a launcher explicitly for this run
@@ -330,7 +330,10 @@ CPUs in one child task and runs the requested ranks with the pinned OpenMPI
 launcher inside one Nix namespace. In an interactive `srun` shell that
 occupies one task, `mpi_tasks=auto` can use `SLURM_CPUS_PER_TASK` and uses
 the same bridge with `--overlap`. The WPS build enables
-MPI for geogrid/metgrid and GRIB2 support. The included `athens-smoke` case
+MPI for geogrid/metgrid and GRIB2 support. WPS itself is compiled serially:
+the pinned WPS 4.7.0 CMake build can race when parallel targets write shared
+Fortran module files such as `filelist.mod` and `gridinfo.mod`.
+The included `athens-smoke` case
 now validates the real-data path through geography, GFS forcing, Vtable
 selection, WPS staging, `real`, and `wrf`. This smoke case validates the
 workflow, not the scientific suitability of its configuration for research.
