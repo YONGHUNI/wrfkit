@@ -1,0 +1,30 @@
+name: quality
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  syntax-and-case-config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check shell syntax
+        run: |
+          bash -n wrfctl bootstrap scripts/*.sh
+
+      - name: Check Python syntax
+        run: |
+          python3 -m py_compile scripts/*.py
+
+      - name: Validate tracked TOML smoke case
+        run: |
+          python3 scripts/case-config.py config --case athens-smoke --check
+          python3 scripts/case-config.py summary --case athens-smoke
+          python3 scripts/case-config.py fingerprint --case athens-smoke
+
+      - name: Check TOML renderer idempotence
+        run: |
+          python3 scripts/case-config.py config --case athens-smoke
+          git diff --exit-code --             cases/athens-smoke/namelist.wps             cases/athens-smoke/namelist.input
