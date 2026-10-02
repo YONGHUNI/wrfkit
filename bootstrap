@@ -328,7 +328,16 @@ MSG
   done
 
   echo
-  if ask_yes_no     "Require an active Slurm compute allocation before bootstrap setup/build work?"     "yes"; then
+  if has_active_slurm_allocation; then
+    echo "Active Slurm compute allocation detected."
+  else
+    echo "No active Slurm compute allocation detected."
+  fi
+  echo "Requiring an allocation helps prevent setup/build work on shared login nodes."
+  echo
+  if ask_yes_no \
+    "Require an active Slurm compute allocation for future bootstrap setup/build operations?" \
+    "yes"; then
     require_value=true
   else
     require_value=false
