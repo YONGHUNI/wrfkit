@@ -18,11 +18,11 @@ merely implemented or planned.
 | Single-node `sbatch` MPI | Validated | 16-rank Sapelo2 run completed successfully |
 | One-Nix-namespace Slurm bridge | Validated | Inner OpenMPI launch confirmed in batch |
 | Per-run native log archive | Validated | `native-logs.tar` with current-run filtering |
-| High-level `wrfctl prep` orchestration | Implemented, not yet regression-validated | Wraps geography, GFS, WPS, and WRF runtime staging while retaining low-level commands |
+| High-level `wrfctl prep` orchestration | Validated | `athens-smoke` completed on Lambda Vector and Sapelo2: TOML config -> geography -> GFS -> geogrid -> ungrib -> metgrid -> WRF runtime staging |
 | Optional shared `data_root` | Implemented, not yet regression-validated | Reusable geography/GFS may live outside a repository; default remains project-local |
 | GFS regional-subset cache identity | Implemented, not yet regression-validated | Cache path includes a request key derived from product and bounding box |
 | TOML `case.toml` parser + namelist overlay | Validated | `--check` and managed overlay exercised on Lambda Vector and Sapelo2; unspecified native keys are preserved |
-| TOML-driven forcing metadata | Implemented, not yet regression-validated | Replaces wrfkit-specific `forcing.conf` in `athens-smoke` |
+| TOML-driven forcing metadata | Validated | `athens-smoke` GFS date/cycle/hours/subset resolved from `case.toml` and completed acquisition/staging on Lambda Vector and Sapelo2 |
 | Multi-node MPI | Not validated | Do not treat as supported research execution |
 | WRF restart/recovery workflow | Not validated | Requires dedicated workflow testing |
 | Scratch-backed execution workspace | Not implemented | `scratch_root` is currently configuration metadata |
@@ -46,6 +46,30 @@ The Sapelo2 WPS compilation printed compiler warnings while building
 `read_geogrid.c`, but those warnings did not stop compilation or installation.
 The final completion message, rather than the absence of warnings, is the
 build-level success checkpoint.
+
+## TOML + prep orchestration regression
+
+The high-level preparation path was exercised on both the standalone Lambda
+Vector system and Sapelo2 with:
+
+```bash
+./wrfctl prep --case athens-smoke
+```
+
+In both environments, `wrfctl config` reported the tracked native namelists as
+unchanged, the low-resolution geography dependency was resolved, the three GFS
+forecast hours were acquired from the TOML forcing definition, and
+`geogrid`, `ungrib`, and `metgrid` all reported successful completion.
+The final stage linked the WRF runtime data and `prep` completed normally.
+
+Sapelo2 printed IEEE floating-point exception flags after `metgrid`, but
+`metgrid` still emitted its explicit successful-completion marker and the
+pipeline continued to WRF runtime staging. The flags are therefore recorded as
+non-fatal output for this smoke regression, not as a clean-output guarantee.
+
+This validates the current `athens-smoke` TOML/GFS/low-resolution-geography
+path. It does not yet validate other forcing providers, research-grade static
+geography, shared `data_root`, or every advanced namelist passthrough.
 
 ## Single-node Slurm validation
 
