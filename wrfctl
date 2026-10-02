@@ -19,6 +19,7 @@ Commands:
   fetch <wrf|wps|geog|gfs|all>        Fetch software, geography, or GFS forcing.
   build <wrf|wps|all> [--jobs N]      Build WRF and/or WPS. WPS builds serially;
                                       --jobs N applies to WRF.
+  prep --case NAME [--ntasks N]       Prepare case inputs through metgrid and WRF staging.
   prepare gfs --case NAME              Stage Vtable.GFS and GRIBFILE links for a case.
   exec <command> [--case NAME] [--ntasks N] [--launcher NAME] [--] [args...]
                                       Run a command inside the pinned Nix environment.
@@ -94,6 +95,51 @@ trim_config_value() {
   value=${value#"${value%%[![:space:]]*}"}
   value=${value%"${value##*[![:space:]]}"}
   printf '%s' "$value"
+}
+
+expand_machine_path() {
+  local value=$1
+  value=${value//\$\{USER\}/$USER}
+  value=${value//\$USER/$USER}
+  value=${value//\$\{HOME\}/$HOME}
+  value=${value//\$HOME/$HOME}
+  if [[ "$value" == "~" ]]; then
+    value=$HOME
+  elif [[ "$value" == "~/"* ]]; then
+    value="$HOME/${value#~/}"
+  fi
+  printf '%s' "$value"
+}
+
+configure_data_paths() {
+  local data_dir=${WRFKIT_DATA_DIR:-${WRFKIT_DATA_ROOT:-}}
+  local file="${XDG_CONFIG_HOME:-$HOME/.config}/wrfkit/bootstrap.conf"
+  local line key value
+
+  if [[ -z "$data_dir" && -r "$file" ]]; then
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      line=$(trim_config_value "$line")
+      [[ -z "$line" || ${line:0:1} == "#" || "$line" != *=* ]] && continue
+      key=$(trim_config_value "${line%%=*}")
+      [[ "$key" == "data_root" ]] || continue
+      value=$(trim_config_value "${line#*=}")
+      value=${value#\"}; value=${value%\"}
+      value=${value#\'}; value=${value%\'}
+      data_dir=$value
+      break
+    done < "$file"
+  fi
+
+  data_dir=${data_dir:-"$WRFKIT_STATE_ROOT/data"}
+  data_dir=$(expand_machine_path "$data_dir")
+  export WRFKIT_DATA_DIR="$data_dir"
+
+  if [[ -n ${WRFKIT_GEOG_DIR:-} ]]; then
+    WRFKIT_GEOG_DIR=$(expand_machine_path "$WRFKIT_GEOG_DIR")
+  else
+    WRFKIT_GEOG_DIR="$WRFKIT_DATA_DIR/geog/low-res-mandatory"
+  fi
+  export WRFKIT_GEOG_DIR
 }
 
 load_mpi_config() {
@@ -536,7 +582,7 @@ stage_case_workspace() {
 
   # The current smoke-case convention uses geog_data_path='geog'.
   if [[ -r "$case_dir/namelist.wps" ]]; then
-    stage_workspace_link "$WRFKIT_STATE_ROOT/data/geog/low-res-mandatory" "$work_dir/geog"
+    stage_workspace_link "$WRFKIT_GEOG_DIR" "$work_dir/geog"
   fi
 }
 
@@ -689,13 +735,16 @@ run_exec() {
   esac
 }
 
+configure_data_paths
+
 cmd=${1:-help}
 shift || true
 
 case "$cmd" in
   doctor) run_dev "$ROOT/scripts/doctor.sh" "$@" ;;
-  fetch)  run_dev "$ROOT/scripts/fetch.sh" "$@" ;;
+  fetch)   run_dev "$ROOT/scripts/fetch.sh" "$@" ;;
   build)   run_dev "$ROOT/scripts/build.sh" "$@" ;;
+  prep)    run_dev "$ROOT/scripts/prep.sh" "$@" ;;
   prepare) run_dev "$ROOT/scripts/prepare.sh" "$@" ;;
   exec)    run_exec "$@" ;;
   __exec-direct)

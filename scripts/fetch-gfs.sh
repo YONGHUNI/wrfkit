@@ -112,8 +112,21 @@ download_with_progress() {
     "$(human_bytes "$size")" "$(format_elapsed "$elapsed")" "$(human_rate "$rate")"
 }
 
-target_dir="$WRFKIT_GFS_DIR/$GFS_DATE/$GFS_CYCLE/atmos"
+target_dir=$(gfs_target_dir)
 mkdir -p "$target_dir"
+
+cat > "$target_dir/.wrfkit-request" <<EOF
+provider=gfs
+product=0p25
+date=$GFS_DATE
+cycle=$GFS_CYCLE
+leftlon=$GFS_LEFTLON
+rightlon=$GFS_RIGHTLON
+toplat=$GFS_TOPLAT
+bottomlat=$GFS_BOTTOMLAT
+levels=all
+variables=all
+EOF
 base_url="https://nomads.ncep.noaa.gov/cgi-bin/filter_gfs_0p25.pl"
 
 for fh in $GFS_FORECAST_HOURS; do

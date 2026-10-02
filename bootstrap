@@ -57,6 +57,7 @@ Supported config keys:
   store_root=...
   backend=...
   scratch_root=...
+  data_root=...
   scheduler=none|slurm
   require_allocation=true|false
   mpi_launcher=auto|srun|mpirun|mpiexec|custom
@@ -387,6 +388,7 @@ config_profile=""
 config_store_root=""
 config_backend=""
 config_scratch_root=""
+config_data_root=""
 config_scheduler=""
 config_require_allocation=""
 config_mpi_launcher=""
@@ -414,6 +416,7 @@ read_config() {
       store_root)           config_store_root=$value ;;
       backend)              config_backend=$value ;;
       scratch_root)         config_scratch_root=$value ;;
+      data_root)            config_data_root=$value ;;
       scheduler)            config_scheduler=$value ;;
       require_allocation)   config_require_allocation=$value ;;
       mpi_launcher)         config_mpi_launcher=$value ;;
@@ -471,6 +474,7 @@ fi
 store_root=${WRFKIT_NIX_STORE_ROOT:-$config_store_root}
 backend=${WRFKIT_NIX_BACKEND:-$config_backend}
 scratch_root=${WRFKIT_SCRATCH_ROOT:-$config_scratch_root}
+data_root=${WRFKIT_DATA_ROOT:-$config_data_root}
 scheduler=${WRFKIT_SCHEDULER:-${config_scheduler:-none}}
 require_allocation=${WRFKIT_REQUIRE_ALLOCATION:-${config_require_allocation:-false}}
 mpi_launcher=${WRFKIT_MPI_LAUNCHER:-${config_mpi_launcher:-auto}}
@@ -593,6 +597,7 @@ expand_path() {
 }
 [[ -n "$store_root" ]] && store_root=$(expand_path "$store_root")
 [[ -n "$scratch_root" ]] && scratch_root=$(expand_path "$scratch_root")
+[[ -n "$data_root" ]] && data_root=$(expand_path "$data_root")
 
 printf 'wrfkit bootstrap\n'
 printf '  profile:      %s\n' "$profile"
@@ -601,6 +606,7 @@ printf '  scheduler:    %s\n' "$scheduler"
 printf '  allocation:   %s\n' "${require_allocation}"
 printf '  store root:   %s\n' "${store_root:-rootless-nix-bootstrap default}"
 printf '  scratch root: %s\n' "${scratch_root:-not configured}"
+printf '  data root:    %s\n' "${data_root:-project-local (.wrfkit/data)}"
 printf '  backend:      %s\n' "${backend:-rootless-nix-bootstrap default}"
 printf '  MPI launcher: %s\n' "$mpi_launcher"
 printf '  MPI tasks:    %s\n\n' "$mpi_tasks"

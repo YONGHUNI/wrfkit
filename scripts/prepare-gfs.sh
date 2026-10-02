@@ -21,7 +21,7 @@ forcing_conf="$case_dir/forcing.conf"
 # shellcheck disable=SC1090
 source "$forcing_conf"
 
-target_dir="$WRFKIT_GFS_DIR/$GFS_DATE/$GFS_CYCLE/atmos"
+target_dir=$(gfs_target_dir)
 vtable_src="$WRFKIT_WPS_SRC_DIR/ungrib/Variable_Tables/Vtable.GFS"
 [[ -r "$vtable_src" ]] || {
   printf 'prepare gfs: Vtable.GFS not found: %s\n' "$vtable_src" >&2

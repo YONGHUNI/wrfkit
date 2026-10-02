@@ -123,3 +123,26 @@ stage_case_workspace() {
 
   printf '%s' "$work_dir"
 }
+
+
+gfs_request_key() {
+  local fingerprint
+  fingerprint=$(printf '%s\n' \
+    "provider=gfs" \
+    "product=0p25" \
+    "levels=all" \
+    "variables=all" \
+    "leftlon=$GFS_LEFTLON" \
+    "rightlon=$GFS_RIGHTLON" \
+    "toplat=$GFS_TOPLAT" \
+    "bottomlat=$GFS_BOTTOMLAT" |
+    sha256sum | awk '{print substr($1,1,16)}')
+  printf '%s' "$fingerprint"
+}
+
+gfs_target_dir() {
+  local request_key
+  request_key=$(gfs_request_key)
+  printf '%s/gfs/%s/%s/%s/atmos' \
+    "$WRFKIT_DATA_DIR" "$GFS_DATE" "$GFS_CYCLE" "$request_key"
+}
