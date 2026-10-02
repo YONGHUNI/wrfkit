@@ -29,10 +29,13 @@ This repository is an early MVP. The first milestone is deliberately narrow:
 - single-node MPI on ordinary Linux and UGA Sapelo2
 - single-node Slurm execution in both interactive and `sbatch` allocations
 
+Newly implemented and awaiting fresh regression validation:
+
+- TOML `case.toml` configuration and native namelist overlay rendering
+- TOML-driven GFS acquisition metadata
+
 Not yet claimed as supported:
 
-- automated `namelist.wps` / `namelist.input` generation
-- YAML configuration frontend
 - multi-node MPI portability across HPC systems
 - general Slurm submission abstraction beyond the validated single-node path
 - WRF restart/recovery workflows
@@ -329,6 +332,8 @@ multi-node portability is not yet claimed.
 ./wrfctl doctor                    check the Nix-provided WRF/WPS toolchain
 ./wrfctl fetch wrf                 materialize pinned WRF 4.8.0 source
 ./wrfctl fetch wps                 materialize pinned WPS 4.7.0 source
+./wrfctl config --case NAME        validate case.toml and update TOML-managed namelist values
+./wrfctl config --case NAME --check validate without changing native namelists
 ./wrfctl prep --case NAME          prepare a case through geogrid/ungrib/metgrid and WRF staging
 ./wrfctl fetch geog                download low-res mandatory WPS geography for smoke tests
 ./wrfctl fetch gfs --case NAME     download configured GFS forcing from NOMADS
@@ -404,7 +409,7 @@ filter:
 ./wrfctl exec ungrib --case athens-smoke
 ```
 
-Downloaded forcing is cached under `.wrfkit/data/gfs/<date>/<cycle>/atmos`.
+Downloaded forcing is cached under `.wrfkit/data/gfs/<date>/<cycle>/<request-key>/atmos`.
 `prepare gfs` places only symlinks to those files and the pinned WPS
 `Vtable.GFS` in `.wrfkit/work/<case>`.
 
@@ -456,25 +461,29 @@ Nix does **not** make the host kernel, Slurm, network fabric, or HPC interconnec
 reproducible. Multi-node MPI integration therefore remains a separate validation
 task for each HPC backend.
 
-## Planned configuration model
+## Case configuration model
 
-The planned workflow will support two first-class scientific-configuration modes
-when a case is initialized:
+Each case now has one wrfkit configuration file:
 
 ```text
-1) YAML frontend
-   case.yaml -> generated namelist.wps + namelist.input
-
-2) Native WRF configuration
-   edit namelist.wps + namelist.input directly
+cases/<name>/
+├── case.toml
+├── namelist.wps
+└── namelist.input
 ```
 
-Both modes will converge on the same WPS/WRF execution pipeline. YAML mode is
-intended to expose WRF's scientific configuration rather than hide it: defaults,
-documentation, validation, and comments will be generated from a schema, while
-the final native namelist files will always be preserved for provenance.
+`case.toml` owns wrfkit-specific settings such as forcing acquisition and may
+also manage common WPS/WRF namelist values. With
+`[namelist] managed = true`, `wrfctl config` overlays TOML-owned values
+onto the native namelists and leaves every unspecified native setting intact.
+With `managed = false`, wrfkit never modifies either native namelist.
 
-See [`docs/design.md`](docs/design.md) for the working design notes.
+For maximum freedom, arbitrary native namelist groups and keys can be placed
+under `[advanced.wps.<group>]` and `[advanced.wrf.<group>]`. A raw escape
+hatch is also available for unusual Fortran syntax.
+
+See [`docs/design.md`](docs/design.md) and the
+[`case.toml` reference](docs/reference/case-toml.md).
 
 
 ### WRF real-data smoke stage

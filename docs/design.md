@@ -5,33 +5,47 @@
 wrfkit separates three concerns:
 
 1. **Software environment** — Nix pins compiler, MPI, NetCDF, CMake, WRF, and WPS.
-2. **Scientific configuration** — YAML or native Fortran namelists.
+2. **Scientific configuration** — TOML case metadata plus native Fortran namelists.
 3. **Execution backend** — local execution, Slurm, and site-specific MPI integration.
 
 > Hide the system complexity, not the scientific configuration.
 
-## Planned configuration modes
+## Case configuration model
 
-Case initialization will eventually ask:
+Every case uses `case.toml` for wrfkit-owned configuration. The native
+`namelist.wps` and `namelist.input` remain visible and are still the exact
+files consumed by WPS/WRF.
 
-```text
-How would you like to configure WRF?
-
-  1) YAML configuration
-     Edit case.yaml.
-     namelist.wps and namelist.input are generated automatically.
-
-  2) Native WRF namelists
-     Edit namelist.wps and namelist.input directly.
-
-Select [1/2]:
+```toml
+[namelist]
+managed = true
 ```
 
-YAML mode should expose WRF scientific options rather than replacing them with
-opaque presets. A schema should define defaults, comments, allowed values, type
-checks, validation, full-template generation, and native namelist generation.
+- `managed = true`: `wrfctl config` overlays only TOML-owned values; native
+  keys omitted from TOML are preserved.
+- `managed = false`: wrfkit never modifies either native namelist.
+  `case.toml` still controls wrfkit-specific behavior such as forcing.
 
-Native mode treats `namelist.wps` and `namelist.input` as the source of truth.
+There is no separate YAML/native mode. Common settings get concise TOML tables,
+while every native option remains reachable through generic passthrough tables:
+
+```toml
+[advanced.wps.geogrid]
+opt_geogrid_tbl_path = "."
+
+[advanced.wrf.physics]
+radt = [12]
+bldt = [0]
+```
+
+The renderer intentionally accepts arbitrary namelist groups and keys under
+`advanced.wps` and `advanced.wrf`, so a new upstream option does not require
+a wrfkit release before an advanced user can set it. `advanced.wps_raw` and
+`advanced.wrf_raw` provide a verbatim right-hand-side escape hatch for unusual
+Fortran syntax.
+
+The annotated `config/case.template.toml` records current convenience fields,
+meanings, example values, and documented upstream defaults/recommendations.
 
 ## High-level orchestration and low-level primitives
 
@@ -56,10 +70,9 @@ low-level primitives. They are useful for debugging, teaching, provenance, and
 rerunning one stage without hiding the native workflow.
 
 This orchestration reads case-owned configuration; it must not invent scientific
-settings. The current implementation uses `namelist.wps`, `namelist.input`,
-and `forcing.conf`. A future YAML frontend may generate the native namelists,
-but it should feed the same preparation engine rather than creating a separate
-execution model.
+settings. `case.toml` carries acquisition/workflow metadata and optional
+namelist overlays, while `namelist.wps` and `namelist.input` remain the
+native execution files.
 
 Automatic geography acquisition is currently restricted to the bundled
 low-resolution smoke-test package. This prevents `prep` from silently
@@ -179,7 +192,7 @@ The smoke case keeps its native `namelist.wps` tracked under
 4.7.0's `GEOGRID.TBL.ARW`.
 
 The first forcing path is GFS 0.25-degree data from NOAA/NCEP NOMADS. Case-level
-forcing metadata is tracked in `forcing.conf`. `wrfctl fetch gfs --case NAME`
+forcing metadata is tracked in `case.toml`. `wrfctl fetch gfs --case NAME`
 stores reusable GRIB2 files under the effective data root, while
 `wrfctl prepare gfs --case NAME` creates `Vtable` and `GRIBFILE.???`
 symlinks under `.wrfkit/work/NAME` without duplicating the forcing data.
@@ -297,8 +310,8 @@ MPI assumptions.
 
 - **0.1** WRF 4.8.0, GNU, NetCDF, OpenMPI build, ordinary Linux + Sapelo2 validation.
 - **0.2** WPS 4.7.0 build integration and first real-data smoke case.
-- **0.3** `wrfctl init`, native namelist workflow, provenance manifest.
-- **0.4** YAML schema, annotated template, YAML -> namelist generation/validation.
+- **0.3** TOML case configuration, namelist overlay/validation, provenance manifest.
+- **0.4** `wrfctl init`, broader forcing/geography providers, richer cross-field validation.
 - **0.5+** Slurm backend, site profiles, multi-node MPI, forcing-data acquisition.
 
 
