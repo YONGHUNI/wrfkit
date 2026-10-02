@@ -225,6 +225,35 @@ Supported launchers are `auto`, `srun`, `mpirun`, `mpiexec`, and
 `./wrfctl exec ... --ntasks N --launcher NAME`; use `--` before program
 arguments if they contain wrfctl option names.
 
+## High-level case preparation
+
+For normal use, `prep` is the orchestration command:
+
+```bash
+./wrfctl prep --case athens-smoke
+```
+
+It resolves the tracked case configuration and runs the preparation pipeline in
+order: ensure static geography, `geogrid`, ensure forcing data, stage forcing,
+`ungrib`, `metgrid`, and WRF runtime staging. The existing
+`fetch`/`prepare`/`exec` commands remain available as lower-level
+primitives for debugging, teaching, and rerunning one stage.
+
+The current automatic geography path is intentionally limited to the bundled
+low-resolution smoke-test dataset, and the current automatic forcing provider is
+GFS. Research-grade geography selection remains a separate implementation
+target.
+
+Reusable geography and forcing can optionally live outside a repository. Add a
+machine-level setting such as:
+
+```ini
+data_root=/path/to/shared/wrfkit-data
+```
+
+to `~/.config/wrfkit/bootstrap.conf`. Without `data_root`, wrfkit keeps the
+existing project-local `.wrfkit/data` behavior.
+
 ## Build layout
 
 Generated files are kept outside the tracked source tree. Each case gets one
@@ -300,6 +329,7 @@ multi-node portability is not yet claimed.
 ./wrfctl doctor                    check the Nix-provided WRF/WPS toolchain
 ./wrfctl fetch wrf                 materialize pinned WRF 4.8.0 source
 ./wrfctl fetch wps                 materialize pinned WPS 4.7.0 source
+./wrfctl prep --case NAME          prepare a case through geogrid/ungrib/metgrid and WRF staging
 ./wrfctl fetch geog                download low-res mandatory WPS geography for smoke tests
 ./wrfctl fetch gfs --case NAME     download configured GFS forcing from NOMADS
 ./wrfctl prepare gfs --case NAME   stage Vtable.GFS and GRIBFILE links

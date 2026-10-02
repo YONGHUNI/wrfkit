@@ -2,6 +2,22 @@
 
 Commands below are run from the repository root unless noted otherwise.
 
+## High-level case workflow
+
+| Command | Purpose |
+| --- | --- |
+| `./wrfctl prep --case NAME` | Resolve the case configuration and prepare inputs through `geogrid -> ungrib -> metgrid`, then stage WRF runtime data |
+| `./wrfctl exec real --case NAME` | Create WRF initial and boundary files |
+| `./wrfctl exec wrf --case NAME` | Run WRF |
+
+`prep` is the normal orchestration layer. The lower-level commands below remain
+available when you want to inspect, teach, debug, or rerun only one stage.
+
+Current automatic `prep` support is deliberately narrow: bundled
+`geog_data_res='lowres'` geography and GFS forcing. Other static-geography
+packages should continue to use the lower-level workflow until a
+research-grade geography selector is implemented.
+
 ## Environment and build
 
 | Command | Purpose |
@@ -65,3 +81,22 @@ rootless-Nix path.
 when `build all --jobs N` is used. The pinned WPS CMake build can race when
 parallel targets write shared Fortran module files (notably `filelist.mod`
 and `gridinfo.mod`), so wrfkit uses serial WPS compilation for reliability.
+
+
+## Shared reusable data
+
+By default, downloaded data remains project-local under `.wrfkit/data`.
+To reuse static geography and forcing across multiple wrfkit clones, add a
+machine-level data root to `~/.config/wrfkit/bootstrap.conf`:
+
+```ini
+data_root=/path/to/shared/wrfkit-data
+```
+
+`WRFKIT_DATA_ROOT` or `WRFKIT_DATA_DIR` can override this for a process.
+The case workspace remains project-local under `.wrfkit/work/<case>`; only
+reusable downloaded inputs move to the shared data root.
+
+GFS cache directories include a request identity derived from the product and
+spatial subset. Two cases using the same date/cycle but different bounding boxes
+therefore no longer reuse the same regional-subset file accidentally.

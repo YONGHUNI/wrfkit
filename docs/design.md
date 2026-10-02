@@ -33,6 +33,39 @@ checks, validation, full-template generation, and native namelist generation.
 
 Native mode treats `namelist.wps` and `namelist.input` as the source of truth.
 
+## High-level orchestration and low-level primitives
+
+wrfkit keeps the native WRF/WPS programs visible but does not require normal
+users to invoke every plumbing step manually.
+
+The high-level preparation contract is:
+
+```text
+wrfctl prep --case NAME
+  -> ensure reusable static geography
+  -> geogrid
+  -> ensure case forcing
+  -> stage Vtable / GRIBFILE links
+  -> ungrib
+  -> metgrid
+  -> stage WRF runtime data
+```
+
+The existing `fetch`, `prepare`, and `exec` commands remain first-class
+low-level primitives. They are useful for debugging, teaching, provenance, and
+rerunning one stage without hiding the native workflow.
+
+This orchestration reads case-owned configuration; it must not invent scientific
+settings. The current implementation uses `namelist.wps`, `namelist.input`,
+and `forcing.conf`. A future YAML frontend may generate the native namelists,
+but it should feed the same preparation engine rather than creating a separate
+execution model.
+
+Automatic geography acquisition is currently restricted to the bundled
+low-resolution smoke-test package. This prevents `prep` from silently
+substituting low-resolution data for a research case requesting a different
+static-data resolution.
+
 ## Storage model
 
 wrfkit distinguishes storage by lifetime rather than by a particular HPC
@@ -46,10 +79,12 @@ workflow portable and avoids assuming that a machine provides `/scratch` or
 <project>/.wrfkit/
 ```
 
-Persistent state includes installed WRF/WPS artifacts, reusable downloaded data,
-configuration/provenance, and other state that should survive normal temporary
-workspace cleanup. Large reusable datasets may later support explicit path
-overrides without changing this generic default.
+Persistent state includes installed WRF/WPS artifacts, configuration/provenance,
+and other state that should survive normal temporary workspace cleanup.
+Downloaded geography and forcing remain under project-local `.wrfkit/data` by
+default, but a machine-level `data_root` may place those reusable inputs in a
+shared location for use by multiple wrfkit clones. Case workspaces and scientific
+outputs remain project-local.
 
 **Disposable state** is high-I/O or reproducible temporary work that can be
 recreated safely: build intermediates, staging areas, temporary links, and WPS
@@ -145,12 +180,17 @@ The smoke case keeps its native `namelist.wps` tracked under
 
 The first forcing path is GFS 0.25-degree data from NOAA/NCEP NOMADS. Case-level
 forcing metadata is tracked in `forcing.conf`. `wrfctl fetch gfs --case NAME`
-stores reusable GRIB2 files under persistent `.wrfkit/data/gfs`, while
+stores reusable GRIB2 files under the effective data root, while
 `wrfctl prepare gfs --case NAME` creates `Vtable` and `GRIBFILE.???`
-symlinks under `.wrfkit/work/NAME` without duplicating the forcing data. The initial
-Athens smoke case deliberately uses a fixed short NOMADS window; because NOMADS
-is a rolling operational service, a durable archived forcing backend remains a
-future reproducibility improvement.
+symlinks under `.wrfkit/work/NAME` without duplicating the forcing data.
+
+Regional NOMADS subsets are keyed by the GFS product and requested bounding box,
+in addition to date/cycle. This prevents two cases with the same date and cycle
+but different spatial subsets from colliding in the cache.
+
+The initial Athens smoke case deliberately uses a fixed short NOMADS window;
+because NOMADS is a rolling operational service, a durable archived forcing
+backend remains a future reproducibility improvement.
 
 ## MPI policy
 

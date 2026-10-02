@@ -72,9 +72,26 @@ case directory.
 
 ## 4. Run the workflow for the new case
 
-The command shape stays the same:
+For the currently supported low-resolution geography + GFS path, use the
+high-level preparation command:
 
 ```bash
+./wrfctl prep --case my-case
+./wrfctl exec real --case my-case
+./wrfctl exec wrf --case my-case
+```
+
+`prep` reads the tracked case configuration rather than replacing it. The
+exact contents of `forcing.conf`, `namelist.wps`, and `namelist.input`
+still define the experiment and must remain scientifically consistent.
+
+### When you need one stage at a time
+
+The lower-level primitives remain supported for debugging, teaching, or
+rerunning only one stage:
+
+```bash
+./wrfctl fetch geog
 ./wrfctl exec geogrid --case my-case
 
 ./wrfctl fetch gfs --case my-case
@@ -83,12 +100,11 @@ The command shape stays the same:
 ./wrfctl exec metgrid --case my-case
 
 ./wrfctl prepare wrf --case my-case
-./wrfctl exec real --case my-case
-./wrfctl exec wrf --case my-case
 ```
 
-The exact contents of `forcing.conf`, `namelist.wps`, and
-`namelist.input` must match your experiment.
+Automatic `prep` currently accepts the bundled `lowres` geography path and
+GFS forcing only. Use the lower-level path for custom/high-resolution WPS static
+data until that selector is implemented.
 
 ## 5. Do a short representative test first
 
