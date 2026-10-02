@@ -239,4 +239,20 @@ verify_prep_manifest() {
     printf 'Run ./wrfctl prep --case %s again before ./wrfctl run.\n' "$case_name" >&2
     return 2
   }
+
+  expected=$(prep_manifest_value "$manifest" wrf_version)
+  [[ "$expected" == "${WRFKIT_WRF_VERSION:-unknown}" ]] || {
+    printf 'wrfkit: WRF version changed after prep (%s -> %s).\n' \
+      "$expected" "${WRFKIT_WRF_VERSION:-unknown}" >&2
+    printf 'Run ./wrfctl prep --case %s again.\n' "$case_name" >&2
+    return 2
+  }
+
+  expected=$(prep_manifest_value "$manifest" wps_version)
+  [[ "$expected" == "${WRFKIT_WPS_VERSION:-unknown}" ]] || {
+    printf 'wrfkit: WPS version changed after prep (%s -> %s).\n' \
+      "$expected" "${WRFKIT_WPS_VERSION:-unknown}" >&2
+    printf 'Run ./wrfctl prep --case %s again.\n' "$case_name" >&2
+    return 2
+  }
 }

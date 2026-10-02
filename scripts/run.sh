@@ -71,6 +71,10 @@ exec_case_args=(--case "$case_name")
 [[ -n "$ntasks" ]] && exec_case_args+=(--ntasks "$ntasks")
 [[ -n "$launcher" ]] && exec_case_args+=(--launcher "$launcher")
 
+# The persistent log archive keeps previous diagnostics; clear fixed-name RSL
+# files in the workspace so post-run checks cannot accept stale WRF output.
+rm -f "$work_dir"/rsl.out.* "$work_dir"/rsl.error.*
+
 marker="$work_dir/.wrfkit-run-started"
 : > "$marker"
 trap 'rm -f "$marker"' EXIT
