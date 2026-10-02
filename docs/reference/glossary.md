@@ -94,7 +94,7 @@ whole sequence first, use the [first-run tutorial](../tutorials/first-run.md).
 | --- | --- |
 | [**wrfkit**](../index.md) | This project: a reproducible environment and workflow layer around WRF/WPS that manages software setup, case workspaces, execution, and provenance without hiding the scientific namelists. |
 | [**wrfctl**](commands.md) | The main wrfkit command-line wrapper. It enters the managed environment and runs fetch, build, preparation, and execution tasks. |
-| [**bootstrap**](../tutorials/first-run.md#step-3-prepare-nix) | The wrfkit setup step that makes a working Nix environment available when the machine does not already provide one. |
+| [**bootstrap**](../tutorials/first-run.md#step-3-prepare-the-wrfkit-environment) | The wrfkit setup step that makes a working Nix environment available when the machine does not already provide one. |
 | [**case**](../how-to/research-case.md) | One experiment's tracked scientific configuration, such as `cases/athens-smoke`. |
 | [**workspace**](files-and-folders.md) | The generated working directory for a case, under `.wrfkit/work/<case>`, where WPS/WRF intermediate files and model products live. |
 | [**RSL logs**](../how-to/check-run.md) | WRF's per-rank runtime logs, normally named `rsl.out.*` and `rsl.error.*`; wrfkit also archives them per run for provenance. |

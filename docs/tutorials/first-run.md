@@ -197,6 +197,13 @@ a likely default, but **you make the final choice**.
     For this Sapelo2 example, pressing **Enter** at all three prompts accepts
     the detected defaults.
 
+    If you choose **Generic Slurm HPC** instead, the wizard also asks whether
+    to use a custom rootless Nix store path. Different clusters use different
+    scratch or node-local filesystem names, so wrfkit does not guess one. Use
+    your site's documented writable path when appropriate, or keep the default.
+    This setting changes the Nix store location only; case workspaces still
+    remain under `.wrfkit/work/<case>`.
+
     Bootstrap then saves the machine configuration and shows the resolved
     policy:
 
@@ -225,7 +232,7 @@ a likely default, but **you make the final choice**.
 
     Next:
       ./wrfctl doctor
-      ./wrfctl build
+      ./wrfctl build all
     ```
 
     !!! note "Some rootless-Nix warnings can be normal"

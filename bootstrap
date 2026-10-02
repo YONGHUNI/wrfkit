@@ -189,6 +189,7 @@ ask_yes_no() {
 
 write_guided_config() {
   local system_type=$1 selected_profile=$2 scheduler_value=$3 require_value=$4
+  local store_root_value=${5:-}
   local user_config="${XDG_CONFIG_HOME:-$HOME/.config}/wrfkit/bootstrap.conf"
   local config_dir
   config_dir=$(dirname "$user_config")
@@ -211,6 +212,7 @@ write_guided_config() {
         ;;
       generic)
         echo "backend=auto"
+        [[ -n "$store_root_value" ]] && echo "store_root=$store_root_value"
         ;;
     esac
 
@@ -244,7 +246,7 @@ MSG
   }
 
   local commands default_system choice selected_profile default_profile
-  local scheduler_value require_value
+  local scheduler_value require_value generic_store_root=""
   commands=$(slurm_command_list)
 
   if has_slurm_signal; then
@@ -327,6 +329,23 @@ MSG
     esac
   done
 
+  if [[ "$selected_profile" == "generic" ]]; then
+    cat <<'MSG'
+
+Generic Slurm clusters use different names and policies for scratch or
+node-local storage. If your site provides a writable location for software
+files, wrfkit can place the rootless Nix store there.
+MSG
+    if ask_yes_no "Use a custom rootless Nix store path?" "no"; then
+      while true; do
+        read -r -p "Nix store path (example: /scratch/\$USER/.nix): " generic_store_root
+        generic_store_root=$(trim "$generic_store_root")
+        [[ -n "$generic_store_root" ]] && break
+        echo "Please enter a non-empty path."
+      done
+    fi
+  fi
+
   echo
   if has_active_slurm_allocation; then
     echo "Active Slurm compute allocation detected."
@@ -344,7 +363,7 @@ MSG
   fi
 
   printf '\nSelected: Slurm HPC cluster (%s)\n' "$selected_profile"
-  write_guided_config "slurm" "$selected_profile" "$scheduler_value" "$require_value"
+  write_guided_config "slurm" "$selected_profile" "$scheduler_value" "$require_value" "$generic_store_root"
 }
 
 peek_profile() {
@@ -600,5 +619,5 @@ wrfkit: rootless Nix bootstrap completed.
 
 Next:
   ./wrfctl doctor
-  ./wrfctl build
+  ./wrfctl build all
 MSG
