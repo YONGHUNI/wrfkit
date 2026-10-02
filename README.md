@@ -29,10 +29,17 @@ This repository is an early MVP. The first milestone is deliberately narrow:
 - single-node MPI on ordinary Linux and UGA Sapelo2
 - single-node Slurm execution in both interactive and `sbatch` allocations
 
-Newly implemented and awaiting fresh regression validation:
+Validated configuration foundation:
 
 - TOML `case.toml` configuration and native namelist overlay rendering
 - TOML-driven GFS acquisition metadata
+
+New high-level workflow pieces are implemented and awaiting fresh regression
+validation on Lambda Vector and Sapelo2:
+
+- `wrfctl plan` / `prep --dry-run`
+- `prep` through `real.exe`
+- `wrfctl run` with stale-preparation and output checks
 
 Not yet claimed as supported:
 
@@ -228,19 +235,30 @@ Supported launchers are `auto`, `srun`, `mpirun`, `mpiexec`, and
 `./wrfctl exec ... --ntasks N --launcher NAME`; use `--` before program
 arguments if they contain wrfctl option names.
 
-## High-level case preparation
+## High-level case workflow
 
-For normal use, `prep` is the orchestration command:
+Normal use is intentionally short:
 
 ```bash
+./wrfctl plan --case athens-smoke   # optional, read-only
 ./wrfctl prep --case athens-smoke
+./wrfctl run  --case athens-smoke
 ```
 
-It resolves the tracked case configuration and runs the preparation pipeline in
-order: ensure static geography, `geogrid`, ensure forcing data, stage forcing,
-`ungrib`, `metgrid`, and WRF runtime staging. The existing
-`fetch`/`prepare`/`exec` commands remain available as lower-level
-primitives for debugging, teaching, and rerunning one stage.
+`plan` shows the resolved scientific configuration and the stages that will
+run without changing files. `prep` prepares the case through `real.exe`, so
+its final contract is the existence of `wrfinput_d0*` and `wrfbdy_d01`.
+`run` launches `wrf.exe` only after checking that the prepared inputs still
+match `case.toml` and the native namelists.
+
+This follows the project rule: `case.toml` describes **what** experiment is
+being run, the native namelists show **what WRF/WPS actually receive**, and
+`wrfctl` hides **how** the machine executes the plumbing. The existing
+`fetch`/`prepare`/`exec` commands remain first-class low-level primitives
+for debugging, teaching, and rerunning one stage.
+
+`./wrfctl prep --case NAME --dry-run` provides the same read-only planning
+view as `wrfctl plan`.
 
 The current automatic geography path is intentionally limited to the bundled
 low-resolution smoke-test dataset, and the current automatic forcing provider is
@@ -334,7 +352,10 @@ multi-node portability is not yet claimed.
 ./wrfctl fetch wps                 materialize pinned WPS 4.7.0 source
 ./wrfctl config --case NAME        validate case.toml and update TOML-managed namelist values
 ./wrfctl config --case NAME --check validate without changing native namelists
-./wrfctl prep --case NAME          prepare a case through geogrid/ungrib/metgrid and WRF staging
+./wrfctl plan --case NAME          show resolved science and the workflow plan without changes
+./wrfctl prep --case NAME          prepare through real.exe; create wrfinput/wrfbdy
+./wrfctl prep --case NAME --dry-run show the plan without changing files
+./wrfctl run --case NAME           run wrf.exe from matching prepared inputs
 ./wrfctl fetch geog                download low-res mandatory WPS geography for smoke tests
 ./wrfctl fetch gfs --case NAME     download configured GFS forcing from NOMADS
 ./wrfctl prepare gfs --case NAME   stage Vtable.GFS and GRIBFILE links
@@ -486,18 +507,24 @@ See [`docs/design.md`](docs/design.md) and the
 [`case.toml` reference](docs/reference/case-toml.md).
 
 
-### WRF real-data smoke stage
+### WRF real-data preparation boundary
 
-After `metgrid` has produced `met_em.*` files, stage WRF runtime data and run
-the explicit real-data initializer:
+At the high level, `prep` means "make this case ready for `wrf.exe`".
+It therefore includes the native `real.exe` stage and verifies that
+`wrfinput_d0*` and `wrfbdy_d01` were created.
+
+The native stages remain directly callable:
 
 ```bash
 ./wrfctl prepare wrf --case athens-smoke
 ./wrfctl exec real --case athens-smoke
+./wrfctl exec wrf --case athens-smoke
 ```
 
-`real` remains an explicit workflow step. wrfkit does not silently run it as
-part of another command. The expected outputs are
-`.wrfkit/work/athens-smoke/wrfinput_d01` and
-`.wrfkit/work/athens-smoke/wrfbdy_d01`; a later smoke step runs `wrf`
-itself.
+Using the high-level pair adds a preparation manifest and guards against
+running WRF after the TOML or native namelists have changed:
+
+```bash
+./wrfctl prep --case athens-smoke
+./wrfctl run  --case athens-smoke
+```
