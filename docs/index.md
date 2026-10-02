@@ -3,8 +3,8 @@
 **Run WRF without first becoming an expert in compilers, MPI, NetCDF, or Nix.**
 
 wrfkit gives WRF and WPS a reproducible software environment, keeps each
-experiment organized, and provides a tested single-node path for Linux and
-Slurm HPC systems such as UGA Sapelo2.
+experiment organized, and provides a reproducible single-node workflow for
+Linux and Slurm HPC systems, with the Slurm path validated on UGA Sapelo2.
 
 [Start your first WRF run](tutorials/first-run.md){ .md-button .md-button--primary }
 [See what is validated](validation.md){ .md-button }
@@ -28,12 +28,12 @@ Slurm HPC systems such as UGA Sapelo2.
 
     [First-run tutorial](tutorials/first-run.md)
 
--   **I need to run a job on Sapelo2**
+-   **I need to run on a Slurm HPC cluster**
 
     ---
 
-    Use the validated one-node Slurm path and a ready-to-copy `sbatch`
-    example.
+    Follow the single-node Slurm workflow. The examples use UGA Sapelo2,
+    where this execution path has been validated.
 
     [Run WRF with sbatch](how-to/sapelo2-batch.md)
 
@@ -60,7 +60,7 @@ Slurm HPC systems such as UGA Sapelo2.
 
 ```mermaid
 flowchart LR
-    A["Scientific configuration<br/>cases/&lt;case&gt;/"]
+    A["Your scientific configuration<br/>cases/my-case/"]
     B["wrfkit"]
     C["WPS<br/>prepare model inputs"]
     D["WRF<br/>run the simulation"]
