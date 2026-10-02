@@ -363,17 +363,90 @@ use the same software stack.
 
 ## Step 5 — prepare the map
 
-Download the small geography dataset used by the smoke test:
+This step has two separate jobs: first download the reusable static geography
+data, then use `geogrid` to place those data onto the `athens-smoke` model
+grid.
+
+### 5.1 Download static geography
+
+Run:
 
 ```bash
 ./wrfctl fetch geog
 ```
 
-Run `geogrid`:
+This downloads WPS static fields such as terrain, land use, soil categories,
+albedo, and vegetation information. The downloaded archive is cached under
+`.wrfkit/cache/`, and the extracted smoke-test dataset is kept under
+`.wrfkit/data/geog/low-res-mandatory` so later runs can reuse it.
+
+A successful first download ends with output similar to:
+
+```text
+WPS low-resolution mandatory geography ready:
+  .../.wrfkit/data/geog/low-res-mandatory
+This dataset is intended for smoke tests/education, not production forecasting.
+```
+
+This command only obtains the input data. It does not yet create the WRF model
+domain.
+
+### 5.2 Create the model-domain geography
+
+Run:
 
 ```bash
 ./wrfctl exec geogrid --case athens-smoke
 ```
+
+`geogrid` reads the case's `namelist.wps`, defines the model grid, and
+interpolates the static geography from the previous step onto that grid. The
+main product for this one-domain smoke case is `geo_em.d01.nc`.
+
+=== "Standalone Linux"
+
+    The validated standalone run began with:
+
+    ```text
+    wrfkit: MPI launcher=mpirun tasks=1
+    Parsed 60 entries in GEOGRID.TBL
+    Processing domain 1 of 1
+    ...
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !  Successful completion of geogrid.        !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    wrfkit: logs: .../.wrfkit/logs/athens-smoke/..._geogrid
+    ```
+
+    The default standalone first-run profile uses one MPI task. A different
+    machine configuration may use a different task count.
+
+=== "Slurm HPC"
+
+    On the validated Sapelo2 single-node path, the run began with:
+
+    ```text
+    wrfkit: MPI launcher=srun tasks=<N> (single-node bridge; inner=mpirun)
+    Parsed 60 entries in GEOGRID.TBL
+    Processing domain 1 of 1
+    ...
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !  Successful completion of geogrid.        !
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    wrfkit: logs: .../.wrfkit/logs/athens-smoke/..._geogrid
+    ```
+
+    Here `<N>` is the MPI task count selected from the active Slurm
+    allocation/configuration. wrfkit uses `srun` to create the single-node
+    Slurm child step, then launches the actual MPI ranks with its pinned
+    `mpirun` inside one Nix environment.
+
+!!! note "Optional fields not processed"
+    With the bundled low-resolution smoke-test geography, `geogrid` may print
+    an `Optional fields not processed by geogrid` section. That message by
+    itself is not a failure. For this tutorial, use the final
+    `Successful completion of geogrid.` message and the output file below as
+    the success checks.
 
 **Checkpoint:**
 
