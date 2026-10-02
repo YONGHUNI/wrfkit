@@ -28,10 +28,11 @@ merely implemented or planned.
 The validated batch topology is:
 
 ```mermaid
-flowchart TB
+%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 30}}}%%
+flowchart LR
     A["Slurm allocation<br/>1 node · N CPUs"]
     B["Child srun step<br/>1 task · N CPUs"]
-    C["One rootless-Nix namespace entry"]
+    C["One rootless-Nix<br/>namespace entry"]
     D["Pinned OpenMPI<br/>mpirun -np N"]
     E["N WRF MPI ranks"]
 

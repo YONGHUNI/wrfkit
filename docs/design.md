@@ -163,16 +163,15 @@ batch job. Instead, execution isolation belongs to the scheduler backend.
 Single-node Slurm execution uses one bridge topology:
 
 ```mermaid
-flowchart TB
-    A["Single-node Slurm allocation"]
-    B["wrfctl"]
-    C["Child srun step"]
-    D["1 Slurm task × N CPUs"]
-    E["Rootless Nix entry<br/>once"]
-    F["Pinned OpenMPI<br/>mpirun -np N"]
-    G["N WRF/WPS ranks"]
+%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 30}}}%%
+flowchart LR
+    A["Single-node<br/>Slurm allocation"]
+    B["wrfctl child srun step<br/>1 task · N CPUs"]
+    C["Rootless Nix<br/>enter once"]
+    D["Pinned OpenMPI<br/>mpirun -np N"]
+    E["N WRF/WPS ranks"]
 
-    A --> B --> C --> D --> E --> F --> G
+    A --> B --> C --> D --> E
 ```
 
 An interactive shell that already occupies an `srun` step adds `--overlap`

@@ -80,7 +80,8 @@ You request resources from Slurm:
 wrfkit then uses the validated single-node bridge:
 
 ```mermaid
-flowchart TB
+%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 30}}}%%
+flowchart LR
     A["Slurm allocation<br/>1 node · 16 CPUs"]
     B["Child srun step<br/>1 task · 16 CPUs"]
     C["Enter rootless Nix once"]

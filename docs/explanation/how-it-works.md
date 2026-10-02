@@ -49,9 +49,10 @@ contention, and UCX namespace errors.
 The validated single-node design is instead:
 
 ```mermaid
-flowchart TB
+%%{init: {"flowchart": {"nodeSpacing": 20, "rankSpacing": 30}}}%%
+flowchart LR
     A["Slurm allocation<br/>N CPUs"]
-    B["One child task owns N CPUs"]
+    B["Child srun step<br/>1 task · N CPUs"]
     C["Enter rootless Nix once"]
     D["Pinned OpenMPI<br/>mpirun -np N"]
     E["N WRF ranks<br/>same Nix namespace"]
