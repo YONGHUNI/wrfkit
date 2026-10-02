@@ -18,6 +18,7 @@ explicit_config=0
 reset=0
 purge=0
 rnb_dir=""
+guided_config_path=""
 
 usage() {
   cat <<'USAGE'
@@ -225,8 +226,8 @@ write_guided_config() {
     fi
   } > "$user_config"
 
+  guided_config_path=$user_config
   printf '\nSaved machine configuration to:\n  %s\n\n' "$user_config"
-  printf '%s' "$user_config"
 }
 
 run_configuration_wizard() {
@@ -242,7 +243,7 @@ MSG
     exit 2
   }
 
-  local commands default_system choice keep selected_profile default_profile
+  local commands default_system choice selected_profile default_profile
   local scheduler_value require_value
   commands=$(slurm_command_list)
 
@@ -401,7 +402,8 @@ user_config="${XDG_CONFIG_HOME:-$HOME/.config}/wrfkit/bootstrap.conf"
 selected_config=""
 
 if (( force_configure )); then
-  selected_config=$(run_configuration_wizard)
+  run_configuration_wizard
+  selected_config=$guided_config_path
 elif (( explicit_config )); then
   selected_config=$config_file
 elif (( explicit_profile )); then
@@ -412,7 +414,8 @@ elif [[ -n ${WRFKIT_BOOTSTRAP_PROFILE:-} ]]; then
 elif [[ -r "$user_config" ]]; then
   selected_config=$user_config
 else
-  selected_config=$(run_configuration_wizard)
+  run_configuration_wizard
+  selected_config=$guided_config_path
 fi
 
 if [[ -z "$profile" && -n "$selected_config" ]]; then
