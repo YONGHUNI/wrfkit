@@ -20,7 +20,7 @@ printf 'WRF version: %s\n' "$WRFKIT_WRF_VERSION"
 printf 'WPS version: %s\n' "$WRFKIT_WPS_VERSION"
 printf 'System: %s\n\n' "$(uname -srm)"
 
-for cmd in gcc g++ gfortran cmake make mpicc mpif90 mpirun nc-config nf-config git python3 csh; do
+for cmd in gcc g++ gfortran cmake make mpicc mpif90 mpirun nc-config nf-config git python3 tcsh; do
   check_cmd "$cmd"
 done
 
