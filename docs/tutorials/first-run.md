@@ -18,6 +18,11 @@ Georgia's **Sapelo2** Slurm cluster as a concrete example. The currently
 validated Slurm path is single-node execution on Sapelo2; see the
 [validation matrix](../validation.md) for the exact support boundary.
 
+!!! tip "Follow the tab that matches your machine"
+    Environment-specific steps are shown as **Standalone Linux** and
+    **Slurm HPC** tabs. Once you select one, the documentation site keeps
+    matching tabs synchronized as you move through the page.
+
 ## Before you start
 
 You need:
@@ -68,31 +73,38 @@ git pull
 ls
 ```
 
-## Step 2 — get a compute allocation on shared HPC systems
+## Step 2 — prepare the machine for compute work
 
-Skip this step on a normal Linux workstation or server where compute-intensive
-work is allowed directly.
+=== "Standalone Linux"
 
-On a shared HPC cluster, request an interactive compute allocation using your
-site's documented method before setting up or building the environment.
+    If this is a workstation or server where you are allowed to run
+    compute-intensive work directly, there is no scheduler allocation step.
 
-!!! example "Sapelo2"
-    Sapelo2 provides the `interact` helper. For this smoke test, for example:
+    Stay in the wrfkit repository and continue to Step 3.
 
-    ```bash
-    interact -c 16 --mem=64G --time=02:00:00 --gres=lscratch:100
-    ```
+=== "Slurm HPC"
 
-    `--gres=lscratch:100` requests 100 GB of node-local temporary storage for
-    the allocation. The Sapelo2 wrfkit profile places its rootless Nix store
-    under `/lscratch/$USER`, so explicitly requesting local scratch is the
-    appropriate pattern.
+    On a shared HPC cluster, request an interactive compute allocation using
+    your site's documented method before setting up or building the
+    environment.
 
-!!! warning "Do not build on a shared login node"
-    For a Slurm configuration with allocation protection enabled, wrfkit
-    requires an active Slurm compute allocation before bootstrap setup/build
-    work. This check uses Slurm allocation state rather than a site-specific
-    hostname.
+    !!! example "UGA Sapelo2"
+        Sapelo2 provides the `interact` helper. For this smoke test:
+
+        ```bash
+        interact -c 16 --mem=64G --time=02:00:00 --gres=lscratch:100
+        ```
+
+        `--gres=lscratch:100` requests 100 GB of node-local temporary
+        storage for the allocation. The Sapelo2 wrfkit profile places its
+        rootless Nix store under `/lscratch/$USER`, so explicitly requesting
+        local scratch is the appropriate pattern.
+
+    !!! warning "Do not build on a shared login node"
+        For a Slurm configuration with allocation protection enabled, wrfkit
+        requires an active Slurm compute allocation before bootstrap
+        setup/build work. This check uses Slurm allocation state rather than a
+        site-specific hostname.
 
 ## Step 3 — prepare the wrfkit environment
 
@@ -100,130 +112,205 @@ site's documented method before setting up or building the environment.
 NetCDF, WRF, and WPS environment. You do not need to install or configure Nix
 manually.
 
-Run:
-
-```bash
-./bootstrap
-```
-
 When neither `--profile` nor `--config` is supplied and no saved wrfkit
-machine configuration exists, bootstrap asks a few questions. It detects a
-likely default, but **you make the final choice**.
+machine configuration exists, `./bootstrap` asks a few questions. It detects
+a likely default, but **you make the final choice**.
 
-On Sapelo2, a first run currently looks like this:
+=== "Standalone Linux"
 
-```text
-wrfkit machine setup
+    Run:
 
-Choose the environment that best describes this machine. If you are unsure,
-press Enter to accept the detected default.
+    ```bash
+    ./bootstrap
+    ```
 
-  1) Standalone Linux workstation/server
-  2) Slurm HPC cluster
-System type [1/2] (default: 2):
+    On a tested standalone Linux server without Slurm commands, wrfkit chose
+    the standalone path as the default:
 
-Choose a site profile. The generic profile works for Slurm clusters that do not
-need Sapelo2-specific storage paths.
+    ```text
+    wrfkit machine setup
 
-  1) Generic Slurm HPC
-  2) UGA Sapelo2 (node-local /lscratch Nix store)
-  3) UGA Sapelo2 shared-store profile (/scratch)
-Site profile [1/2/3] (default: 2):
+    Choose the environment that best describes this machine. If you are unsure,
+    press Enter to accept the detected default.
 
-Active Slurm compute allocation detected.
-Requiring an allocation helps prevent setup/build work on shared login nodes.
+      1) Standalone Linux workstation/server
+      2) Slurm HPC cluster
+    System type [1/2] (default: 1):
+    ```
 
-Require an active Slurm compute allocation for future bootstrap setup/build operations? [Y/n]
-```
+    Pressing **Enter** accepts the default. wrfkit then stores a machine
+    configuration equivalent to:
 
-For this Sapelo2 example, pressing **Enter** at all three prompts accepts the
-detected defaults.
+    ```ini
+    profile=generic
+    backend=auto
+    scheduler=none
+    require_allocation=false
+    mpi_launcher=auto
+    mpi_tasks=1
+    ```
 
-Bootstrap then saves the machine configuration and shows the resolved policy:
+    If a working Nix installation is already available, bootstrap may finish
+    immediately with:
 
-```text
-Selected: Slurm HPC cluster (sapelo2)
+    ```text
+    wrfkit: a working nix installation is already available; bootstrap is not needed.
+    ```
 
-Saved machine configuration to:
-  /home/<user>/.config/wrfkit/bootstrap.conf
+    That is **not an error**. If Nix is missing, bootstrap installs the managed
+    rootless environment automatically.
 
-wrfkit bootstrap
-  profile:      sapelo2
-  scheduler:    slurm
-  allocation:   true
-  store root:   /lscratch/<user>/.nix
-  scratch root: /lscratch/<user>/wrfkit
-  backend:      auto
-  MPI launcher: srun
-  MPI tasks:    auto
-```
+=== "Slurm HPC"
 
-The saved configuration is reused on later runs. To change it intentionally,
-run:
+    Run this from the compute allocation obtained in Step 2:
+
+    ```bash
+    ./bootstrap
+    ```
+
+    On Sapelo2, a first run currently looks like this:
+
+    ```text
+    wrfkit machine setup
+
+    Choose the environment that best describes this machine. If you are unsure,
+    press Enter to accept the detected default.
+
+      1) Standalone Linux workstation/server
+      2) Slurm HPC cluster
+    System type [1/2] (default: 2):
+
+    Choose a site profile. The generic profile works for Slurm clusters that do not
+    need Sapelo2-specific storage paths.
+
+      1) Generic Slurm HPC
+      2) UGA Sapelo2 (node-local /lscratch Nix store)
+      3) UGA Sapelo2 shared-store profile (/scratch)
+    Site profile [1/2/3] (default: 2):
+
+    Active Slurm compute allocation detected.
+    Requiring an allocation helps prevent setup/build work on shared login nodes.
+
+    Require an active Slurm compute allocation for future bootstrap setup/build operations? [Y/n]
+    ```
+
+    For this Sapelo2 example, pressing **Enter** at all three prompts accepts
+    the detected defaults.
+
+    Bootstrap then saves the machine configuration and shows the resolved
+    policy:
+
+    ```text
+    Selected: Slurm HPC cluster (sapelo2)
+
+    Saved machine configuration to:
+      /home/<user>/.config/wrfkit/bootstrap.conf
+
+    wrfkit bootstrap
+      profile:      sapelo2
+      scheduler:    slurm
+      allocation:   true
+      store root:   /lscratch/<user>/.nix
+      scratch root: /lscratch/<user>/wrfkit
+      backend:      auto
+      MPI launcher: srun
+      MPI tasks:    auto
+    ```
+
+    If rootless Nix needs to be installed, bootstrap performs that setup
+    automatically. A successful run ends with:
+
+    ```text
+    wrfkit: rootless Nix bootstrap completed.
+
+    Next:
+      ./wrfctl doctor
+      ./wrfctl build
+    ```
+
+    !!! note "Some rootless-Nix warnings can be normal"
+        On the validated Sapelo2 run, the upstream `nix-user-chroot` runtime
+        probe fell back successfully to its compatibility mode, and the Nix
+        build sandbox was unavailable. Bootstrap still completed
+        successfully.
+
+        The useful criterion is the final success message above, not the
+        absence of every warning.
+
+    !!! note "Why might the physical store path look different?"
+        On the observed Sapelo2 node, `/lscratch/<user>/.nix` resolved to
+        `/tmp/lscratch/<user>/.nix`. Both names referred to the same 121 MB
+        store immediately after bootstrap. The rootless-Nix diagnostic
+        therefore reported the resolved physical path rather than a second
+        Nix store.
+
+    If bootstrap installed rootless Nix, you can optionally inspect it with:
+
+    ```bash
+    rootless-nix-doctor
+    ```
+
+    A healthy Sapelo2 result includes checks such as:
+
+    ```text
+    [OK] nix command: /home/<user>/.local/bin/nix
+    [OK] Nix evaluator works
+    [OK] flake support works
+    [OK] nix-user-chroot root method: chroot
+    [OK] unprivileged user namespaces available
+    [OK] NVIDIA host driver visible
+    [OK] libcuda.so.1 bridge configured
+    ```
+
+The saved machine configuration is reused on later runs. To change it
+intentionally:
 
 ```bash
 ./bootstrap --configure
 ```
 
-If rootless Nix needs to be installed, bootstrap performs that setup
-automatically. A successful run ends with:
-
-```text
-wrfkit: rootless Nix bootstrap completed.
-
-Next:
-  ./wrfctl doctor
-  ./wrfctl build
-```
-
-!!! note "Some rootless-Nix warnings can be normal"
-    On the validated Sapelo2 run, the upstream `nix-user-chroot` runtime probe
-    fell back successfully to its compatibility mode, and the Nix build sandbox
-    was unavailable. Bootstrap still completed successfully.
-
-    The useful criterion is the final success message above, not the absence of
-    every warning.
-
-!!! note "Why might the physical store path look different?"
-    On the observed Sapelo2 node, `/lscratch/<user>/.nix` resolved to
-    `/tmp/lscratch/<user>/.nix`. Both names referred to the same 121 MB store
-    immediately after bootstrap. The rootless-Nix diagnostic therefore reported
-    the resolved physical path rather than a second Nix store.
-
-If bootstrap installed rootless Nix, you can optionally inspect it with:
-
-```bash
-rootless-nix-doctor
-```
-
-A healthy Sapelo2 result includes checks such as:
-
-```text
-[OK] nix command: /home/<user>/.local/bin/nix
-[OK] Nix evaluator works
-[OK] flake support works
-[OK] nix-user-chroot root method: chroot
-[OK] unprivileged user namespaces available
-[OK] NVIDIA host driver visible
-[OK] libcuda.so.1 bridge configured
-```
-
-If you instead see:
-
-```text
-wrfkit: a working nix installation is already available; bootstrap is not needed.
-```
-
-that is **not an error**. It means a usable Nix environment is already
-available.
-
 ## Step 4 — check and build the software
 
-First check the environment:
+First check the pinned environment:
 
 ```bash
 ./wrfctl doctor
 ```
+
+=== "Standalone Linux"
+
+    A healthy standalone check should report the required toolchain and pinned
+    sources as `[OK]`. For example:
+
+    ```text
+    wrfkit doctor
+
+    WRF version: 4.8.0
+    WPS version: 4.7.0
+
+    [OK]   gcc -> /nix/store/.../bin/gcc
+    [OK]   gfortran -> /nix/store/.../bin/gfortran
+    [OK]   cmake -> /nix/store/.../bin/cmake
+    [OK]   mpirun -> /nix/store/.../bin/mpirun
+    [OK]   nc-config -> /nix/store/.../bin/nc-config
+    [OK]   nf-config -> /nix/store/.../bin/nf-config
+    [OK]   tcsh -> /nix/store/.../bin/tcsh
+
+    Pinned WRF source
+    [OK]   /nix/store/...-v4.8.0.tar.gz
+
+    Pinned WPS source
+    [OK]   /nix/store/...-source
+    ```
+
+=== "Slurm HPC"
+
+    The same pinned compiler/MPI/NetCDF checks should pass. Inside an active
+    Slurm allocation, doctor also checks `srun` and reports allocation
+    information.
+
+    The important checkpoint is that the required build tools and pinned
+    WRF/WPS sources report `[OK]`.
 
 Then build WRF and WPS:
 
@@ -323,9 +410,17 @@ ls .wrfkit/work/athens-smoke/wrfbdy_d01
 ./wrfctl exec wrf --case athens-smoke
 ```
 
-Inside a supported single-node Slurm allocation, wrfkit owns the MPI launch
-path. Do **not** add another `srun -n ...` around this command. The current
-Slurm validation is on Sapelo2.
+=== "Standalone Linux"
+
+    The generic standalone profile uses the configured MPI launcher and task
+    count. The first-run default is conservative: `mpi_launcher=auto` and
+    `mpi_tasks=1`.
+
+=== "Slurm HPC"
+
+    Inside a supported single-node Slurm allocation, wrfkit owns the MPI
+    launch path. Do **not** add another `srun -n ...` around the command.
+    The current Slurm validation is on Sapelo2.
 
 ## Step 9 — check success
 
