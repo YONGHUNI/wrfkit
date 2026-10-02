@@ -153,3 +153,90 @@ load_case_env() {
   output=$("$WRFKIT_ROOT/scripts/case-config.py" env --case "$case_name") || return $?
   eval "$output"
 }
+
+
+case_config_fingerprint() {
+  local case_name=$1
+  "$WRFKIT_ROOT/scripts/case-config.py" fingerprint --case "$case_name"
+}
+
+file_sha256() {
+  local path=$1
+  [[ -r "$path" ]] || return 1
+  sha256sum "$path" | awk '{print $1}'
+}
+
+prep_manifest_path() {
+  local case_name=$1
+  printf '%s/%s/.wrfkit-prep-manifest' "$WRFKIT_WORK_DIR" "$case_name"
+}
+
+write_prep_manifest() {
+  local case_name=$1
+  local case_dir="$WRFKIT_ROOT/cases/$case_name"
+  local work_dir="$WRFKIT_WORK_DIR/$case_name"
+  local manifest tmp
+  manifest=$(prep_manifest_path "$case_name")
+  tmp="${manifest}.tmp"
+
+  mkdir -p "$work_dir"
+  cat > "$tmp" <<EOF
+schema=1
+case=$case_name
+case_fingerprint=$(case_config_fingerprint "$case_name")
+namelist_wps_sha256=$(file_sha256 "$case_dir/namelist.wps")
+namelist_input_sha256=$(file_sha256 "$case_dir/namelist.input")
+wrf_version=${WRFKIT_WRF_VERSION:-unknown}
+wps_version=${WRFKIT_WPS_VERSION:-unknown}
+prepared_at=$(date --iso-8601=seconds 2>/dev/null || date)
+EOF
+  mv "$tmp" "$manifest"
+}
+
+prep_manifest_value() {
+  local manifest=$1 key=$2
+  awk -F= -v key="$key" '$1 == key {sub(/^[^=]*=/, ""); print; exit}' "$manifest"
+}
+
+verify_prep_manifest() {
+  local case_name=$1
+  local case_dir="$WRFKIT_ROOT/cases/$case_name"
+  local manifest expected actual
+
+  manifest=$(prep_manifest_path "$case_name")
+  [[ -r "$manifest" ]] || {
+    printf 'wrfkit: prepared-case manifest not found: %s\n' "$manifest" >&2
+    printf 'Run ./wrfctl prep --case %s first.\n' "$case_name" >&2
+    return 2
+  }
+
+  expected=$(prep_manifest_value "$manifest" case)
+  [[ "$expected" == "$case_name" ]] || {
+    printf 'wrfkit: preparation manifest belongs to case %s, not %s\n' "$expected" "$case_name" >&2
+    return 2
+  }
+
+  expected=$(prep_manifest_value "$manifest" case_fingerprint)
+  actual=$(case_config_fingerprint "$case_name")
+  [[ -n "$expected" && "$expected" == "$actual" ]] || {
+    printf 'wrfkit: case.toml scientific configuration changed after prep.\n' >&2
+    printf 'Run ./wrfctl prep --case %s again before ./wrfctl run.\n' "$case_name" >&2
+    return 2
+  }
+
+  expected=$(prep_manifest_value "$manifest" namelist_wps_sha256)
+  actual=$(file_sha256 "$case_dir/namelist.wps" 2>/dev/null || true)
+  [[ -n "$expected" && "$expected" == "$actual" ]] || {
+    printf 'wrfkit: namelist.wps changed after prep.\n' >&2
+    printf 'Run ./wrfctl prep --case %s again before ./wrfctl run.\n' "$case_name" >&2
+    return 2
+  }
+
+  expected=$(prep_manifest_value "$manifest" namelist_input_sha256)
+  actual=$(file_sha256 "$case_dir/namelist.input" 2>/dev/null || true)
+  [[ -n "$expected" && "$expected" == "$actual" ]] || {
+    printf 'wrfkit: namelist.input changed after prep.\n' >&2
+    printf 'Run ./wrfctl prep --case %s again before ./wrfctl run.\n' "$case_name" >&2
+    return 2
+  }
+}

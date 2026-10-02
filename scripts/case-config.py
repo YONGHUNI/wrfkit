@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
+import json
 import pathlib
 import re
 import shlex
@@ -137,6 +139,8 @@ def shell_env(name: str) -> None:
     geography = data.get("geography", {})
     env["GEOG_DATASET"] = str(geography.get("dataset", ""))
     env["GEOG_RESOLUTION"] = str(geography.get("resolution", ""))
+    domain = data.get("domain", {})
+    env["MAX_DOM"] = str(domain.get("max_dom", 1))
     for key, value in env.items():
         print(f"{key}={shlex.quote(value)}")
 
@@ -475,12 +479,161 @@ def configure(name: str, check_only: bool) -> None:
     print(f"  namelist.input: {'updated' if wrf_changed else 'unchanged'}")
 
 
+def display_value(value) -> str:
+    if isinstance(value, list):
+        return "[" + ", ".join(str(item) for item in value) + "]"
+    return str(value)
+
+
+def display_datetime(value, field: str) -> str:
+    return utc_datetime(value, field).strftime("%Y-%m-%d %H:%M:%SZ")
+
+
+def summarize_case(name: str) -> None:
+    _, data = load_case(name)
+    validate_time_forcing(data)
+    managed, wps, wrf = build_patches(data)
+
+    print("Scientific configuration")
+    print(f"  case:        {name}")
+
+    time = data.get("time", {})
+    if "start" in time and "end" in time:
+        print(
+            "  period:      "
+            f"{display_datetime(time['start'], 'time.start')} -> "
+            f"{display_datetime(time['end'], 'time.end')}"
+        )
+    if "forcing_interval_seconds" in time:
+        print(f"  input step:  {time['forcing_interval_seconds']} s")
+
+    forcing = data.get("forcing", {})
+    print(f"  forcing:     {forcing.get('provider', '<unset>')} {forcing.get('product', '<unset>')}")
+    if "cycle" in forcing:
+        print(f"  cycle:       {display_datetime(forcing['cycle'], 'forcing.cycle')}")
+    if "forecast_hours" in forcing:
+        print(f"  fcst hours:  {display_value(forcing['forecast_hours'])}")
+    subset = forcing.get("subset", {})
+    if isinstance(subset, dict) and all(k in subset for k in ("west", "east", "south", "north")):
+        print(
+            "  subset:      "
+            f"W={subset['west']} E={subset['east']} "
+            f"S={subset['south']} N={subset['north']}"
+        )
+
+    geography = data.get("geography", {})
+    print(
+        "  geography:   "
+        f"{geography.get('dataset', '<unset>')} "
+        f"({geography.get('resolution', '<unset>')})"
+    )
+
+    domain = data.get("domain", {})
+    print(f"  domains:     {domain.get('max_dom', 1)}")
+    for key, label, suffix in (
+        ("dx", "dx", " m"),
+        ("dy", "dy", " m"),
+        ("e_we", "e_we", ""),
+        ("e_sn", "e_sn", ""),
+        ("e_vert", "e_vert", ""),
+    ):
+        if key in domain:
+            print(f"  {label + ':':12}{display_value(domain[key])}{suffix}")
+
+    model = data.get("model", {})
+    if "time_step" in model:
+        print(f"  time step:   {model['time_step']} s")
+
+    physics = data.get("physics", {})
+    if "suite" in physics:
+        print(f"  physics:     {physics['suite']}")
+
+    output = data.get("output", {})
+    if "history_interval_minutes" in output:
+        print(f"  history:     {output['history_interval_minutes']} min")
+
+    advanced = data.get("advanced", {})
+    advanced_wps = sum(
+        len(values)
+        for family in ("wps", "wps_raw")
+        for values in advanced.get(family, {}).values()
+        if isinstance(values, dict)
+    )
+    advanced_wrf = sum(
+        len(values)
+        for family in ("wrf", "wrf_raw")
+        for values in advanced.get(family, {}).values()
+        if isinstance(values, dict)
+    )
+
+    if managed:
+        print(
+            "  namelists:   managed "
+            f"({sum(map(len, wps.values()))} WPS / "
+            f"{sum(map(len, wrf.values()))} WRF overrides)"
+        )
+    else:
+        print("  namelists:   manual/read-only")
+    if advanced_wps or advanced_wrf:
+        print(f"  advanced:    {advanced_wps} WPS / {advanced_wrf} WRF native overrides")
+
+
+def normalized_for_fingerprint(value):
+    if isinstance(value, dt.datetime):
+        if value.tzinfo is None:
+            return value.isoformat()
+        return value.astimezone(dt.timezone.utc).isoformat()
+    if isinstance(value, dt.date):
+        return value.isoformat()
+    if isinstance(value, dt.time):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {
+            key: normalized_for_fingerprint(item)
+            for key, item in sorted(value.items())
+        }
+    if isinstance(value, list):
+        return [normalized_for_fingerprint(item) for item in value]
+    return value
+
+
+def case_fingerprint(name: str) -> None:
+    _, data = load_case(name)
+    validate_time_forcing(data)
+
+    relevant = dict(data)
+    case_meta = dict(relevant.get("case", {}))
+    case_meta.pop("description", None)
+    if case_meta:
+        relevant["case"] = case_meta
+    else:
+        relevant.pop("case", None)
+
+    payload = json.dumps(
+        normalized_for_fingerprint(relevant),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode("utf-8")
+    print(hashlib.sha256(payload).hexdigest())
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="wrfkit TOML case configuration")
     commands = parser.add_subparsers(dest="command", required=True)
 
     env_parser = commands.add_parser("env", help="emit shell-safe resolved case variables")
     env_parser.add_argument("--case", required=True)
+
+    summary_parser = commands.add_parser(
+        "summary", help="show resolved scientific configuration without changing files"
+    )
+    summary_parser.add_argument("--case", required=True)
+
+    fingerprint_parser = commands.add_parser(
+        "fingerprint", help="emit a preparation-relevant case fingerprint"
+    )
+    fingerprint_parser.add_argument("--case", required=True)
 
     config_parser = commands.add_parser(
         "config", help="validate case.toml and update managed native namelists"
@@ -493,6 +646,10 @@ def main() -> None:
     args = parser.parse_args()
     if args.command == "env":
         shell_env(args.case)
+    elif args.command == "summary":
+        summarize_case(args.case)
+    elif args.command == "fingerprint":
+        case_fingerprint(args.case)
     else:
         configure(args.case, args.check)
 
