@@ -280,6 +280,13 @@ interactive `srun` shell that reserves one task with multiple CPUs, auto may
 use `SLURM_CPUS_PER_TASK`. In either single-node case, the bridge reserves N
 CPUs before starting N MPI ranks. `--ntasks N` and `--launcher NAME` are
 per-run overrides. Interactive and batch single-node Slurm execution are both validated.
+
+High-level case execution adds a WRF-specific decomposition guard. It mirrors
+WRF 4.8's `MPASPECT` factor selection and the native minimum-patch check:
+for every domain, integer `e_we / nproc_x` and `e_sn / nproc_y` must both
+be at least 10. Machine-level `mpi_tasks=auto` may therefore resolve to one
+count for MPI-capable WPS stages and a smaller safe count for `real`/`wrf`.
+Explicit `nproc_x`/`nproc_y` in the native namelist remain authoritative.
 Multi-node rootless-Nix execution remains a separate validation target.
 
 This is still a single-node-first policy. Multi-node support must additionally

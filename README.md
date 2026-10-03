@@ -260,6 +260,14 @@ for debugging, teaching, and rerunning one stage.
 `./wrfctl prep --case NAME --dry-run` provides the same read-only planning
 view as `wrfctl plan`.
 
+On WRF stages, high-level `prep`/`run` also resolve the processor
+decomposition against the case dimensions. WRF 4.8 requires each decomposed
+patch to contain at least 10 grid cells in both horizontal directions. If an
+automatic machine allocation would violate that rule, wrfkit reduces only the
+`real`/`wrf` rank count and reports the selected mesh; WPS stages may still
+use the full allocation. An explicit unsafe `--ntasks N` is rejected rather
+than silently changed.
+
 The current automatic geography path is intentionally limited to the bundled
 low-resolution smoke-test dataset, and the current automatic forcing provider is
 GFS. Research-grade geography selection remains a separate implementation

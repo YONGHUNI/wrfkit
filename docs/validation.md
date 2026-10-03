@@ -20,6 +20,7 @@ merely implemented or planned.
 | Per-run native log archive | Validated | `native-logs.tar` with current-run filtering |
 | High-level `wrfctl prep` through `real` | Implemented, not yet regression-validated | Previous prep contract was validated through WRF runtime staging; current contract adds `real`, artifact checks, and a prep manifest |
 | `wrfctl plan` / `prep --dry-run` | Implemented, not yet regression-validated | Read-only resolved-science and stage view |
+| WRF-safe MPI decomposition guard | Implemented, not yet regression-validated | Added after Sapelo2 exposed the native 10-cell minimum-patch failure at 32 ranks for the 61 x 61 smoke domain |
 | High-level `wrfctl run` | Implemented, not yet regression-validated | Checks prep freshness, current WRF success marker, and new `wrfout_d01_*` |
 | Optional shared `data_root` | Implemented, not yet regression-validated | Reusable geography/GFS may live outside a repository; default remains project-local |
 | GFS regional-subset cache identity | Implemented, not yet regression-validated | Cache path includes a request key derived from product and bounding box |
@@ -130,3 +131,18 @@ provenance archive exists
 Scientific checks should be defined by the study: domain adequacy, forcing,
 physics, spin-up, stability, expected fields, and comparison against suitable
 observations or reference data.
+
+
+## Processor-decomposition regression note
+
+During the first Sapelo2 regression of the extended `prep -> real` contract,
+the scheduler supplied 32 MPI tasks for the 61 x 61 smoke domain. WRF's native
+automatic decomposition selected 4 x 8 tasks, yielding a y-direction patch
+width of 7 cells, and `real.exe` correctly aborted because WRF requires at
+least 10 grid cells per decomposed patch direction.
+
+The high-level workflow now mirrors WRF's automatic factor selection and checks
+that native constraint before launching `real` or `wrf`. For this case,
+32 requested tasks resolve to 30 WRF tasks with a 5 x 6 mesh. This new guard
+still requires a fresh Lambda/Sapelo2 runtime regression before being marked
+validated.

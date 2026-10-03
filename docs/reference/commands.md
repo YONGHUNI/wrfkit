@@ -138,3 +138,21 @@ namelist after `real.exe` has produced `wrfinput`/`wrfbdy`, then
 accidentally running WRF with stale prepared inputs. If the guard fires, rerun
 `wrfctl prep --case NAME`. Direct `wrfctl exec wrf` remains available as
 the explicit low-level escape hatch.
+
+
+## WRF-safe MPI decomposition
+
+`wrfctl plan` reports both the available/requested MPI count and the task
+count selected for `real.exe` / `wrf.exe`. The selector mirrors WRF 4.8's
+automatic factorization and requires every decomposed horizontal patch to be
+at least 10 grid cells in x and y.
+
+For example, the 61 x 61 `athens-smoke` domain cannot use WRF's automatic
+4 x 8 decomposition for 32 ranks because the y patch is only 7 cells. The
+largest safe count at or below 32 is 30 ranks, decomposed 5 x 6.
+
+When task count comes from `mpi_tasks=auto`, high-level `prep` and `run`
+apply that safe adjustment and print it. If the user explicitly supplies an
+unsafe `--ntasks`, the high-level command stops with the safe alternative
+instead of silently changing an explicit request. Low-level `wrfctl exec`
+remains available for direct control.
