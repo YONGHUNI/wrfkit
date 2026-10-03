@@ -123,8 +123,11 @@ The wrapper installs rootless Nix through
 when a normal `nix` command is not already available.
 
 The bootstrap wrapper supports configuration profiles and does not require the
-user to remember rootless-Nix store paths. It also manages the rootless Nix
-lifecycle explicitly:
+user to remember rootless-Nix store paths. Interactive terminal output uses
+color to distinguish section headings, successful checkpoints, warnings, and
+errors; redirected/non-interactive output stays plain. Set `NO_COLOR=1` or
+`WRFKIT_COLOR=never` to disable colors, or `WRFKIT_COLOR=always` to force
+them. It also manages the rootless Nix lifecycle explicitly:
 
 ```bash
 ./bootstrap --purge
