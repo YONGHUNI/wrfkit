@@ -127,9 +127,24 @@ case "$forcing_provider" in
     ;;
 esac
 
-exec_case_args=(--case "$case_name")
-[[ -n "$ntasks" ]] && exec_case_args+=(--ntasks "$ntasks")
-[[ -n "$launcher" ]] && exec_case_args+=(--launcher "$launcher")
+default_tasks=$("$WRFKIT_ROOT/wrfctl" __resolve-mpi-tasks)
+effective_tasks=${ntasks:-$default_tasks}
+eval "$("$WRFKIT_ROOT/scripts/case-config.py" mpi-plan --case "$case_name" --requested "$effective_tasks" --shell)"
+
+if [[ -n "$ntasks" && "$WRFKIT_WRF_TASKS" != "$ntasks" ]]; then
+  printf 'prep: explicit --ntasks=%s is unsafe for this WRF domain.\n' "$ntasks" >&2
+  printf 'WRF-safe choice at or below that request: %s tasks (%s x %s).\n' \
+    "$WRFKIT_WRF_TASKS" "$WRFKIT_NPROC_X" "$WRFKIT_NPROC_Y" >&2
+  printf 'Omit --ntasks to allow stage-safe auto selection, or request a safe count.\n' >&2
+  exit 2
+fi
+
+wps_exec_args=(--case "$case_name")
+[[ -n "$ntasks" ]] && wps_exec_args+=(--ntasks "$ntasks")
+[[ -n "$launcher" ]] && wps_exec_args+=(--launcher "$launcher")
+
+wrf_exec_args=(--case "$case_name" --ntasks "$WRFKIT_WRF_TASKS")
+[[ -n "$launcher" ]] && wrf_exec_args+=(--launcher "$launcher")
 
 step() {
   printf '\n==> %s\n' "$1"
@@ -140,12 +155,19 @@ printf '  case:       %s\n' "$case_name"
 printf '  forcing:    %s\n' "$forcing_provider"
 printf '  data root:  %s\n' "$WRFKIT_DATA_DIR"
 printf '  workspace:  %s/work/%s\n' "$WRFKIT_STATE_DIR" "$case_name"
+printf '  WPS tasks:  %s\n' "$effective_tasks"
+printf '  WRF tasks:  %s (%s x %s)\n' \
+  "$WRFKIT_WRF_TASKS" "$WRFKIT_NPROC_X" "$WRFKIT_NPROC_Y"
+if ((WRFKIT_TASKS_ADJUSTED)); then
+  printf '  note:       auto-adjusted WRF tasks from %s to %s for >=10-cell patches\n' \
+    "$effective_tasks" "$WRFKIT_WRF_TASKS"
+fi
 
 step "1/8 Ensure static geography"
 "$WRFKIT_ROOT/wrfctl" fetch geog
 
 step "2/8 Run geogrid"
-"$WRFKIT_ROOT/wrfctl" exec geogrid "${exec_case_args[@]}"
+"$WRFKIT_ROOT/wrfctl" exec geogrid "${wps_exec_args[@]}"
 
 step "3/8 Ensure forcing data"
 "$WRFKIT_ROOT/wrfctl" fetch "$forcing_provider" --case "$case_name"
@@ -157,7 +179,7 @@ step "5/8 Run ungrib"
 "$WRFKIT_ROOT/wrfctl" exec ungrib --case "$case_name"
 
 step "6/8 Run metgrid"
-"$WRFKIT_ROOT/wrfctl" exec metgrid "${exec_case_args[@]}"
+"$WRFKIT_ROOT/wrfctl" exec metgrid "${wps_exec_args[@]}"
 
 step "7/8 Stage WRF runtime data"
 "$WRFKIT_ROOT/wrfctl" prepare wrf --case "$case_name"
@@ -165,7 +187,7 @@ step "7/8 Stage WRF runtime data"
 step "8/8 Run real"
 work_dir="$WRFKIT_WORK_DIR/$case_name"
 rm -f "$work_dir"/wrfinput_d?? "$work_dir"/wrfbdy_d01
-"$WRFKIT_ROOT/wrfctl" exec real "${exec_case_args[@]}"
+"$WRFKIT_ROOT/wrfctl" exec real "${wrf_exec_args[@]}"
 
 for ((domain_id=1; domain_id<=MAX_DOM; domain_id++)); do
   printf -v domain "%02d" "$domain_id"

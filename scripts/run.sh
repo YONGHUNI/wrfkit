@@ -67,8 +67,18 @@ done
   exit 2
 }
 
-exec_case_args=(--case "$case_name")
-[[ -n "$ntasks" ]] && exec_case_args+=(--ntasks "$ntasks")
+default_tasks=$("$WRFKIT_ROOT/wrfctl" __resolve-mpi-tasks)
+effective_tasks=${ntasks:-$default_tasks}
+eval "$("$WRFKIT_ROOT/scripts/case-config.py" mpi-plan --case "$case_name" --requested "$effective_tasks" --shell)"
+
+if [[ -n "$ntasks" && "$WRFKIT_WRF_TASKS" != "$ntasks" ]]; then
+  printf 'run: explicit --ntasks=%s is unsafe for this WRF domain.\n' "$ntasks" >&2
+  printf 'WRF-safe choice at or below that request: %s tasks (%s x %s).\n' \
+    "$WRFKIT_WRF_TASKS" "$WRFKIT_NPROC_X" "$WRFKIT_NPROC_Y" >&2
+  exit 2
+fi
+
+exec_case_args=(--case "$case_name" --ntasks "$WRFKIT_WRF_TASKS")
 [[ -n "$launcher" ]] && exec_case_args+=(--launcher "$launcher")
 
 # The persistent log archive keeps previous diagnostics; clear fixed-name RSL
@@ -81,7 +91,14 @@ trap 'rm -f "$marker"' EXIT
 
 printf '\nwrfkit run\n'
 printf '  case:       %s\n' "$case_name"
-printf '  workspace:  %s\n\n' "$work_dir"
+printf '  workspace:  %s\n' "$work_dir"
+printf '  WRF tasks:  %s (%s x %s)\n' \
+  "$WRFKIT_WRF_TASKS" "$WRFKIT_NPROC_X" "$WRFKIT_NPROC_Y"
+if ((WRFKIT_TASKS_ADJUSTED)); then
+  printf '  note:       auto-adjusted from %s requested tasks for >=10-cell patches\n' \
+    "$effective_tasks"
+fi
+printf '\n'
 
 "$WRFKIT_ROOT/wrfctl" exec wrf "${exec_case_args[@]}"
 

@@ -51,6 +51,24 @@ case_dir="$WRFKIT_ROOT/cases/$case_name"
 "$WRFKIT_ROOT/scripts/case-config.py" summary --case "$case_name"
 load_case_env "$case_name"
 
+default_tasks=$("$WRFKIT_ROOT/wrfctl" __resolve-mpi-tasks)
+effective_tasks=${ntasks:-$default_tasks}
+effective_launcher=${launcher:-$("$WRFKIT_ROOT/wrfctl" __resolve-mpi-launcher)}
+eval "$("$WRFKIT_ROOT/scripts/case-config.py" mpi-plan --case "$case_name" --requested "$effective_tasks" --shell)"
+
+printf '\nExecution plan\n'
+printf '  launcher:    %s\n' "$effective_launcher"
+printf '  WPS MPI:     %s tasks\n' "$effective_tasks"
+printf '  real / WRF:  %s tasks (%s x %s decomposition)\n' \
+  "$WRFKIT_WRF_TASKS" "$WRFKIT_NPROC_X" "$WRFKIT_NPROC_Y"
+if ((WRFKIT_TASKS_ADJUSTED)); then
+  printf '  adjustment:  %s -> %s tasks to keep WRF patches >= 10 cells\n' \
+    "$effective_tasks" "$WRFKIT_WRF_TASKS"
+fi
+if [[ -n "$ntasks" && "$WRFKIT_WRF_TASKS" != "$ntasks" ]]; then
+  printf '  warning:     explicit --ntasks=%s is unsafe for real/wrf; prep/run will reject it\n' "$ntasks"
+fi
+
 printf '\nReusable input state\n'
 if [[ -d "$WRFKIT_GEOG_DIR" ]]; then
   printf '  geography:  cached (%s)\n' "$WRFKIT_GEOG_DIR"
