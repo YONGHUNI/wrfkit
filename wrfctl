@@ -753,6 +753,14 @@ case "$cmd" in
   run)     run_dev "$ROOT/scripts/run.sh" "$@" ;;
   prepare) run_dev "$ROOT/scripts/prepare.sh" "$@" ;;
   exec)    run_exec "$@" ;;
+  __resolve-mpi-tasks)
+    load_mpi_config
+    resolve_mpi_tasks
+    ;;
+  __resolve-mpi-launcher)
+    load_mpi_config
+    resolve_mpi_launcher
+    ;;
   __exec-direct)
     [[ $# -gt 0 ]] || {
       echo "wrfkit: internal direct-exec command requires a program" >&2

@@ -618,6 +618,153 @@ def case_fingerprint(name: str) -> None:
     print(hashlib.sha256(payload).hexdigest())
 
 
+def _as_domain_ints(data, key: str, max_dom: int):
+    value = data.get("domain", {}).get(key)
+    if value is None:
+        die(f"domain.{key} is required for WRF decomposition planning")
+    values = value if isinstance(value, list) else [value] * max_dom
+    if len(values) != max_dom or any(
+        not isinstance(item, int) or isinstance(item, bool) or item < 1
+        for item in values
+    ):
+        die(f"domain.{key} must contain positive integers for every domain")
+    return values
+
+
+def _native_namelist_int(path: pathlib.Path, section: str, key: str, default: int):
+    if not path.is_file():
+        return default
+    lines = path.read_text().splitlines()
+    inside = False
+    section_re = re.compile(rf"^\s*&{re.escape(section)}\b", re.IGNORECASE)
+    key_re = re.compile(rf"^\s*{re.escape(key)}\s*=\s*(-?\d+)", re.IGNORECASE)
+    for line in lines:
+        if not inside:
+            if section_re.search(line):
+                inside = True
+            continue
+        if re.match(r"^\s*/", line):
+            break
+        match = key_re.search(line)
+        if match:
+            return int(match.group(1))
+    return default
+
+
+def _formatted_first_int(value, default: int):
+    if value is None:
+        return default
+    match = re.search(r"-?\d+", str(value))
+    return int(match.group(0)) if match else default
+
+
+def _effective_nproc(case_dir: pathlib.Path, data):
+    nproc_x = _native_namelist_int(case_dir / "namelist.input", "domains", "nproc_x", -1)
+    nproc_y = _native_namelist_int(case_dir / "namelist.input", "domains", "nproc_y", -1)
+
+    managed, _, wrf = build_patches(data)
+    if managed:
+        domains = wrf.get("domains", {})
+        nproc_x = _formatted_first_int(domains.get("nproc_x"), nproc_x)
+        nproc_y = _formatted_first_int(domains.get("nproc_y"), nproc_y)
+    return nproc_x, nproc_y
+
+
+def _mpaspect(tasks: int):
+    best_diff = 2 * tasks
+    best_x, best_y = 1, tasks
+    for x in range(1, tasks + 1):
+        if tasks % x:
+            continue
+        y = tasks // x
+        difference = abs(x - y)
+        if difference < best_diff:
+            best_diff = difference
+            best_x, best_y = x, y
+    return best_x, best_y
+
+
+def _decomposition_for(tasks: int, fixed_x: int, fixed_y: int):
+    if fixed_x > 0 and fixed_y > 0:
+        return (fixed_x, fixed_y) if fixed_x * fixed_y == tasks else None
+    if fixed_x > 0:
+        return (fixed_x, tasks // fixed_x) if tasks % fixed_x == 0 else None
+    if fixed_y > 0:
+        return (tasks // fixed_y, fixed_y) if tasks % fixed_y == 0 else None
+    return _mpaspect(tasks)
+
+
+def _patches_safe(e_we, e_sn, nproc_x: int, nproc_y: int):
+    return all(
+        (we // nproc_x) >= 10 and (sn // nproc_y) >= 10
+        for we, sn in zip(e_we, e_sn)
+    )
+
+
+def mpi_plan(name: str, requested: int, shell: bool) -> None:
+    if requested < 1:
+        die("requested MPI tasks must be >= 1")
+
+    case_dir, data = load_case(name)
+    max_dom = int(data.get("domain", {}).get("max_dom", 1))
+    e_we = _as_domain_ints(data, "e_we", max_dom)
+    e_sn = _as_domain_ints(data, "e_sn", max_dom)
+    fixed_x, fixed_y = _effective_nproc(case_dir, data)
+
+    requested_mesh = _decomposition_for(requested, fixed_x, fixed_y)
+    requested_safe = bool(
+        requested_mesh
+        and _patches_safe(e_we, e_sn, requested_mesh[0], requested_mesh[1])
+    )
+
+    selected = None
+    selected_mesh = None
+    for tasks in range(requested, 0, -1):
+        mesh = _decomposition_for(tasks, fixed_x, fixed_y)
+        if mesh and _patches_safe(e_we, e_sn, mesh[0], mesh[1]):
+            selected = tasks
+            selected_mesh = mesh
+            break
+
+    if selected is None or selected_mesh is None:
+        die("no safe WRF MPI decomposition exists for this domain")
+
+    req_x, req_y = requested_mesh if requested_mesh else (0, 0)
+    sel_x, sel_y = selected_mesh
+    source = "namelist" if fixed_x > 0 or fixed_y > 0 else "wrf-auto"
+
+    values = {
+        "WRFKIT_REQUESTED_TASKS": requested,
+        "WRFKIT_REQUESTED_NPROC_X": req_x,
+        "WRFKIT_REQUESTED_NPROC_Y": req_y,
+        "WRFKIT_REQUESTED_SAFE": 1 if requested_safe else 0,
+        "WRFKIT_WRF_TASKS": selected,
+        "WRFKIT_NPROC_X": sel_x,
+        "WRFKIT_NPROC_Y": sel_y,
+        "WRFKIT_TASKS_ADJUSTED": 1 if selected != requested else 0,
+        "WRFKIT_DECOMP_SOURCE": source,
+    }
+
+    if shell:
+        for key, value in values.items():
+            print(f"{key}={shlex.quote(str(value))}")
+        return
+
+    print("WRF MPI decomposition")
+    print(f"  requested:      {requested} tasks")
+    if requested_mesh:
+        print(
+            f"  requested mesh: {req_x} x {req_y} "
+            f"({'safe' if requested_safe else 'unsafe'})"
+        )
+    else:
+        print("  requested mesh: incompatible with explicit nproc_x/nproc_y")
+    print(f"  selected:       {selected} tasks ({sel_x} x {sel_y})")
+    if selected != requested:
+        print("  reason:         keep every decomposed WRF patch >= 10 grid cells")
+    print(f"  source:         {source}")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="wrfkit TOML case configuration")
     commands = parser.add_subparsers(dest="command", required=True)
@@ -635,6 +782,15 @@ def main() -> None:
     )
     fingerprint_parser.add_argument("--case", required=True)
 
+    mpi_parser = commands.add_parser(
+        "mpi-plan", help="resolve a WRF-safe MPI task count and decomposition"
+    )
+    mpi_parser.add_argument("--case", required=True)
+    mpi_parser.add_argument("--requested", required=True, type=int)
+    mpi_parser.add_argument(
+        "--shell", action="store_true", help="emit shell-safe key=value output"
+    )
+
     config_parser = commands.add_parser(
         "config", help="validate case.toml and update managed native namelists"
     )
@@ -650,6 +806,8 @@ def main() -> None:
         summarize_case(args.case)
     elif args.command == "fingerprint":
         case_fingerprint(args.case)
+    elif args.command == "mpi-plan":
+        mpi_plan(args.case, args.requested, args.shell)
     else:
         configure(args.case, args.check)
 
