@@ -77,10 +77,14 @@ On Sapelo2, the stage-aware execution policy used all 32 available MPI tasks for
 WPS while reducing only `real.exe` to 30 tasks with a 5 x 6 decomposition.
 
 The Sapelo2 high-level `wrfctl run` path was then exercised with the same
-automatic 32 -> 30 WRF adjustment. The command observed
-`SUCCESS COMPLETE WRF` and verified a newly created `wrfout_d01_*` before
-reporting success. A fresh high-level `wrfctl run` regression on Lambda Vector
-is still pending.
+automatic 32 -> 30 WRF adjustment. The preceding prep manifest was inspected
+and contained the case fingerprint, hashes of both native namelists, pinned
+WRF/WPS versions, and the preparation timestamp. `wrfctl run` accepted that
+matching manifest, observed `SUCCESS COMPLETE WRF`, and verified a newly
+created `wrfout_d01_*` before reporting success. This validates the positive
+manifest/freshness path; an intentional stale-manifest rejection test remains
+separate. A fresh high-level `wrfctl run` regression on Lambda Vector is still
+pending.
 
 The result also does not validate other forcing providers, research-grade
 static geography, shared `data_root`, or every advanced namelist passthrough.
