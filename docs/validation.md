@@ -18,10 +18,10 @@ merely implemented or planned.
 | Single-node `sbatch` MPI | Validated | 16-rank Sapelo2 run completed successfully |
 | One-Nix-namespace Slurm bridge | Validated | Inner OpenMPI launch confirmed in batch |
 | Per-run native log archive | Validated | `native-logs.tar` with current-run filtering |
-| High-level `wrfctl prep` through `real` | Implemented, not yet regression-validated | Previous prep contract was validated through WRF runtime staging; current contract adds `real`, artifact checks, and a prep manifest |
+| High-level `wrfctl prep` through `real` | Validated | `athens-smoke` completed through `real.exe` with verified `wrfinput`/`wrfbdy` on Lambda Vector and Sapelo2 |
 | `wrfctl plan` / `prep --dry-run` | Validated | Read-only resolved-science and stage view exercised on Lambda Vector and Sapelo2 |
-| WRF-safe MPI decomposition guard | Planner/rejection validated; adjusted runtime pending | Sapelo2 32-task request resolves to 30 tasks (5 x 6); explicit unsafe `--ntasks 32` is rejected before native execution |
-| High-level `wrfctl run` | Implemented, not yet regression-validated | Checks prep freshness, current WRF success marker, and new `wrfout_d01_*` |
+| WRF-safe MPI decomposition guard | Validated on Sapelo2 | 32 available tasks use 32 ranks for WPS and 30 ranks (5 x 6) for `real`/`wrf`; explicit unsafe `--ntasks 32` is rejected |
+| High-level `wrfctl run` | Validated on Sapelo2; fresh Lambda regression pending | `athens-smoke` auto-selected 30 ranks (5 x 6), observed `SUCCESS COMPLETE WRF`, and verified a new `wrfout_d01_*` |
 | Optional shared `data_root` | Implemented, not yet regression-validated | Reusable geography/GFS may live outside a repository; default remains project-local |
 | GFS regional-subset cache identity | Implemented, not yet regression-validated | Cache path includes a request key derived from product and bounding box |
 | TOML `case.toml` parser + namelist overlay | Validated | `--check` and managed overlay exercised on Lambda Vector and Sapelo2; unspecified native keys are preserved |
@@ -70,10 +70,18 @@ Sapelo2 printed IEEE floating-point exception flags after `metgrid`, but
 pipeline continued to WRF runtime staging. The flags are therefore recorded as
 non-fatal output for this smoke regression, not as a clean-output guarantee.
 
-This validated the earlier high-level prep contract through WRF runtime
-staging. The current contract additionally runs `real.exe`, verifies
-`wrfinput`/`wrfbdy`, writes a preparation manifest, and pairs with
-`wrfctl run`; those newly added high-level pieces require a fresh regression.
+The extended high-level prep contract has now also been exercised through
+`real.exe` on both Lambda Vector and Sapelo2. Prep verified the generated
+`wrfinput`/`wrfbdy` artifacts and completed normally in both environments.
+On Sapelo2, the stage-aware execution policy used all 32 available MPI tasks for
+WPS while reducing only `real.exe` to 30 tasks with a 5 x 6 decomposition.
+
+The Sapelo2 high-level `wrfctl run` path was then exercised with the same
+automatic 32 -> 30 WRF adjustment. The command observed
+`SUCCESS COMPLETE WRF` and verified a newly created `wrfout_d01_*` before
+reporting success. A fresh high-level `wrfctl run` regression on Lambda Vector
+is still pending.
+
 The result also does not validate other forcing providers, research-grade
 static geography, shared `data_root`, or every advanced namelist passthrough.
 
@@ -148,7 +156,11 @@ that native constraint before launching `real` or `wrf`. For this case,
 On Sapelo2, `wrfctl plan --case athens-smoke` reported exactly that
 32 -> 30 adjustment, while an explicit
 `wrfctl prep --case athens-smoke --ntasks 32` stopped before native execution
-and reported 30 tasks (5 x 6) as the safe alternative. This validates the
-planner and explicit-override guard. The remaining regression is the automatic
-runtime path with no `--ntasks`, where WPS should use all 32 available tasks
-and `real`/`wrf` should launch with the selected 30 tasks.
+and reported 30 tasks (5 x 6) as the safe alternative.
+
+The automatic path was then exercised without `--ntasks`: `geogrid` and
+`metgrid` used all 32 available MPI tasks, while `real.exe` and `wrf.exe`
+launched with 30 tasks. `prep` completed with verified `wrfinput_d01` and
+`wrfbdy_d01`; `run` then completed with `SUCCESS COMPLETE WRF` and a new
+`wrfout_d01_*`. This validates the stage-aware decomposition path end to end
+on Sapelo2.

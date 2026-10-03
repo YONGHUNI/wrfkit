@@ -34,12 +34,14 @@ Validated configuration foundation:
 - TOML `case.toml` configuration and native namelist overlay rendering
 - TOML-driven GFS acquisition metadata
 
-New high-level workflow pieces are implemented and awaiting fresh regression
-validation on Lambda Vector and Sapelo2:
+Validated high-level workflow:
 
-- `wrfctl plan` / `prep --dry-run`
-- `prep` through `real.exe`
-- `wrfctl run` with stale-preparation and output checks
+- `wrfctl plan` / `prep --dry-run` on Lambda Vector and Sapelo2
+- `prep` through `real.exe` on Lambda Vector and Sapelo2
+- stage-aware WRF MPI decomposition on Sapelo2 (32 available -> 30 safe ranks)
+- `wrfctl run` on Sapelo2 with stale-preparation, success-marker, and new-output checks
+
+A fresh high-level `wrfctl run` regression on Lambda Vector remains pending.
 
 Not yet claimed as supported:
 
