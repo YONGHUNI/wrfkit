@@ -26,34 +26,18 @@ jobs:
 
       - name: Check WRF decomposition planner
         run: |
-          output="$(python3 scripts/case-config.py mpi-plan --case athens-smoke --requested 32 --shell)"
-          echo "$output"
-          grep -q '^WRFKIT_REQUESTED_NPROC_X=4
-          python3 scripts/case-config.py config --case athens-smoke
-          git diff --exit-code --             cases/athens-smoke/namelist.wps             cases/athens-smoke/namelist.input
- <<<"$output"
-          grep -q '^WRFKIT_REQUESTED_NPROC_Y=8
-          python3 scripts/case-config.py config --case athens-smoke
-          git diff --exit-code --             cases/athens-smoke/namelist.wps             cases/athens-smoke/namelist.input
- <<<"$output"
-          grep -q '^WRFKIT_REQUESTED_SAFE=0
-          python3 scripts/case-config.py config --case athens-smoke
-          git diff --exit-code --             cases/athens-smoke/namelist.wps             cases/athens-smoke/namelist.input
- <<<"$output"
-          grep -q '^WRFKIT_WRF_TASKS=30
-          python3 scripts/case-config.py config --case athens-smoke
-          git diff --exit-code --             cases/athens-smoke/namelist.wps             cases/athens-smoke/namelist.input
- <<<"$output"
-          grep -q '^WRFKIT_NPROC_X=5
-          python3 scripts/case-config.py config --case athens-smoke
-          git diff --exit-code --             cases/athens-smoke/namelist.wps             cases/athens-smoke/namelist.input
- <<<"$output"
-          grep -q '^WRFKIT_NPROC_Y=6
-          python3 scripts/case-config.py config --case athens-smoke
-          git diff --exit-code --             cases/athens-smoke/namelist.wps             cases/athens-smoke/namelist.input
- <<<"$output"
+          python3 scripts/case-config.py mpi-plan --case athens-smoke --requested 32 --shell > /tmp/mpi-plan
+          cat /tmp/mpi-plan
+          grep -qx 'WRFKIT_REQUESTED_NPROC_X=4' /tmp/mpi-plan
+          grep -qx 'WRFKIT_REQUESTED_NPROC_Y=8' /tmp/mpi-plan
+          grep -qx 'WRFKIT_REQUESTED_SAFE=0' /tmp/mpi-plan
+          grep -qx 'WRFKIT_WRF_TASKS=30' /tmp/mpi-plan
+          grep -qx 'WRFKIT_NPROC_X=5' /tmp/mpi-plan
+          grep -qx 'WRFKIT_NPROC_Y=6' /tmp/mpi-plan
 
       - name: Check TOML renderer idempotence
         run: |
           python3 scripts/case-config.py config --case athens-smoke
-          git diff --exit-code --             cases/athens-smoke/namelist.wps             cases/athens-smoke/namelist.input
+          git diff --exit-code -- \
+            cases/athens-smoke/namelist.wps \
+            cases/athens-smoke/namelist.input
