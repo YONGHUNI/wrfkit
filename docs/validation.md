@@ -19,8 +19,8 @@ merely implemented or planned.
 | One-Nix-namespace Slurm bridge | Validated | Inner OpenMPI launch confirmed in batch |
 | Per-run native log archive | Validated | `native-logs.tar` with current-run filtering |
 | High-level `wrfctl prep` through `real` | Implemented, not yet regression-validated | Previous prep contract was validated through WRF runtime staging; current contract adds `real`, artifact checks, and a prep manifest |
-| `wrfctl plan` / `prep --dry-run` | Implemented, not yet regression-validated | Read-only resolved-science and stage view |
-| WRF-safe MPI decomposition guard | Implemented, not yet regression-validated | Added after Sapelo2 exposed the native 10-cell minimum-patch failure at 32 ranks for the 61 x 61 smoke domain |
+| `wrfctl plan` / `prep --dry-run` | Validated | Read-only resolved-science and stage view exercised on Lambda Vector and Sapelo2 |
+| WRF-safe MPI decomposition guard | Planner/rejection validated; adjusted runtime pending | Sapelo2 32-task request resolves to 30 tasks (5 x 6); explicit unsafe `--ntasks 32` is rejected before native execution |
 | High-level `wrfctl run` | Implemented, not yet regression-validated | Checks prep freshness, current WRF success marker, and new `wrfout_d01_*` |
 | Optional shared `data_root` | Implemented, not yet regression-validated | Reusable geography/GFS may live outside a repository; default remains project-local |
 | GFS regional-subset cache identity | Implemented, not yet regression-validated | Cache path includes a request key derived from product and bounding box |
@@ -143,6 +143,12 @@ least 10 grid cells per decomposed patch direction.
 
 The high-level workflow now mirrors WRF's automatic factor selection and checks
 that native constraint before launching `real` or `wrf`. For this case,
-32 requested tasks resolve to 30 WRF tasks with a 5 x 6 mesh. This new guard
-still requires a fresh Lambda/Sapelo2 runtime regression before being marked
-validated.
+32 requested tasks resolve to 30 WRF tasks with a 5 x 6 mesh.
+
+On Sapelo2, `wrfctl plan --case athens-smoke` reported exactly that
+32 -> 30 adjustment, while an explicit
+`wrfctl prep --case athens-smoke --ntasks 32` stopped before native execution
+and reported 30 tasks (5 x 6) as the safe alternative. This validates the
+planner and explicit-override guard. The remaining regression is the automatic
+runtime path with no `--ntasks`, where WPS should use all 32 available tasks
+and `real`/`wrf` should launch with the selected 30 tasks.
