@@ -13,7 +13,7 @@ workflow.
 wrf: SUCCESS COMPLETE WRF
 ```
 
-!!! warning "The smoke case is not a research setup"
+!!! warning "The minimal case is not a research setup"
     A program can run successfully even when its scientific settings are not
     appropriate for a real study. Use this tutorial to learn the workflow.
     Later, use [Make a research case](../how-to/research-case.md) to design an
@@ -192,7 +192,7 @@ Run:
 ```
 
 This high-level command performs the preparation chain for the currently
-supported smoke-test path:
+supported minimal validation path:
 
 ```text
 static geography
@@ -299,6 +299,6 @@ For normal use, prefer the shorter `prep` + `run` path.
 
 ## Next step
 
-To turn the smoke test into your own experiment, continue with
+To turn the minimal example into your own experiment, continue with
 [Make a research case](../how-to/research-case.md). The next page explains
 which scientific choices must be reconsidered instead of copied blindly.

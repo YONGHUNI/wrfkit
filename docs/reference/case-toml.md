@@ -45,13 +45,13 @@ to write lower-level native namelist options directly.
 
 ## A minimal example
 
-The bundled Athens smoke test looks like this:
+The bundled Athens minimal validation case looks like this:
 
 ```toml
 schema_version = 1
 
 [case]
-description = "Athens, Georgia single-domain smoke test"
+description = "Athens, Georgia minimal single-domain validation case"
 
 [namelist]
 managed = true
@@ -270,7 +270,7 @@ native selector freedom, for example:
 resolution = "30s+default"
 ```
 
-The small smoke-test package is different: because it only contains the
+The small low-resolution validation package is different: because it only contains the
 low-resolution teaching/test data expected by wrfkit, its selector remains
 restricted to `"lowres"`.
 

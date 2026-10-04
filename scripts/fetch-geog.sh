@@ -94,4 +94,4 @@ done
 } > "$marker"
 
 printf '\nWPS low-resolution mandatory geography ready:\n  %s\n' "$WRFKIT_GEOG_DIR"
-printf 'This dataset is intended for smoke tests/education, not production forecasting.\n'
+printf 'This dataset is intended for workflow validation/education, not production forecasting.\n'

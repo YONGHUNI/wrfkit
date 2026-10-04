@@ -41,7 +41,7 @@ for fh in $GFS_FORECAST_HOURS; do
     printf 'Run ./wrfctl fetch gfs --case %s first.\n' "$case_name" >&2
     exit 2
   }
-  (( i < ${#suffixes[@]} )) || { echo "prepare gfs: too many forcing files for current smoke-test linker" >&2; exit 2; }
+  (( i < ${#suffixes[@]} )) || { echo "prepare gfs: too many forcing files for current GFS linker" >&2; exit 2; }
   ln -s "$src" "$work_dir/GRIBFILE.${suffixes[$i]}"
   i=$((i + 1))
 done

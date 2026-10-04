@@ -58,7 +58,7 @@ north = 42.0
 [geography]
 # dataset tells wrfkit where the static geography comes from.
 #
-#   Smoke / education (downloaded by wrfkit):
+#   Minimal validation / education (downloaded by wrfkit):
 #     dataset    = "wps-lowres-mandatory"
 #     resolution = "lowres"
 #
@@ -73,7 +73,7 @@ north = 42.0
 #     path       = "/work/.../WPS_GEOG"  # absolute paths are also allowed
 #
 # resolution maps directly to native WPS geog_data_res. wrfkit keeps the
-# low-resolution smoke package restricted to "lowres", but does not reduce the
+# low-resolution validation package restricted to "lowres", but does not reduce the
 # normal WPS selector freedom for research/external geography.
 dataset = "wps-lowres-mandatory"
 resolution = "lowres"

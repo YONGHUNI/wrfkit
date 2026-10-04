@@ -179,7 +179,7 @@ A cluster such as Sapelo2 uses **Slurm** to assign CPUs to jobs. WRF then uses
 
 wrfkit keeps that relationship visible.
 
-For example, the bundled 61 × 61 smoke-test grid was given 32 CPUs on Sapelo2:
+For example, the bundled 61 × 61 minimal validation grid was given 32 CPUs on Sapelo2:
 
 ~~~text
 Slurm allocation
@@ -330,7 +330,7 @@ supported features.
 Current important boundaries include:
 
 - **research-grade automatic geography selection:** planned; the automatic
-  geography path still uses the low-resolution smoke-test package;
+  geography path still uses the low-resolution validation package;
 - **multi-node MPI:** not validated;
 - **restart/recovery workflow:** not validated;
 - **WRF-Chem / WRFDA:** not currently claimed as supported.
