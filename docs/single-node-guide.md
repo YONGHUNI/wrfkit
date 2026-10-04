@@ -1,211 +1,123 @@
-# Single-node research guide
+# UGA Sapelo2
 
-This guide is the supported path for running WRF with wrfkit on one compute
-node. The Sapelo2 examples use Slurm, but the same case/workspace model applies
-to a fixed Linux workstation or server.
+This page contains only the Sapelo2-specific rules you need before following
+the normal wrfkit workflow.
 
-**Validated path**
+If you have never run wrfkit before, keep
+[Your first WRF run](tutorials/first-run.md) open and use this page when it
+mentions HPC or Slurm.
 
-```mermaid
-flowchart LR
-    C["Case configuration"]
-    G["Static geography"]
-    F["GFS forcing"]
-    GEO["geogrid"]
-    U["ungrib"]
-    M["metgrid"]
-    R["real"]
-    W["WRF"]
-    O["wrfout*"]
+## The one rule to remember
 
-    C --> GEO
-    C --> U
-    G --> GEO
-    F --> U
-    GEO --> M
-    U --> M
-    M --> R --> W --> O
-```
+**Do not build WRF/WPS or run WRF on an `ss-sub*` login node.**
 
-> [!IMPORTANT]
-> wrfkit validates the software environment and execution workflow. It does not
-> decide whether a domain, physics suite, spin-up period, forcing dataset, or
-> output interval is scientifically appropriate for a particular study.
+A login node is shared by many users. Use it for lightweight work such as:
 
-## 1. Clone and inspect
+- SSH;
+- editing small text files;
+- Git operations;
+- checking files;
+- submitting jobs;
+- checking job status.
 
-```bash
-git clone git@github.com:YONGHUNI/wrfkit.git
-cd wrfkit
+Actual compilation and model execution should happen on a compute node.
 
-./wrfctl --help
-```
+## Interactive work
 
-If Nix is already available, you can proceed directly to `wrfctl`. On a
-machine without Nix, use `./bootstrap`.
-
-## 2. Sapelo2: obtain a compute allocation for setup
-
-Do not build WRF/WPS on an `ss-sub*` login node.
+From a Sapelo2 login node, request a compute allocation:
 
 ```bash
 interact -c 16 --mem=64G --time=02:00:00 --gres=lscratch:100
+```
 
+After the allocation starts, return to the repository:
+
+```bash
 cd ~/work/project/wrfkit
+```
+
+Then setup/build commands may run there:
+
+```bash
 ./bootstrap --profile sapelo2
 ./wrfctl doctor
 ./wrfctl build all
 ```
 
-The default Sapelo2 profile keeps the rootless Nix store under
-`/lscratch/$USER/.nix`. A node that already has a working managed Nix
-environment will simply report that bootstrap is not needed and continue.
+The default Sapelo2 profile uses node-local `/lscratch` for its disposable
+rootless-Nix store. That store may have to be recreated on a different compute
+node.
 
-## 3. Validate the installation with the bundled case
+## The normal case workflow
 
-The repository includes `cases/athens-smoke`, a deliberately small
-single-domain case for workflow validation.
-
-Inspect the resolved science and planned stages without changing files:
+Inside an appropriate compute allocation:
 
 ```bash
 ./wrfctl plan --case athens-smoke
-```
-
-Prepare the entire case through `real.exe`, then run WRF:
-
-```bash
 ./wrfctl prep --case athens-smoke
 ./wrfctl run  --case athens-smoke
 ```
 
-For debugging or teaching, the individual
-`fetch -> geogrid -> ungrib -> metgrid -> real -> wrf` commands remain
-available through the low-level interface.
+For a first run, follow the full
+[first-run tutorial](tutorials/first-run.md).
 
-A successful run should leave `wrfout_d01_*` under
-`.wrfkit/work/athens-smoke/`.
+## Batch jobs
 
-## 4. Understand the case/workspace split
+You may submit an `sbatch` script from a login node. Slurm then runs the
+heavy work on a compute node.
 
-Tracked scientific configuration lives under:
-
-```text
-cases/<case>/
-├── case.toml
-├── namelist.wps
-└── namelist.input
-```
-
-Generated execution state lives under:
-
-```text
-.wrfkit/work/<case>/
-```
-
-Typical generated products include:
-
-```text
-geo_em.*
-FILE:*
-met_em.*
-wrfinput_d01
-wrfbdy_d01
-wrfout_d01_*
-rsl.out.*
-rsl.error.*
-```
-
-This separation keeps Git focused on intentional scientific configuration while
-allowing WPS and WRF to use their normal file-based workflow.
-
-## 5. Run a prepared case with sbatch
-
-The repository includes a copy-pasteable example:
+The repository includes:
 
 ```text
 examples/sapelo2-single-node.sbatch
 ```
 
-Submit the bundled smoke case:
+For details, see [Run WRF with sbatch](how-to/sapelo2-batch.md).
+
+## Where files should live
+
+Sapelo2 has several storage systems with different purposes. wrfkit currently
+keeps its case workspace with the repository, so choose the repository location
+carefully.
+
+In general:
+
+| Storage | Good use |
+| --- | --- |
+| `/home/$USER` | source code, scripts, small/static files |
+| lab `/work` | reusable files needed by jobs |
+| `/scratch/$USER` | temporary shared job data |
+| `/lscratch` | fast node-local temporary data |
+
+Sapelo2 storage policies can change. Use current GACRC documentation when
+deciding where long-lived or large research data should be stored.
+
+## MPI: do not add another launcher
+
+For the supported single-node Slurm path, wrfkit manages the launch topology.
+
+Use:
 
 ```bash
-sbatch examples/sapelo2-single-node.sbatch
+./wrfctl run --case my-case
 ```
 
-Submit a different prepared case:
+or, for low-level use:
 
 ```bash
-WRFKIT_CASE=my-case sbatch examples/sapelo2-single-node.sbatch
+./wrfctl exec wrf --case my-case
 ```
 
-The example requests one node and 16 tasks. In a single-node Slurm allocation,
-wrfkit converts that allocation into one child Slurm task with 16 CPUs, enters
-the rootless-Nix namespace once, and launches the 16 WRF ranks with the pinned
-OpenMPI `mpirun`.
-
-Do not wrap `wrfctl exec wrf` in another `srun -n 16`; wrfkit owns that
-single-node launch topology.
-
-## 6. Check success and provenance
-
-Scientific products remain in:
-
-```text
-.wrfkit/work/<case>/
-```
-
-Per-run provenance is stored in:
-
-```text
-.wrfkit/logs/<case>/<run-id>/
-├── command.txt
-├── run.env
-├── run.started
-└── native-logs.tar
-```
-
-For the most recent WRF run of the smoke case:
+Do **not** wrap wrfkit in another multi-rank command such as:
 
 ```bash
-LOG=$(find .wrfkit/logs/athens-smoke \
-  -maxdepth 1 -type d -name '*_wrf' | sort | tail -1)
-
-tar -xOf "$LOG/native-logs.tar" rsl.out.0000 |
-  grep "SUCCESS COMPLETE WRF"
+srun -n 16 ./wrfctl exec wrf --case my-case
 ```
 
-Expected result:
+## Current boundary
 
-```text
-wrf: SUCCESS COMPLETE WRF
-```
+The tested Sapelo2 path is **single-node** execution.
 
-## 7. Create a research case
-
-A practical starting point is to copy the smoke case configuration and then
-replace the scientific settings deliberately:
-
-```bash
-cp -a cases/athens-smoke cases/my-case
-```
-
-At minimum, review the domain/projection, horizontal and vertical resolution,
-simulation dates, forcing configuration, physics choices, time step, spin-up,
-boundary interval, and output frequency.
-
-> [!WARNING]
-> Copying `athens-smoke` and changing only the dates does not make the result
-> research-quality. The included low-resolution geography and compact 12 km
-> configuration are validation fixtures.
-
-## 8. Before a long production run
-
-Run a representative short experiment first. Record wall time, memory use,
-output volume, and the exact case configuration. For a new scientific setup,
-also verify expected physical fields and model behavior rather than relying only
-on `SUCCESS COMPLETE WRF`.
-
-Current multi-node execution is not claimed as validated. If the experiment no
-longer fits on one node, consult [validation.md](validation.md) before scaling
-out.
+Multi-node MPI is not currently claimed as validated. Check
+[Supported and validated](validation.md) before using a new execution mode for
+research.
