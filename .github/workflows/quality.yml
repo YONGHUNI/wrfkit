@@ -123,13 +123,16 @@ jobs:
 
           tar -czf "$archive" -C /tmp/wrfkit-geog-fixture WPS_GEOG_HIGH_RES
 
-          WRFKIT_GEOG_URL="file://$archive" ./scripts/fetch-geog.sh --case athens-highres
+          WRFKIT_GEOG_URL="file://$archive" ./scripts/fetch-geog.sh --case athens-highres | tee /tmp/geog-fetch.out
 
           target="$WRFKIT_DATA_DIR/geog/high-res-mandatory"
           test -d "$target/topo_gmted2010_30s"
           test -d "$target/modis_landuse_20class_30s_with_lakes"
           grep -qx 'dataset=wps-highres-mandatory' "$target/.wrfkit-geog-source"
           test -s "$WRFKIT_DATA_DIR/geog/.archives/geog_high_res_mandatory.tar.gz"
+          grep -q 'extract:' /tmp/geog-fetch.out
+          grep -q 'total:' /tmp/geog-fetch.out
+          ! grep -q 'Checking downloaded tar.gz archive' /tmp/geog-fetch.out
 
           # A second fetch must reuse the complete installation.
           WRFKIT_GEOG_URL="file://$archive" ./scripts/fetch-geog.sh --case athens-highres
