@@ -78,7 +78,8 @@ Linux x86_64
 + local or single-node Slurm MPI
 ```
 
-Multi-node MPI, WRF restart/recovery, WRF-Chem, WRFDA, and automatic
-research-grade geography selection are not yet claimed as supported.
+Multi-node MPI, WRF restart/recovery, WRF-Chem, and WRFDA are not yet claimed
+as supported. The high-resolution mandatory geography downloader is implemented,
+but a live official-archive end-to-end validation is still pending.
 
 The [validation page](validation.md) is the source of truth for this boundary.

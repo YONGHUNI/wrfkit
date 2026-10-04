@@ -6,6 +6,10 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 usage() {
   cat <<'USAGE'
 Usage: ./wrfctl fetch <wrf|wps|geog|gfs|all> [options]
+
+Geography:
+  ./wrfctl fetch geog                 Fetch the low-resolution validation package.
+  ./wrfctl fetch geog --case NAME     Fetch the managed geography selected by a case.
 USAGE
 }
 

@@ -257,9 +257,9 @@ The repository now carries two Athens validation fixtures with the same
 domain/time/forcing setup:
 
 - `athens-minimal`: low-resolution mandatory geography; fast end-to-end path.
-- `athens-highres`: high-resolution mandatory geography; configuration/path
-  validation is available now, while automatic high-resolution acquisition is
-  still pending.
+- `athens-highres`: high-resolution mandatory geography; automatic
+  acquisition is implemented, while a live official-archive end-to-end run
+  remains to be validated.
 
 Keeping the rest of the case equal makes geography the deliberate difference.
 
@@ -288,10 +288,10 @@ automatic machine allocation would violate that rule, wrfkit reduces only the
 use the full allocation. An explicit unsafe `--ntasks N` is rejected rather
 than silently changed.
 
-The current automatic geography path is intentionally limited to the bundled
-low-resolution validation dataset, and the current automatic forcing provider is
-GFS. Research-grade geography selection remains a separate implementation
-target.
+Automatic geography acquisition now supports both WPS mandatory packages:
+the low-resolution validation package and the highest-resolution mandatory
+package used by `athens-highres`. The current automatic forcing provider is
+still GFS.
 
 Reusable geography and forcing can optionally live outside a repository. Add a
 machine-level setting such as:
@@ -385,6 +385,7 @@ multi-node portability is not yet claimed.
 ./wrfctl prep --case NAME --dry-run show the plan without changing files
 ./wrfctl run --case NAME           check prep state, warn on case drift, then run wrf.exe
 ./wrfctl fetch geog                download low-res mandatory WPS geography for minimal validation
+./wrfctl fetch geog --case NAME    download the managed geography selected by a case
 ./wrfctl fetch gfs --case NAME     download configured GFS forcing from NOMADS
 ./wrfctl prepare gfs --case NAME   stage Vtable.GFS and GRIBFILE links
 ./wrfctl prepare wrf --case NAME   stage WRF runtime tables/data

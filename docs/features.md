@@ -329,8 +329,9 @@ supported features.
 
 Current important boundaries include:
 
-- **research-grade automatic geography selection:** planned; the automatic
-  geography path still uses the low-resolution validation package;
+- **high-resolution mandatory geography:** downloader implemented and covered
+  by a local archive fixture; live official-archive end-to-end validation is
+  still pending;
 - **multi-node MPI:** not validated;
 - **restart/recovery workflow:** not validated;
 - **WRF-Chem / WRFDA:** not currently claimed as supported.

@@ -16,7 +16,7 @@ tested end to end.
 | Rootless Nix on Sapelo2 | **Validated** | Tested with the current single-node Sapelo2 profile |
 | GFS acquisition and staging | **Validated** | Tested with the bundled validation GFS window |
 | Low-resolution validation geography | **Validated** | `athens-minimal`; intended for testing and education |
-| High-resolution geography case configuration | **Implemented** | `athens-highres`; automatic acquisition is not implemented yet |
+| High-resolution mandatory geography acquisition | **Implemented** | `athens-highres`; downloader/integrity/path logic passes CI with a local archive fixture; live official archive + WPS end-to-end validation pending |
 | WPS → `real` → WRF | **Validated** | Bundled `athens-minimal` workflow completed |
 | Single-node interactive MPI | **Validated** | Tested during development |
 | Single-node `sbatch` MPI | **Validated** | Sapelo2 batch run completed successfully |
@@ -28,7 +28,7 @@ tested end to end.
 | Multi-node MPI | **Not validated** | Do not treat it as a supported research path yet |
 | WRF restart/recovery workflow | **Not validated** | Individual namelist fields exist, but the complete workflow is not tested |
 | Scratch-backed case workspace | **Not implemented** | Case workspaces currently stay with the repository |
-| Automatic research-grade geography selection | **Planned** | Automatic prep currently uses the low-resolution validation geography path |
+| Official high-resolution geography end-to-end run | **Not yet validated** | Downloader is implemented; still needs a live official archive run through `geogrid -> ... -> real` |
 
 ## What "validated" means
 
