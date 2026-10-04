@@ -63,6 +63,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Features: features.md
   - Start here:
       - Your first WRF run: tutorials/first-run.md
       - What do these words mean?: reference/glossary.md
