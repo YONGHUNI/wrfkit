@@ -38,6 +38,7 @@ Equivalent low-level path:
   -> ungrib
   -> metgrid
   -> stage WRF runtime data
+  -> real
 ```
 
 wrfkit therefore keeps both layers. `prep` orchestrates the case, while
@@ -46,8 +47,12 @@ control over one stage. `wrfctl config` resolves `case.toml` first and,
 when allowed, overlays TOML-owned values onto the native namelists.
 
 Reusable downloaded inputs may also be separated from a particular repository
-with a machine-level `data_root`. Generated case workspaces stay under the
-repository because they depend on that case's scientific configuration.
+with a machine-level `data_root`. Static geography and raw forcing are good
+shared inputs because several cases can reuse the same source data. Generated
+WPS/WRF products stay in each case workspace because they depend more directly
+on that case's configuration.
+
+For a plain-language tour of these capabilities, see [Features](../features.md).
 
 ## Why Nix?
 
