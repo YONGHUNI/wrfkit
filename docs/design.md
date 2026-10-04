@@ -72,7 +72,9 @@ wrfctl prep --case NAME
   -> write preparation manifest
 
 wrfctl run --case NAME
-  -> verify case/preparation fingerprints
+  -> compare current case with the preparation manifest
+  -> warn and continue for case/namelist changes
+  -> hard-stop for missing prep state or WRF/WPS version drift
   -> wrf
   -> require current SUCCESS COMPLETE WRF + new wrfout
 ```
@@ -357,6 +359,7 @@ is exposed to the workspace through a generated symlink.
 
 After successful `real`, prep writes a small manifest containing a
 preparation-relevant TOML fingerprint, native namelist hashes, and pinned
-WRF/WPS versions. High-level `run` refuses stale prepared inputs when those
-inputs no longer match the tracked scientific configuration. Advanced users can
-still invoke every native stage through `wrfctl exec`.
+WRF/WPS versions. High-level `run` reports when `case.toml` or a native
+namelist changed after prep, then continues with the existing prepared inputs.
+A missing prep manifest or WRF/WPS version mismatch remains a hard error.
+Advanced users can still invoke every native stage through `wrfctl exec`.
