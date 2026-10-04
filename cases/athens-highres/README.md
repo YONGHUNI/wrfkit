@@ -25,8 +25,11 @@ Current status:
   automatically and never falls back to the low-resolution package.
 
 The downloader is covered by CI with a small local archive that has the same
-expected directory structure. A live run with the full official archive through
-WPS/real is still pending.
+expected directory structure. It avoids separate `tar -tzf` pre-scans and uses
+the real extraction as the single gzip/tar integrity pass. Download, SHA-256,
+extraction, and total acquisition times are printed so large-cluster runs can be
+compared directly. A live run with the full official archive through WPS/real is
+still pending.
 
 For a machine with shared persistent storage, configure `data_root` first so
 the large geography tree and its source archive can be reused.
