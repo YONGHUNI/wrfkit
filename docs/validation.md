@@ -23,7 +23,7 @@ merely implemented or planned.
 | WRF-safe MPI decomposition guard | Validated on Sapelo2 | 32 available tasks use 32 ranks for WPS and 30 ranks (5 x 6) for `real`/`wrf`; explicit unsafe `--ntasks 32` is rejected |
 | High-level `wrfctl run` | Validated on Sapelo2; fresh Lambda regression pending | `athens-smoke` auto-selected 30 ranks (5 x 6), observed `SUCCESS COMPLETE WRF`, and verified a new `wrfout_d01_*` |
 | Post-prep configuration warning | Validated on Sapelo2 | Modified `namelist.input` was detected after prep; `run` warned, reused existing `wrfinput`/`wrfbdy`, and still completed with `SUCCESS COMPLETE WRF` |
-| Optional shared `data_root` | Implemented, not yet regression-validated | Reusable geography/GFS may live outside a repository; default remains project-local |
+| Optional shared `data_root` | Validated on Sapelo2 | External `/work` data root supplied through `WRFKIT_DATA_ROOT` was used for cached geography and GFS through `geogrid -> ungrib -> metgrid -> real` |
 | GFS regional-subset cache identity | Implemented, not yet regression-validated | Cache path includes a request key derived from product and bounding box |
 | TOML `case.toml` parser + namelist overlay | Validated | `--check` and managed overlay exercised on Lambda Vector and Sapelo2; unspecified native keys are preserved |
 | TOML-driven forcing metadata | Validated | `athens-smoke` GFS date/cycle/hours/subset resolved from `case.toml` and completed acquisition/staging on Lambda Vector and Sapelo2 |
@@ -98,8 +98,17 @@ the safe 30-rank (5 x 6) WRF decomposition, and completed with
 restored and `git status --short` was clean. A fresh high-level `wrfctl run`
 regression on Lambda Vector is still pending.
 
-The result also does not validate other forcing providers, research-grade
-static geography, shared `data_root`, or every advanced namelist passthrough.
+A shared-data regression was also completed on Sapelo2 using
+`WRFKIT_DATA_ROOT=/work/whlab/$USER/wrfkit-data-test`. `wrfctl plan`
+resolved both geography and the three cached GFS forcing files from that
+external path. `wrfctl prep` then reported the same external data root,
+completed `geogrid`, reused all three GFS files, completed `ungrib` and
+`metgrid`, and finished `real.exe` with verified `wrfinput`/`wrfbdy`.
+The generated case workspace remained project-local, confirming the intended
+separation between reusable data and case-specific execution state.
+
+The result does not validate other forcing providers, research-grade static
+geography, or every advanced namelist passthrough.
 
 ## Single-node Slurm validation
 
