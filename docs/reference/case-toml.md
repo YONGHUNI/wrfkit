@@ -234,30 +234,23 @@ area needed for boundary input.
 
 ### Static geography
 
+For the built-in smoke test:
+
 ```toml
 [geography]
 dataset = "wps-lowres-mandatory"
 resolution = "lowres"
 ```
 
+The two fields have different jobs:
+
 | Field | Meaning |
 | --- | --- |
-| `dataset` | wrfkit geography profile: which WPS static-data package the case expects |
-| `resolution` | value mapped to native WPS `geog_data_res` |
+| `dataset` | where the WPS static geography comes from |
+| `resolution` | native WPS `geog_data_res` selector |
 
-wrfkit currently recognizes these profile pairs:
-
-| `dataset` | `resolution` | Meaning | Automatic acquisition |
-| --- | --- | --- | --- |
-| `"wps-lowres-mandatory"` | `"lowres"` | small smoke-test / teaching package | **Yes** |
-| `"wps-highres-mandatory"` | `"default"` | research-grade mandatory-data baseline | **Not yet** |
-
-The two fields are intentionally separate. `dataset` tells wrfkit which
-static-data package must exist; `resolution` tells WPS which
-`geog_data_res` selector to use. A mismatched known pair is rejected during
-configuration validation instead of being silently substituted.
-
-For example, the research profile can already be described and validated:
+For ordinary research cases, wrfkit recognizes the official high-resolution
+mandatory-data profile:
 
 ```toml
 [geography]
@@ -265,19 +258,61 @@ dataset = "wps-highres-mandatory"
 resolution = "default"
 ```
 
-```bash
-./wrfctl config --case my-case --check
+The high-resolution downloader is still a follow-up milestone, but
+`resolution` is no longer forced to `"default"`. A researcher may keep WPS's
+native selector freedom, for example:
+
+```toml
+resolution = "30s+default"
 ```
 
-At this stage, that does **not** mean `prep` can download the high-resolution
-package. The resolver/validation contract is implemented first; automatic
-download, storage-path selection, and staging are separate follow-up steps.
+The small smoke-test package is different: because it only contains the
+low-resolution teaching/test data expected by wrfkit, its selector remains
+restricted to `"lowres"`.
 
-!!! warning
-    The low-resolution package remains a workflow/education dataset, not a
-    general research-grade geography recommendation. Until high-resolution
-    acquisition is implemented and validated, research cases must still provide
-    suitable WPS static geography through the lower-level workflow.
+#### Use geography you already have
+
+If a lab or HPC system already provides WPS geography, use the external profile:
+
+```toml
+[geography]
+dataset = "external"
+path = "/work/my-lab/shared/WPS_GEOG"
+resolution = "default"
+```
+
+wrfkit does not download, copy, or modify an external geography directory. It
+checks that the directory exists during `prep` and links the case workspace's
+`geog` path to it.
+
+An absolute `path` may point to another filesystem, which is useful on HPC
+systems. A relative path is resolved under the machine's reusable data root:
+
+```toml
+[geography]
+dataset = "external"
+path = "my-custom-geog"
+resolution = "30s+default"
+```
+
+With:
+
+```ini
+data_root=/work/$USER/wrfkit-data
+```
+
+that resolves to:
+
+```text
+/work/$USER/wrfkit-data/geog/my-custom-geog
+```
+
+This keeps the scientific choice (`resolution`) in the case while allowing the
+physical storage location to follow the machine.
+
+Use `./wrfctl plan --case NAME` to see the resolved dataset, selector,
+management mode, and path before running anything.
+
 
 ### Domain
 

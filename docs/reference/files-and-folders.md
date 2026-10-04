@@ -106,3 +106,24 @@ with the repository.
 This split is intentional: geography and forcing can be reusable inputs, while
 `geo_em.*`, `met_em.*`, `wrfinput*`, and `wrfout*` depend on a specific
 case.
+
+### External geography
+
+A case may also reference geography that wrfkit does not manage:
+
+```toml
+[geography]
+dataset = "external"
+path = "/work/my-lab/shared/WPS_GEOG"
+resolution = "default"
+```
+
+Absolute paths are used as written, so they may point to a different filesystem.
+Relative paths are resolved under:
+
+```text
+<data_root>/geog/<path>
+```
+
+The case workspace still uses the stable `geog` link expected by
+`namelist.wps`; wrfkit points that link at the resolved external directory.

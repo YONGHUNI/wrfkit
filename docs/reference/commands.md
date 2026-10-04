@@ -18,10 +18,13 @@ Commands below are run from the repository root unless noted otherwise.
 `prep` + `run` is the normal orchestration layer. The lower-level commands below remain
 available when you want to inspect, teach, debug, or rerun only one stage.
 
-Current automatic `prep` support is deliberately narrow: bundled
-`geog_data_res='lowres'` geography and GFS forcing. Other static-geography
-packages should continue to use the lower-level workflow until a
-research-grade geography selector is implemented.
+Current automatic geography download is still deliberately narrow: wrfkit
+downloads the low-resolution smoke-test package. Research-grade managed
+geography download is the next milestone.
+
+High-level `prep` can already use user-provided WPS geography through
+`dataset="external"`; wrfkit resolves the configured path and stages it
+without copying or modifying the source data.
 
 ## Environment and build
 

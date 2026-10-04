@@ -56,21 +56,25 @@ south = 25.0
 north = 42.0
 
 [geography]
-# wrfkit currently recognizes two geography profiles:
+# dataset tells wrfkit where the static geography comes from.
 #
-#   Smoke / education:
+#   Smoke / education (downloaded by wrfkit):
 #     dataset    = "wps-lowres-mandatory"
 #     resolution = "lowres"
-#     Automatic acquisition is implemented.
 #
-#   Research baseline:
+#   Research baseline (recognized, downloader still pending):
 #     dataset    = "wps-highres-mandatory"
-#     resolution = "default"
-#     The profile is recognized and validated, but automatic acquisition is
-#     not implemented yet.
+#     resolution = "default"        # or another valid native WPS selector
 #
-# dataset selects the WPS static-data package wrfkit expects.
-# resolution maps to native WPS geog_data_res. Keep the pair consistent.
+#   User-provided geography:
+#     dataset    = "external"
+#     resolution = "default"
+#     path       = "my-geog"        # <data_root>/geog/my-geog
+#     path       = "/work/.../WPS_GEOG"  # absolute paths are also allowed
+#
+# resolution maps directly to native WPS geog_data_res. wrfkit keeps the
+# low-resolution smoke package restricted to "lowres", but does not reduce the
+# normal WPS selector freedom for research/external geography.
 dataset = "wps-lowres-mandatory"
 resolution = "lowres"
 
