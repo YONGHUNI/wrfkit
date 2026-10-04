@@ -234,7 +234,7 @@ area needed for boundary input.
 
 ### Static geography
 
-For the built-in smoke test:
+For the built-in minimal validation case:
 
 ```toml
 [geography]

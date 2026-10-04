@@ -33,7 +33,7 @@ merely implemented or planned.
 | Multi-node MPI | Not validated | Do not treat as supported research execution |
 | WRF restart/recovery workflow | Not validated | Requires dedicated workflow testing |
 | Scratch-backed execution workspace | Not implemented | `scratch_root` is currently configuration metadata |
-| Full research-grade geography selector | Planned | Current automatic `prep` geography remains low-resolution smoke data |
+| Full research-grade geography selector | Planned | Current automatic `prep` geography remains low-resolution validation data |
 
 ## Clean build regression
 
@@ -72,7 +72,7 @@ The final stage linked the WRF runtime data and `prep` completed normally.
 Sapelo2 printed IEEE floating-point exception flags after `metgrid`, but
 `metgrid` still emitted its explicit successful-completion marker and the
 pipeline continued to WRF runtime staging. The flags are therefore recorded as
-non-fatal output for this smoke regression, not as a clean-output guarantee.
+non-fatal output for this validation regression, not as a clean-output guarantee.
 
 The extended high-level prep contract has now also been exercised through
 `real.exe` on both Lambda Vector and Sapelo2. Prep verified the generated

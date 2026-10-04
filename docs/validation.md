@@ -28,7 +28,7 @@ tested end to end.
 | Multi-node MPI | **Not validated** | Do not treat it as a supported research path yet |
 | WRF restart/recovery workflow | **Not validated** | Individual namelist fields exist, but the complete workflow is not tested |
 | Scratch-backed case workspace | **Not implemented** | Case workspaces currently stay with the repository |
-| Automatic research-grade geography selection | **Planned** | Automatic prep currently uses the smoke-test geography path |
+| Automatic research-grade geography selection | **Planned** | Automatic prep currently uses the low-resolution validation geography path |
 
 ## What "validated" means
 
@@ -39,7 +39,7 @@ It does **not** mean:
 
 - every WRF namelist option has been tested;
 - every HPC cluster will behave like Sapelo2;
-- the smoke-test scientific setup is recommended for research;
+- the minimal-case scientific setup is recommended for research;
 - successful execution proves the weather simulation is scientifically valid.
 
 ## The main boundary for new users
