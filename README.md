@@ -255,8 +255,10 @@ Normal use is intentionally short:
 `plan` shows the resolved scientific configuration and the stages that will
 run without changing files. `prep` prepares the case through `real.exe`, so
 its final contract is the existence of `wrfinput_d0*` and `wrfbdy_d01`.
-`run` launches `wrf.exe` only after checking that the prepared inputs still
-match `case.toml` and the native namelists.
+`run` compares the current case with the preparation manifest before launching
+`wrf.exe`. Case/namelist changes are reported as warnings and may continue
+with the existing prepared inputs; missing prep state or WRF/WPS version drift
+remains a hard error.
 
 This follows the project rule: `case.toml` describes **what** experiment is
 being run, the native namelists show **what WRF/WPS actually receive**, and
@@ -370,7 +372,7 @@ multi-node portability is not yet claimed.
 ./wrfctl plan --case NAME          show resolved science and the workflow plan without changes
 ./wrfctl prep --case NAME          prepare through real.exe; create wrfinput/wrfbdy
 ./wrfctl prep --case NAME --dry-run show the plan without changing files
-./wrfctl run --case NAME           run wrf.exe from matching prepared inputs
+./wrfctl run --case NAME           check prep state, warn on case drift, then run wrf.exe
 ./wrfctl fetch geog                download low-res mandatory WPS geography for smoke tests
 ./wrfctl fetch gfs --case NAME     download configured GFS forcing from NOMADS
 ./wrfctl prepare gfs --case NAME   stage Vtable.GFS and GRIBFILE links
@@ -536,8 +538,9 @@ The native stages remain directly callable:
 ./wrfctl exec wrf --case athens-smoke
 ```
 
-Using the high-level pair adds a preparation manifest and guards against
-running WRF after the TOML or native namelists have changed:
+Using the high-level pair adds a preparation manifest. `run` reports when the
+TOML or native namelists changed after prep, while leaving the decision to reuse
+the existing prepared inputs visible to the researcher:
 
 ```bash
 ./wrfctl prep --case athens-smoke
