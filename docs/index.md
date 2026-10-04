@@ -7,6 +7,7 @@ experiment organized, and provides a reproducible single-node workflow for
 Linux and Slurm HPC systems, with the Slurm path validated on UGA Sapelo2.
 
 [Start your first WRF run](tutorials/first-run.md){ .md-button .md-button--primary }
+[Explore the features](features.md){ .md-button }
 [See what is validated](validation.md){ .md-button }
 
 !!! tip "You can start before you understand every acronym"
@@ -14,6 +15,50 @@ Linux and Slurm HPC systems, with the Slurm path validated on UGA Sapelo2.
     that is fine. Follow the first-run tutorial first. The
     [glossary](reference/glossary.md) explains them in plain language when you
     need them.
+
+## What wrfkit does for you
+
+<div class="grid cards" markdown>
+
+-   **Keeps the software environment repeatable**
+
+    ---
+
+    wrfkit pins the compiler, MPI, NetCDF, WRF, and WPS environment instead of
+    depending on whatever a machine happens to provide.
+
+    [Reproducible environments](features.md#repeatable-software-environments)
+
+-   **Keeps your scientific settings visible**
+
+    ---
+
+    Use a compact <code>case.toml</code> without giving up the native WRF/WPS
+    namelists.
+
+    [Transparent case configuration](features.md#scientific-settings-stay-visible)
+
+-   **Understands single-node Slurm execution**
+
+    ---
+
+    wrfkit uses the assigned CPUs and can protect WRF from an automatically
+    chosen MPI layout that would make grid patches too small.
+
+    [Slurm-aware MPI](features.md#slurm-aware-mpi-without-hiding-mpi)
+
+-   **Reuses large input data**
+
+    ---
+
+    Geography and raw weather input can live in one reusable data root while
+    each experiment keeps its own generated workspace.
+
+    [Reusable data](features.md#reuse-large-input-data)
+
+</div>
+
+[See all features and their validation status](features.md)
 
 ## Pick what you want to do
 
