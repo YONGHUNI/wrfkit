@@ -105,9 +105,12 @@ profile.
 Managed geography is extracted into a sibling temporary directory, checked for
 the expected mandatory-field directories, given a provenance marker containing
 the source URL and computed archive SHA-256, and renamed into place only after
-validation. New archives live under the geography data root so a shared
-`data_root` avoids one multi-gigabyte archive per repository clone; an existing
-legacy low-resolution cache remains reusable.
+validation. The downloader does not pre-scan large archives with `tar -tzf`;
+the actual extraction is the single gzip/tar integrity pass, avoiding duplicate
+full decompression before installation. It also reports download, SHA-256,
+extraction, and total acquisition time. New archives live under the geography
+data root so a shared `data_root` avoids one multi-gigabyte archive per
+repository clone; an existing legacy low-resolution cache remains reusable.
 
 ## Storage model
 
