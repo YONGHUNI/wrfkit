@@ -2,7 +2,7 @@
 schema_version = 1
 
 [case]
-description = "Athens, Georgia single-domain smoke test"
+description = "Athens, Georgia minimal single-domain validation case"
 
 [namelist]
 # true: case.toml owns only the fields it specifies; other native namelist

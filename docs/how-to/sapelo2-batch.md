@@ -17,7 +17,7 @@ You do not need an interactive shell to submit an `sbatch` job.
 ```bash
 cd ~/work/project/wrfkit
 
-WRFKIT_CASE=athens-smoke \
+WRFKIT_CASE=athens-minimal \
   sbatch examples/sapelo2-single-node.sbatch
 ```
 
@@ -59,7 +59,7 @@ COMPLETED   0:0
 ## 4. Check WRF itself
 
 ```bash
-CASE=athens-smoke
+CASE=athens-minimal
 
 LOG=$(find ".wrfkit/logs/$CASE" \
   -maxdepth 1 -type d -name '*_wrf' | sort | tail -1)

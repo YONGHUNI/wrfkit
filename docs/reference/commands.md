@@ -153,7 +153,7 @@ count selected for `real.exe` / `wrf.exe`. The selector mirrors WRF 4.8's
 automatic factorization and requires every decomposed horizontal patch to be
 at least 10 grid cells in x and y.
 
-For example, the 61 x 61 `athens-smoke` domain cannot use WRF's automatic
+For example, the 61 x 61 `athens-minimal` domain cannot use WRF's automatic
 4 x 8 decomposition for 32 ranks because the y patch is only 7 cells. The
 largest safe count at or below 32 is 30 ranks, decomposed 5 x 6.
 

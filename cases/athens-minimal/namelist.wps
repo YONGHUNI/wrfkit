@@ -1,7 +1,7 @@
 &share
  wrf_core = 'ARW',
  max_dom = 1,
- ! Dates are placeholders for the geogrid-only smoke test.
+ ! Dates match the fixed minimal workflow-validation window.
  start_date = '2026-09-30_00:00:00',
  end_date   = '2026-09-30_06:00:00',
  interval_seconds = 10800,

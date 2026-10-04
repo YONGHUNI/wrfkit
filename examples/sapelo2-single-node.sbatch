@@ -12,7 +12,7 @@ set -Eeuo pipefail
 
 # Override at submission time if needed:
 #   WRFKIT_CASE=my-case sbatch examples/sapelo2-single-node.sbatch
-CASE=${WRFKIT_CASE:-athens-smoke}
+CASE=${WRFKIT_CASE:-athens-minimal}
 REPO=${WRFKIT_REPO:-$HOME/work/project/wrfkit}
 
 cd "$REPO"

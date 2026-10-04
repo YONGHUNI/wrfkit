@@ -15,21 +15,21 @@ merely implemented or planned.
 | Rootless Nix on Sapelo2 | Validated | Default single-node profile uses node-local `/lscratch` |
 | Static geography staging | Validated | Bundled low-resolution smoke-test geography |
 | GFS acquisition/staging | Validated | Fixed GFS smoke window through NOMADS |
-| `geogrid -> ungrib -> metgrid` | Validated | `athens-smoke` |
+| `geogrid -> ungrib -> metgrid` | Validated | `athens-minimal` |
 | `real -> wrf` | Validated | Produces WRF input/boundary/output files |
 | Single-node interactive MPI | Validated | Tested with 16 and 24 ranks during development |
 | Single-node `sbatch` MPI | Validated | 16-rank Sapelo2 run completed successfully |
 | One-Nix-namespace Slurm bridge | Validated | Inner OpenMPI launch confirmed in batch |
 | Per-run native log archive | Validated | `native-logs.tar` with current-run filtering |
-| High-level `wrfctl prep` through `real` | Validated | `athens-smoke` completed through `real.exe` with verified `wrfinput`/`wrfbdy` on Lambda Vector and Sapelo2 |
+| High-level `wrfctl prep` through `real` | Validated | `athens-minimal` completed through `real.exe` with verified `wrfinput`/`wrfbdy` on Lambda Vector and Sapelo2 |
 | `wrfctl plan` / `prep --dry-run` | Validated | Read-only resolved-science and stage view exercised on Lambda Vector and Sapelo2 |
 | WRF-safe MPI decomposition guard | Validated on Sapelo2 | 32 available tasks use 32 ranks for WPS and 30 ranks (5 x 6) for `real`/`wrf`; explicit unsafe `--ntasks 32` is rejected |
-| High-level `wrfctl run` | Validated on Sapelo2; fresh Lambda regression pending | `athens-smoke` auto-selected 30 ranks (5 x 6), observed `SUCCESS COMPLETE WRF`, and verified a new `wrfout_d01_*` |
+| High-level `wrfctl run` | Validated on Sapelo2; fresh Lambda regression pending | `athens-minimal` auto-selected 30 ranks (5 x 6), observed `SUCCESS COMPLETE WRF`, and verified a new `wrfout_d01_*` |
 | Post-prep configuration warning | Validated on Sapelo2 | Modified `namelist.input` was detected after prep; `run` warned, reused existing `wrfinput`/`wrfbdy`, and still completed with `SUCCESS COMPLETE WRF` |
 | Optional shared `data_root` | Validated on Sapelo2 | External `/work` data root supplied through `WRFKIT_DATA_ROOT` was used for cached geography and GFS through `geogrid -> ungrib -> metgrid -> real` |
 | GFS regional-subset cache identity | Implemented, not yet regression-validated | Cache path includes a request key derived from product and bounding box |
 | TOML `case.toml` parser + namelist overlay | Validated | `--check` and managed overlay exercised on Lambda Vector and Sapelo2; unspecified native keys are preserved |
-| TOML-driven forcing metadata | Validated | `athens-smoke` GFS date/cycle/hours/subset resolved from `case.toml` and completed acquisition/staging on Lambda Vector and Sapelo2 |
+| TOML-driven forcing metadata | Validated | `athens-minimal` GFS date/cycle/hours/subset resolved from `case.toml` and completed acquisition/staging on Lambda Vector and Sapelo2 |
 | Multi-node MPI | Not validated | Do not treat as supported research execution |
 | WRF restart/recovery workflow | Not validated | Requires dedicated workflow testing |
 | Scratch-backed execution workspace | Not implemented | `scratch_root` is currently configuration metadata |
@@ -60,7 +60,7 @@ The high-level preparation path was exercised on both the standalone Lambda
 Vector system and Sapelo2 with:
 
 ```bash
-./wrfctl prep --case athens-smoke
+./wrfctl prep --case athens-minimal
 ```
 
 In both environments, `wrfctl config` reported the tracked native namelists as
@@ -181,9 +181,9 @@ The high-level workflow now mirrors WRF's automatic factor selection and checks
 that native constraint before launching `real` or `wrf`. For this case,
 32 requested tasks resolve to 30 WRF tasks with a 5 x 6 mesh.
 
-On Sapelo2, `wrfctl plan --case athens-smoke` reported exactly that
+On Sapelo2, `wrfctl plan --case athens-minimal` reported exactly that
 32 -> 30 adjustment, while an explicit
-`wrfctl prep --case athens-smoke --ntasks 32` stopped before native execution
+`wrfctl prep --case athens-minimal --ntasks 32` stopped before native execution
 and reported 30 tasks (5 x 6) as the safe alternative.
 
 The automatic path was then exercised without `--ntasks`: `geogrid` and
