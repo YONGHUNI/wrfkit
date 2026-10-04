@@ -15,6 +15,18 @@ import tomllib
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
+GEOGRAPHY_PROFILES = {
+    "wps-lowres-mandatory": {
+        "resolution": "lowres",
+        "auto_acquire": True,
+    },
+    "wps-highres-mandatory": {
+        "resolution": "default",
+        "auto_acquire": False,
+    },
+}
+
+
 
 def color_enabled(stream=sys.stdout) -> bool:
     if os.environ.get("NO_COLOR"):
@@ -162,13 +174,60 @@ def validate_time_forcing(data) -> None:
         die(f"GFS forecast_hours do not cover required WPS times: {rendered}")
 
 
+def geography_settings(data):
+    geography = data.get("geography")
+    if not isinstance(geography, dict):
+        die("missing [geography] table")
+
+    dataset = geography.get("dataset")
+    if not isinstance(dataset, str) or not dataset.strip():
+        die("geography.dataset must be a non-empty string")
+    dataset = dataset.strip()
+
+    profile = GEOGRAPHY_PROFILES.get(dataset)
+    if profile is None:
+        supported = ", ".join(sorted(GEOGRAPHY_PROFILES))
+        die(
+            f"unsupported geography.dataset: {dataset!r}; "
+            f"recognized profiles: {supported}"
+        )
+
+    resolution = geography.get("resolution")
+    if isinstance(resolution, str):
+        selectors = [resolution.strip()]
+    elif isinstance(resolution, list) and resolution and all(
+        isinstance(value, str) and value.strip() for value in resolution
+    ):
+        selectors = [value.strip() for value in resolution]
+        max_dom = int(data.get("domain", {}).get("max_dom", 1))
+        if len(selectors) != max_dom:
+            die(
+                "geography.resolution array must contain exactly "
+                "domain.max_dom values"
+            )
+    else:
+        die("geography.resolution must be a non-empty string or array of strings")
+
+    expected = profile["resolution"]
+    if any(value != expected for value in selectors):
+        rendered = ", ".join(repr(value) for value in selectors)
+        die(
+            f"geography profile {dataset!r} requires geography.resolution="
+            f"{expected!r}; got {rendered}"
+        )
+
+    return {
+        "GEOG_DATASET": dataset,
+        "GEOG_RESOLUTION": expected,
+        "GEOG_AUTO_ACQUIRE": "1" if profile["auto_acquire"] else "0",
+    }
+
+
 def shell_env(name: str) -> None:
     _, data = load_case(name)
     validate_time_forcing(data)
     env = forcing_settings(data)
-    geography = data.get("geography", {})
-    env["GEOG_DATASET"] = str(geography.get("dataset", ""))
-    env["GEOG_RESOLUTION"] = str(geography.get("resolution", ""))
+    env.update(geography_settings(data))
     domain = data.get("domain", {})
     env["MAX_DOM"] = str(domain.get("max_dom", 1))
     for key, value in env.items():
@@ -482,6 +541,7 @@ def build_patches(data):
 def configure(name: str, check_only: bool) -> None:
     case_dir, data = load_case(name)
     validate_time_forcing(data)
+    geography_settings(data)
     managed, wps, wrf = build_patches(data)
 
     for filename in ("namelist.wps", "namelist.input"):
@@ -525,6 +585,7 @@ def display_datetime(value, field: str) -> str:
 def summarize_case(name: str) -> None:
     _, data = load_case(name)
     validate_time_forcing(data)
+    geography_settings(data)
     managed, wps, wrf = build_patches(data)
 
     print_heading("Scientific configuration")
@@ -634,6 +695,7 @@ def normalized_for_fingerprint(value):
 def case_fingerprint(name: str) -> None:
     _, data = load_case(name)
     validate_time_forcing(data)
+    geography_settings(data)
 
     relevant = dict(data)
     case_meta = dict(relevant.get("case", {}))
