@@ -1,6 +1,6 @@
 # Understand `case.toml`
 
-A **case** is one WRF experiment. Its tracked files live under:
+A **case** is one WRF experiment. wrfkit keeps the scientific configuration in:
 
 ```text
 cases/<case-name>/
@@ -9,29 +9,43 @@ cases/<case-name>/
 └── namelist.input
 ```
 
-`case.toml` is the short, human-readable configuration that wrfkit understands.
-The two native namelist files still remain the files that WPS and WRF actually
-read.
+Think of the three files this way:
 
-The simplest way to think about the three files is:
+| File | Purpose |
+| --- | --- |
+| `case.toml` | common scientific settings + wrfkit workflow settings |
+| `namelist.wps` | full native WPS configuration |
+| `namelist.input` | full native WRF configuration |
 
-```text
-case.toml       → common settings + wrfkit workflow settings
-namelist.wps    → full native WPS configuration
-namelist.input  → full native WRF configuration
+For most work, start with `case.toml`. The native namelists remain visible and
+are still the files that WPS and WRF actually read.
+
+!!! important "What wrfkit does not decide"
+    wrfkit can check syntax and some relationships between fields. It cannot
+    decide whether a domain, physics scheme, time step, or other scientific
+    choice is appropriate for your study.
+
+## The short version
+
+A beginner usually needs to understand these sections first:
+
+```toml
+[time]            # when the simulation runs
+[forcing]         # which weather data drives the model
+[forcing.subset]  # which part of that weather data to download
+[geography]       # static WPS geography
+[domain]          # where the WRF grid is and how large/fine it is
+[model]           # numerical integration settings
+[physics]         # physics preset
+[output]          # how often WRF writes output
 ```
 
-You can stay with the easy TOML fields for common work, then use
-`[advanced.*]` tables when you need lower-level WRF/WPS control.
+When those are not enough, use `[advanced.wrf.*]` or `[advanced.wps.*]`
+to write lower-level native namelist options directly.
 
-!!! important "TOML does not make a setting scientifically correct"
-    wrfkit checks syntax and some relationships between fields. It does not
-    decide whether a domain, physics scheme, time step, or other scientific
-    choice is appropriate for your research question.
+## A minimal example
 
-## Start with a real example
-
-The bundled smoke test contains:
+The bundled Athens smoke test looks like this:
 
 ```toml
 schema_version = 1
@@ -44,7 +58,7 @@ managed = true
 
 [time]
 start = 2026-09-30T00:00:00Z
-end = 2026-09-30T06:00:00Z
+end   = 2026-09-30T06:00:00Z
 forcing_interval_seconds = 10800
 
 [forcing]
@@ -56,169 +70,146 @@ forecast_hours = [0, 3, 6]
 [forcing.subset]
 west = 265
 east = 288
-north = 42
 south = 25
+north = 42
+
+[geography]
+dataset = "wps-lowres-mandatory"
+resolution = "lowres"
+
+[domain]
+max_dom = 1
+parent_id = [1]
+parent_grid_ratio = [1]
+i_parent_start = [1]
+j_parent_start = [1]
+e_we = [61]
+e_sn = [61]
+e_vert = [45]
+dx = 12000
+dy = 12000
+map_proj = "lambert"
+ref_lat = 33.95
+ref_lon = -83.38
+truelat1 = 30.0
+truelat2 = 60.0
+stand_lon = -84.0
+
+[model]
+time_step = 72
+
+[physics]
+suite = "CONUS"
+
+[output]
+history_interval_minutes = 180
+frames_per_outfile = 1
+restart = false
 ```
 
-The rest of the file describes the geography, model grid, time step, physics
-suite, and output.
-
-Before editing a case, you can ask wrfkit to check it without writing changes:
+Before changing anything, remember two useful read-only checks:
 
 ```bash
 ./wrfctl config --case my-case --check
-```
-
-For a higher-level read-only summary:
-
-```bash
 ./wrfctl plan --case my-case
 ```
 
-## TOML basics
+The first checks the configuration. The second shows the resolved experiment
+that wrfkit intends to run.
 
-A line such as:
+## TOML in 60 seconds
+
+A normal value:
 
 ```toml
 time_step = 72
 ```
 
-sets one value.
-
-Square brackets start a section:
+A section:
 
 ```toml
 [model]
 time_step = 72
 ```
 
-Values in square brackets are arrays:
+An array:
 
 ```toml
 e_we = [101]
 ```
 
-For nested domains, arrays can contain one value per domain.
-
-Boolean values are lowercase:
+A Boolean:
 
 ```toml
 restart = false
 ```
 
-## Top-level fields
+For nested WRF domains, several settings use arrays with one value per domain.
 
-| Field | Meaning | Usually change it? |
-| --- | --- | --- |
-| `schema_version` | Version of the wrfkit TOML format | **No.** Keep `1` for the current format |
-| `case.description` | Human-readable description of the experiment | Yes |
+## Settings you will use most often
 
-### `schema_version`
+### Experiment identity and namelist control
 
-Current wrfkit accepts:
+| Field | Meaning |
+| --- | --- |
+| `schema_version` | wrfkit TOML format version; keep `1` for the current format |
+| `case.description` | free-text description for humans and provenance |
+| `namelist.managed` | whether wrfkit may update TOML-owned native namelist fields |
 
-```toml
-schema_version = 1
-```
-
-This is a format version, not a WRF version.
-
-## `[namelist]`
-
-### `managed`
+With:
 
 ```toml
 [namelist]
 managed = true
 ```
 
-This controls whether wrfkit may update the TOML-owned settings in the two
-native namelist files.
+wrfkit updates only the fields represented by TOML and preserves other native
+namelist settings.
 
-| Value | Behavior |
-| --- | --- |
-| `true` | wrfkit writes only the settings represented by TOML; other native namelist values are preserved |
-| `false` | wrfkit does not modify either native namelist |
+With `managed = false`, wrfkit does not modify `namelist.wps` or
+`namelist.input`. TOML can still control wrfkit-specific workflow settings,
+such as forcing acquisition.
 
-Even with `managed = false`, TOML can still contain wrfkit workflow settings
-such as forcing-download information.
-
-For most beginners, `true` is easier to use.
-
-## `[time]`
-
-This section defines the simulation period and the spacing of external weather
-input.
-
-### `start` and `end`
+### Time
 
 ```toml
 [time]
 start = 2026-09-30T00:00:00Z
 end   = 2026-09-30T06:00:00Z
-```
-
-Both times must include a UTC offset. A trailing `Z` means UTC.
-
-wrfkit maps these values into the WPS start/end dates and the corresponding WRF
-run time.
-
-### `forcing_interval_seconds`
-
-```toml
 forcing_interval_seconds = 10800
 ```
 
-This is the time spacing between external meteorological input files.
+| Field | Meaning |
+| --- | --- |
+| `start` | simulation start time |
+| `end` | simulation end time |
+| `forcing_interval_seconds` | spacing between external meteorological input times |
 
-`10800` seconds = 3 hours.
+Times must include a UTC offset. A trailing `Z` means UTC.
 
-The value must agree with the times supplied by `forecast_hours`. For example,
-a six-hour experiment with three-hour forcing needs data at 0, 3, and 6 hours.
+`10800` seconds is 3 hours. A six-hour simulation using three-hour forcing
+therefore needs forcing at 0, 3, and 6 hours.
 
-## `[forcing]`
-
-This section tells wrfkit which external weather files to acquire.
-
-### `provider`
+### Weather forcing
 
 ```toml
+[forcing]
 provider = "gfs"
-```
-
-The current automatic provider is **GFS**.
-
-### `product`
-
-```toml
 product = "0p25"
-```
-
-The current automatic GFS product is the 0.25-degree product.
-
-### `cycle`
-
-```toml
 cycle = 2026-09-30T00:00:00Z
-```
-
-This is the GFS initialization time. Current GFS cycles are 00, 06, 12, and
-18 UTC.
-
-### `forecast_hours`
-
-```toml
 forecast_hours = [0, 3, 6]
 ```
 
-These are the GFS lead times to download.
+| Field | Meaning | Current automatic support |
+| --- | --- | --- |
+| `provider` | weather-data provider | `"gfs"` |
+| `product` | provider product | `"0p25"` |
+| `cycle` | forecast initialization time | GFS 00/06/12/18 UTC cycle |
+| `forecast_hours` | lead times to acquire | non-negative hour values |
 
-For a simulation from 00Z to 06Z with three-hour forcing, the required hours
-are 0, 3, and 6.
+The forecast hours must cover every WPS input time required by the simulation.
 
-## `[forcing.subset]`
-
-This is the geographic box downloaded from the current GFS source.
+### Forcing download area
 
 ```toml
 [forcing.subset]
@@ -235,13 +226,13 @@ north = 42
 | `south` | southern latitude |
 | `north` | northern latitude |
 
-The current downloader uses longitudes in the **0 to 360 degrees east**
-convention. For example, 275°E is the same longitude as 85°W.
+The current GFS downloader uses longitudes from **0 to 360° east**.
+For example, 275°E is the same longitude as 85°W.
 
-Choose a box large enough to cover the WRF domain and its required boundary
-area.
+The subset must be large enough to cover the WRF domain and the surrounding
+area needed for boundary input.
 
-## `[geography]`
+### Static geography
 
 ```toml
 [geography]
@@ -249,92 +240,52 @@ dataset = "wps-lowres-mandatory"
 resolution = "lowres"
 ```
 
-### `dataset`
-
-Names the static WPS geography package used by the automatic workflow.
-
-### `resolution`
-
-Maps to WPS `geog_data_res`.
-
-!!! warning
-    The current automatic downloader supports the bundled **low-resolution
-    smoke-test** geography. It is intended for workflow testing and education,
-    not as a general research-grade geography choice.
-
-## `[domain]`
-
-This section describes the WRF grid.
-
-### Number of domains
-
-```toml
-max_dom = 1
-```
-
-`1` means one domain. Nested experiments use more than one domain.
-
-Many domain fields are arrays because each domain may need its own value.
-
-### Parent/nesting fields
-
-```toml
-parent_id = [1]
-parent_grid_ratio = [1]
-i_parent_start = [1]
-j_parent_start = [1]
-```
-
 | Field | Meaning |
 | --- | --- |
-| `parent_id` | which larger domain contains each domain |
-| `parent_grid_ratio` | how much finer a nested grid is than its parent |
-| `i_parent_start` | nest start position in the parent's west-east direction |
-| `j_parent_start` | nest start position in the parent's south-north direction |
+| `dataset` | static WPS geography package used by the automatic workflow |
+| `resolution` | value mapped to WPS `geog_data_res` |
 
-For a single domain, these values normally stay at their simple d01 values.
+!!! warning
+    The current automatic downloader supports the small low-resolution
+    smoke-test geography package. Treat it as a workflow/education dataset,
+    not a general research-grade geography recommendation.
 
-### Horizontal grid size
+### Domain
+
+The `[domain]` section answers three basic questions:
+
+1. How many WRF domains are there?
+2. Where are they?
+3. How large and how fine are their grids?
+
+#### Grid size and spacing
 
 ```toml
+[domain]
+max_dom = 1
 e_we = [61]
 e_sn = [61]
-```
-
-These are the staggered grid dimensions:
-
-- `e_we`: west-east grid dimension;
-- `e_sn`: south-north grid dimension.
-
-Larger values create a larger domain if grid spacing is unchanged.
-
-### Vertical levels
-
-```toml
 e_vert = [45]
-```
-
-This is the number of full vertical levels, including the model top and
-surface-related level structure used by WRF.
-
-There is no single correct value for every study.
-
-### Horizontal grid spacing
-
-```toml
 dx = 12000
 dy = 12000
 ```
 
-These are grid spacings in meters for projections such as Lambert,
-Mercator, and polar stereographic.
+| Field | Meaning |
+| --- | --- |
+| `max_dom` | number of WRF domains |
+| `e_we` | west-east staggered grid dimension |
+| `e_sn` | south-north staggered grid dimension |
+| `e_vert` | number of full vertical levels |
+| `dx` | horizontal grid spacing in the x direction |
+| `dy` | horizontal grid spacing in the y direction |
 
-`12000` means 12 km.
+For projected grids, `dx` and `dy` are in meters. Thus `12000` means
+12 km.
 
-Smaller grid spacing gives finer detail but usually increases computational
-cost strongly.
+A smaller grid spacing gives finer spatial resolution, but usually increases
+the computational cost substantially.
 
-### Map projection and domain center
+#### Projection and location
 
 ```toml
 map_proj = "lambert"
@@ -347,54 +298,65 @@ stand_lon = -84.0
 
 | Field | Meaning |
 | --- | --- |
-| `map_proj` | map projection used by WPS |
-| `ref_lat` | reference latitude near the grid center |
-| `ref_lon` | reference longitude near the grid center |
-| `truelat1` | first true latitude for the projection |
+| `map_proj` | WPS map projection |
+| `ref_lat` | reference latitude |
+| `ref_lon` | reference longitude |
+| `truelat1` | first true latitude |
 | `truelat2` | second true latitude when used |
 | `stand_lon` | standard longitude / central meridian |
 
-Current WPS projection names include values such as `"lambert"`,
-`"polar"`, `"mercator"`, and `"lat-lon"`.
+The current parser also accepts `pole_lat` and `pole_lon` when needed.
 
-The parser also accepts `pole_lat` and `pole_lon` when they are needed by
-the selected projection.
+#### Nesting
 
-### Additional domain fields
-
-The convenience layer also accepts several lower-level domain settings, such as:
+For nested domains:
 
 ```toml
-[domain]
-parent_time_step_ratio = [1]
-feedback = 1
-smooth_option = 0
-p_top_requested = 5000
+parent_id = [1]
+parent_grid_ratio = [1]
+i_parent_start = [1]
+j_parent_start = [1]
 ```
 
-These map directly to their WRF domain settings. They are more specialized, so
-use the upstream WRF documentation when choosing values.
+| Field | Meaning |
+| --- | --- |
+| `parent_id` | parent domain for each grid |
+| `parent_grid_ratio` | how much finer a nest is than its parent |
+| `i_parent_start` | nest start in the parent's west-east direction |
+| `j_parent_start` | nest start in the parent's south-north direction |
 
-## `[model]`
+For a single-domain case, these remain the simple d01 values shown above.
 
-### `time_step`
+??? note "Other domain fields"
+    The convenience layer also accepts lower-level domain fields such as:
+
+    ```toml
+    [domain]
+    parent_time_step_ratio = [1]
+    feedback = 1
+    smooth_option = 0
+    p_top_requested = 5000
+    ```
+
+    These map to WRF domain settings. Use the upstream WRF documentation when
+    choosing scientific values.
+
+### Model time step
 
 ```toml
 [model]
 time_step = 72
 ```
 
-This is the WRF integration time step in seconds.
+This is WRF's integration time step in seconds.
 
-A common WRF rule of thumb for typical real-data cases is no more than about
-six times the horizontal grid spacing in kilometers. For a 12 km grid, 72 s is
-therefore an upper rule-of-thumb value, not a guarantee of numerical stability.
+The annotated template records the common WRF real-data rule of thumb of no
+more than about `6 × dx(km)`. For a 12 km grid, 72 s is therefore an upper
+rule-of-thumb value, not a guarantee of numerical stability.
 
 If WRF reports CFL-related instability, a smaller time step may be needed.
 
-## `[physics]`
-
-### `suite`
+### Physics suite
 
 ```toml
 [physics]
@@ -403,65 +365,48 @@ suite = "CONUS"
 
 This maps to WRF's `physics_suite`.
 
-A physics suite is a coordinated preset of parameterization choices. It is not
-automatically the best choice for every location, resolution, season, or
-research question.
+A physics suite is a coordinated preset. It is not automatically the best
+choice for every region, resolution, season, or research question.
 
-If you need individual physics schemes, use the advanced WRF tables described
-below.
+If you need to choose individual schemes, use the advanced WRF interface below.
 
-## `[output]`
-
-### `history_interval_minutes`
+### Output
 
 ```toml
+[output]
 history_interval_minutes = 180
-```
-
-How often WRF writes history output, in minutes.
-
-Smaller intervals produce more frequent output and usually require more
-storage.
-
-### `frames_per_outfile`
-
-```toml
 frames_per_outfile = 1
-```
-
-How many output times are stored in each WRF history file.
-
-### `restart`
-
-```toml
 restart = false
 ```
 
-Maps to WRF's restart switch.
+| Field | Meaning |
+| --- | --- |
+| `history_interval_minutes` | how often WRF writes history output |
+| `frames_per_outfile` | number of output times stored in each history file |
+| `restart` | native WRF restart switch |
+| `restart_interval_minutes` | restart-output interval when configured |
 
-### `restart_interval_minutes`
-
-When restart mode is used, you can also set:
-
-```toml
-restart_interval_minutes = 1440
-```
-
-This maps to WRF's restart interval in minutes.
+Smaller history intervals create more frequent output and normally require more
+storage.
 
 !!! warning
-    wrfkit's complete restart/recovery workflow is not currently claimed as
-    validated. The TOML field can map to the native namelist, but that is not
-    the same thing as an end-to-end supported restart workflow.
+    The TOML restart fields can map into the native namelist, but wrfkit's
+    complete restart/recovery workflow is not currently claimed as validated.
 
-## Lower-level control with `[advanced.*]`
+## Lower-level control
 
-The convenience fields above cover common settings. They do **not** try to
-duplicate every option available in WRF and WPS.
+The convenience fields above are intentionally limited. wrfkit does not try to
+re-create every WRF/WPS namelist option as a custom TOML field.
 
-Instead, wrfkit lets you write native namelist groups and keys directly.
+Instead, advanced sections map directly to native namelist groups:
 
-### Advanced WRF example
+```text
+[advanced.wrf.physics]   →  &physics in namelist.input
+[advanced.wrf.dynamics]  →  &dynamics in namelist.input
+[advanced.wps.geogrid]   →  &geogrid in namelist.wps
+```
+
+### WRF example
 
 ```toml
 [advanced.wrf.physics]
@@ -472,20 +417,7 @@ ra_sw_physics = [4]
 radt = [12]
 ```
 
-This maps to the native WRF `&physics` group.
-
-Another example:
-
-```toml
-[advanced.wrf.dynamics]
-hybrid_opt = 2
-diff_opt = [2]
-km_opt = [4]
-```
-
-This maps to `&dynamics`.
-
-### Advanced WPS example
+### WPS example
 
 ```toml
 [advanced.wps.geogrid]
@@ -493,54 +425,74 @@ geog_data_res = ["default"]
 opt_geogrid_tbl_path = "."
 ```
 
-This maps to the native WPS `&geogrid` group.
+If a convenience field and an advanced field write the same native key, the
+**advanced value wins**.
 
-### Precedence
+??? example "More advanced WRF examples"
 
-If a convenience field and an advanced field both write the same native
-namelist key, the **advanced value wins**.
+    ```toml
+    [advanced.wrf.domains]
+    p_top_requested = 5000
+    parent_time_step_ratio = [1]
+    feedback = 1
+    smooth_option = 0
 
-For example, if a convenience field chooses one physics value but
-`[advanced.wrf.physics]` explicitly supplies the same native key, the advanced
-setting takes priority.
+    [advanced.wrf.dynamics]
+    hybrid_opt = 2
+    diff_opt = [2]
+    km_opt = [4]
 
-### Any native group/key can be used
+    [advanced.wrf.bdy_control]
+    spec_bdy_width = 5
+    specified = [true]
+    ```
 
-wrfkit intentionally does not keep a hard-coded list of every upstream namelist
-option under `advanced.wrf` and `advanced.wps`.
+??? example "More advanced WPS examples"
 
-That means a new or uncommon native key can be written without waiting for a
-new wrfkit release:
+    ```toml
+    [advanced.wps.share]
+    wrf_core = "ARW"
+    active_grid = [true]
+
+    [advanced.wps.ungrib]
+    out_format = "WPS"
+    prefix = "FILE"
+
+    [advanced.wps.metgrid]
+    fg_name = ["FILE"]
+    opt_metgrid_tbl_path = "."
+    ```
+
+### Native options not known to wrfkit
+
+Advanced sections intentionally accept native group/key names that are not
+hard-coded into wrfkit:
 
 ```toml
 [advanced.wrf.some_native_group]
 some_native_key = 123
 ```
 
-You are responsible for using a valid WRF/WPS group, key, type, and scientific
-value.
+That makes the interface extensible, but it also means **you** are responsible
+for using a valid WRF/WPS group, key, type, and scientific value.
 
-## Raw escape hatch
+### Raw escape hatch
 
-Some Fortran namelist expressions cannot be represented cleanly as ordinary
-TOML values. For those cases, wrfkit provides raw tables.
-
-Example:
+Some Fortran namelist syntax cannot be expressed cleanly as ordinary TOML
+values. In that case:
 
 ```toml
 [advanced.wrf_raw.domains]
 "eta_levels(1:3)" = "1.0, 0.5, 0.0"
 ```
 
-The string on the right is inserted as native Fortran namelist syntax.
+The right-hand string is inserted verbatim as the native namelist value.
 
-Use raw overrides only when normal TOML values are not enough.
+Use `*_raw` only when ordinary TOML values are not enough.
 
-## TOML type conversion
+## How TOML values become Fortran values
 
-Normal advanced values are translated like this:
-
-| TOML | Fortran namelist |
+| TOML value | Native namelist form |
 | --- | --- |
 | `"text"` | quoted string |
 | `12` | integer |
@@ -548,43 +500,39 @@ Normal advanced values are translated like this:
 | `true` / `false` | `.true.` / `.false.` |
 | `[1, 2, 3]` | comma-separated values |
 
-## Safe editing workflow
+## A safe editing routine
 
-When changing a research case, use this sequence:
+Use the same sequence whenever you change a research case:
 
 ```bash
 # 1. edit
 $EDITOR cases/my-case/case.toml
 
-# 2. validate without writing namelists
+# 2. validate without writing native namelists
 ./wrfctl config --case my-case --check
 
 # 3. inspect the resolved experiment
 ./wrfctl plan --case my-case
 
-# 4. prepare when the input-generating configuration is ready
+# 4. prepare inputs
 ./wrfctl prep --case my-case
 
-# 5. run
+# 5. run WRF
 ./wrfctl run --case my-case
 ```
 
-If you change `case.toml`, `namelist.wps`, or `namelist.input` after
-preparation, `wrfctl run` reports that the prepared input predates the current
-configuration. Re-run `prep` when the change requires new
-`wrfinput`/`wrfbdy`.
+If the scientific configuration changes after preparation, run `prep` again
+when the change requires new `wrfinput` or `wrfbdy` files.
 
-## Where is the complete annotated template?
+## Complete annotated template
 
-The repository contains:
+The repository also contains a copyable template:
 
 ```text
 config/case.template.toml
 ```
 
-It is the copyable, commented template for the current schema.
+It includes additional advanced examples and comments.
 
-For the full list of upstream WRF/WPS namelist options, use the official WRF
-Users' Guide. The `[advanced.*]` interface is designed to let those native
-options pass through without wrfkit having to re-document every upstream
-parameter.
+For native WRF/WPS options beyond wrfkit's convenience layer, use the official
+WRF documentation together with the `[advanced.*]` interface.
