@@ -133,11 +133,14 @@ A successful high-level `prep` writes
 of preparation-relevant TOML, hashes of both native namelists, and the pinned
 WRF/WPS versions. `wrfctl run` checks that manifest before launching WRF.
 
-This prevents a common mistake: editing the domain, forcing, physics, or native
-namelist after `real.exe` has produced `wrfinput`/`wrfbdy`, then
-accidentally running WRF with stale prepared inputs. If the guard fires, rerun
-`wrfctl prep --case NAME`. Direct `wrfctl exec wrf` remains available as
-the explicit low-level escape hatch.
+If `case.toml`, `namelist.wps`, or `namelist.input` changed after prep,
+`wrfctl run` reports which component changed and warns that the existing
+`wrfinput`/`wrfbdy` were prepared earlier. It then continues with those
+prepared inputs so an intentional research change is not silently blocked.
+
+Re-run `wrfctl prep --case NAME` when the change requires new prepared inputs.
+A missing prep manifest or a pinned WRF/WPS version mismatch remains a hard
+error.
 
 
 ## WRF-safe MPI decomposition
