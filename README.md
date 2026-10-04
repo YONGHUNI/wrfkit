@@ -25,7 +25,7 @@ This repository is an early MVP. The first milestone is deliberately narrow:
 - WRF/WPS CMake workflows (`configure_new` / `compile_new`)
 - WPS GRIB2 support using the GRIB2 libraries bundled with the pinned WPS source
 - normal Nix or rootless Nix on machines without administrator access
-- real-data GFS -> WPS -> `real` -> WRF smoke workflow
+- real-data GFS -> WPS -> `real` -> WRF validation workflow
 - single-node MPI on ordinary Linux and UGA Sapelo2
 - single-node Slurm execution in both interactive and `sbatch` allocations
 
@@ -289,7 +289,7 @@ use the full allocation. An explicit unsafe `--ntasks N` is rejected rather
 than silently changed.
 
 The current automatic geography path is intentionally limited to the bundled
-low-resolution smoke-test dataset, and the current automatic forcing provider is
+low-resolution validation dataset, and the current automatic forcing provider is
 GFS. Research-grade geography selection remains a separate implementation
 target.
 
@@ -384,7 +384,7 @@ multi-node portability is not yet claimed.
 ./wrfctl prep --case NAME          prepare through real.exe; create wrfinput/wrfbdy
 ./wrfctl prep --case NAME --dry-run show the plan without changing files
 ./wrfctl run --case NAME           check prep state, warn on case drift, then run wrf.exe
-./wrfctl fetch geog                download low-res mandatory WPS geography for smoke tests
+./wrfctl fetch geog                download low-res mandatory WPS geography for minimal validation
 ./wrfctl fetch gfs --case NAME     download configured GFS forcing from NOMADS
 ./wrfctl prepare gfs --case NAME   stage Vtable.GFS and GRIBFILE links
 ./wrfctl prepare wrf --case NAME   stage WRF runtime tables/data
@@ -419,13 +419,13 @@ the pinned WPS 4.7.0 CMake build can race when parallel targets write shared
 Fortran module files such as `filelist.mod` and `gridinfo.mod`.
 The included `athens-minimal` case
 now validates the real-data path through geography, GFS forcing, Vtable
-selection, WPS staging, `real`, and `wrf`. This smoke case validates the
+selection, WPS staging, `real`, and `wrf`. This minimal case validates the
 workflow, not the scientific suitability of its configuration for research.
 
 The source tree is preserved by `clean`; use `rm -rf .wrfkit/src` when a complete
 source reset is needed.
 
-### First real-data smoke case
+### First real-data validation case
 
 The repository includes `cases/athens-minimal`, a one-domain 12 km geogrid smoke
 case centered near Athens, Georgia. Fetch the official NCAR low-resolution
@@ -448,7 +448,7 @@ under `.wrfkit/logs/athens-minimal/<run-id>/`. The tracked
 `cases/athens-minimal` directory remains configuration-only; wrfkit changes only
 its own child-process working directory, not the user's shell directory.
 
-The next smoke stage uses a fixed 2026-09-30 00Z GFS cycle and f000/f003/f006
+The next validation stage uses a fixed 2026-09-30 00Z GFS cycle and f000/f003/f006
 files, regionally subset through the NOAA/NCEP NOMADS GFS 0.25-degree GRIB
 filter:
 

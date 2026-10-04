@@ -67,7 +67,7 @@ Why this matters: an earlier one-Nix-entry-per-rank topology caused repeated Nix
 evaluation, SQLite cache contention, and UCX namespace errors. The current
 single-node bridge was introduced specifically to avoid that topology.
 
-## 3. The smoke case is a workflow fixture
+## 3. The minimal case is a workflow fixture
 
 `athens-minimal` currently uses a small 12 km, 61 x 61, 45-level,
 single-domain configuration with low-resolution WPS geography and the WRF

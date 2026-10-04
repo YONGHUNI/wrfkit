@@ -95,7 +95,7 @@ Use wrfkit's own launcher path instead.
 
 ## GFS download fails
 
-The bundled smoke case uses a fixed GFS window from an operational rolling
+The bundled minimal case uses a fixed GFS window from an operational rolling
 NOMADS service. That is convenient for validation but not a permanent archive.
 
 A failure may therefore be a data-availability problem rather than a compiler or

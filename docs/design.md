@@ -97,7 +97,7 @@ namelist overlays, while `namelist.wps` and `namelist.input` remain the
 native execution files.
 
 Automatic geography acquisition is currently restricted to the bundled
-low-resolution smoke-test package. This prevents `prep` from silently
+low-resolution validation package. This prevents `prep` from silently
 substituting low-resolution data for a research case requesting a different
 static-data resolution.
 
@@ -209,7 +209,7 @@ low-resolution mandatory WPS geography is downloaded into persistent state at
 under `.wrfkit/cache`. This low-resolution dataset is a validation fixture, not
 a production-data default.
 
-The smoke case keeps its native `namelist.wps` tracked under
+The minimal case keeps its native `namelist.wps` tracked under
 `cases/athens-minimal` and selects the `lowres` resolution defined by WPS
 4.7.0's `GEOGRID.TBL.ARW`.
 
@@ -223,7 +223,7 @@ Regional NOMADS subsets are keyed by the GFS product and requested bounding box,
 in addition to date/cycle. This prevents two cases with the same date and cycle
 but different spatial subsets from colliding in the cache.
 
-The initial Athens smoke case deliberately uses a fixed short NOMADS window;
+The initial Athens minimal case deliberately uses a fixed short NOMADS window;
 because NOMADS is a rolling operational service, a durable archived forcing
 backend remains a future reproducibility improvement.
 
@@ -338,7 +338,7 @@ MPI assumptions.
 ## Milestones
 
 - **0.1** WRF 4.8.0, GNU, NetCDF, OpenMPI build, ordinary Linux + Sapelo2 validation.
-- **0.2** WPS 4.7.0 build integration and first real-data smoke case.
+- **0.2** WPS 4.7.0 build integration and first real-data validation case.
 - **0.3** TOML case configuration, namelist overlay/validation, provenance manifest.
 - **0.4** `wrfctl init`, broader forcing/geography providers, richer cross-field validation.
 - **0.5+** Slurm backend, site profiles, multi-node MPI, forcing-data acquisition.

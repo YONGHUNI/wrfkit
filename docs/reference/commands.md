@@ -19,7 +19,7 @@ Commands below are run from the repository root unless noted otherwise.
 available when you want to inspect, teach, debug, or rerun only one stage.
 
 Current automatic geography download is still deliberately narrow: wrfkit
-downloads the low-resolution smoke-test package. Research-grade managed
+downloads the low-resolution validation package. Research-grade managed
 geography download is the next milestone.
 
 High-level `prep` can already use user-provided WPS geography through
@@ -44,7 +44,7 @@ without copying or modifying the source data.
 
 | Command | Purpose |
 | --- | --- |
-| `./wrfctl fetch geog` | Download low-resolution geography used by the smoke test |
+| `./wrfctl fetch geog` | Download low-resolution geography used by the minimal validation case |
 | `./wrfctl fetch gfs --case NAME` | Download GFS forcing configured by a case |
 | `./wrfctl prepare gfs --case NAME` | Stage Vtable.GFS and GRIBFILE links |
 | `./wrfctl exec geogrid --case NAME` | Create the model-domain geography |

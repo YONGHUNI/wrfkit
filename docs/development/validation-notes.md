@@ -13,8 +13,8 @@ merely implemented or planned.
 | WRF 4.8.0 build | Validated | Clean `build all --jobs 16` regression completed on Lambda Vector and Sapelo2 |
 | WPS 4.7.0 build | Validated | Serial WPS stage completed on Lambda Vector and Sapelo2; `geogrid`, `ungrib`, and `metgrid` installed |
 | Rootless Nix on Sapelo2 | Validated | Default single-node profile uses node-local `/lscratch` |
-| Static geography staging | Validated | Bundled low-resolution smoke-test geography |
-| GFS acquisition/staging | Validated | Fixed GFS smoke window through NOMADS |
+| Static geography staging | Validated | Bundled low-resolution validation geography |
+| GFS acquisition/staging | Validated | Fixed GFS validation window through NOMADS |
 | `geogrid -> ungrib -> metgrid` | Validated | `athens-minimal` |
 | `real -> wrf` | Validated | Produces WRF input/boundary/output files |
 | Single-node interactive MPI | Validated | Tested with 16 and 24 ranks during development |
@@ -133,7 +133,7 @@ A Sapelo2 16-rank batch validation on an Intel Xeon Gold 6130 node completed
 with Slurm state `COMPLETED`, exit code `0:0`, and WRF reporting
 `SUCCESS COMPLETE WRF`.
 
-The observed wall time of individual smoke runs is intentionally not treated as
+The observed wall time of individual validation runs is intentionally not treated as
 a benchmark. Short runs are sensitive to node state, filesystem metadata/cache
 state, Nix evaluation caches, and other shared-system effects.
 
@@ -144,7 +144,7 @@ environment and produced the expected program-level result. It does not mean:
 
 - every possible WRF namelist option is supported;
 - every HPC site will behave identically;
-- the smoke-case scientific configuration is recommended;
+- the minimal-case scientific configuration is recommended;
 - numerical results are scientifically validated for a particular study.
 
 ## Validation checklist for a new research case
@@ -172,7 +172,7 @@ observations or reference data.
 ## Processor-decomposition regression note
 
 During the first Sapelo2 regression of the extended `prep -> real` contract,
-the scheduler supplied 32 MPI tasks for the 61 x 61 smoke domain. WRF's native
+the scheduler supplied 32 MPI tasks for the 61 x 61 minimal domain. WRF's native
 automatic decomposition selected 4 x 8 tasks, yielding a y-direction patch
 width of 7 cells, and `real.exe` correctly aborted because WRF requires at
 least 10 grid cells per decomposed patch direction.

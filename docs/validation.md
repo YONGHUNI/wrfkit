@@ -14,7 +14,7 @@ tested end to end.
 | WRF 4.8.0 build | **Validated** | Clean build completed on Lambda Vector and UGA Sapelo2 |
 | WPS 4.7.0 build | **Validated** | `geogrid`, `ungrib`, and `metgrid` built successfully |
 | Rootless Nix on Sapelo2 | **Validated** | Tested with the current single-node Sapelo2 profile |
-| GFS acquisition and staging | **Validated** | Tested with the bundled smoke-test GFS window |
+| GFS acquisition and staging | **Validated** | Tested with the bundled validation GFS window |
 | Low-resolution validation geography | **Validated** | `athens-minimal`; intended for testing and education |
 | High-resolution geography case configuration | **Implemented** | `athens-highres`; automatic acquisition is not implemented yet |
 | WPS → `real` → WRF | **Validated** | Bundled `athens-minimal` workflow completed |
