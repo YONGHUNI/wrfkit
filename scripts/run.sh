@@ -24,45 +24,46 @@ while [[ $# -gt 0 ]]; do
     --launcher) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; launcher=$2; shift 2 ;;
     --launcher=*) launcher=${1#--launcher=}; shift ;;
     -h|--help) usage; exit 0 ;;
-    *) printf 'run: unexpected argument: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+    *) ui_error "run: unexpected argument: $1"; usage >&2; exit 2 ;;
   esac
 done
 
 [[ -n "$case_name" ]] || { usage >&2; exit 2; }
 [[ "$case_name" =~ ^[A-Za-z0-9._-]+$ ]] || {
-  printf 'run: invalid case name: %s\n' "$case_name" >&2
+  ui_error "run: invalid case name: $case_name"
   exit 2
 }
 [[ -z "$ntasks" || "$ntasks" =~ ^[1-9][0-9]*$ ]] || {
-  printf 'run: invalid --ntasks value: %s\n' "$ntasks" >&2
+  ui_error "run: invalid --ntasks value: $ntasks"
   exit 2
 }
 case "$launcher" in
   ""|auto|srun|mpirun|mpiexec|custom) ;;
-  *) printf 'run: invalid --launcher value: %s\n' "$launcher" >&2; exit 2 ;;
+  *) ui_error "run: invalid --launcher value: $launcher"; exit 2 ;;
 esac
 
 case_dir="$WRFKIT_ROOT/cases/$case_name"
 work_dir="$WRFKIT_WORK_DIR/$case_name"
 [[ -r "$case_dir/case.toml" ]] || {
-  printf 'run: case.toml not found: %s\n' "$case_dir/case.toml" >&2
+  ui_error "run: case.toml not found: $case_dir/case.toml"
   exit 2
 }
 
 "$WRFKIT_ROOT/scripts/case-config.py" summary --case "$case_name"
 verify_prep_manifest "$case_name"
+ui_ok "Prepared inputs match the current case configuration."
 load_case_env "$case_name"
 
 for ((domain_id=1; domain_id<=MAX_DOM; domain_id++)); do
   printf -v domain "%02d" "$domain_id"
   [[ -s "$work_dir/wrfinput_d$domain" ]] || {
-    printf 'run: missing prepared input: %s/wrfinput_d%s\n' "$work_dir" "$domain" >&2
+    ui_error "Missing prepared input: $work_dir/wrfinput_d$domain"
     printf 'Run ./wrfctl prep --case %s first.\n' "$case_name" >&2
     exit 2
   }
 done
 [[ -s "$work_dir/wrfbdy_d01" ]] || {
-  printf 'run: missing prepared boundary file: %s/wrfbdy_d01\n' "$work_dir" >&2
+  ui_error "Missing prepared boundary file: $work_dir/wrfbdy_d01"
   printf 'Run ./wrfctl prep --case %s first.\n' "$case_name" >&2
   exit 2
 }
@@ -72,7 +73,7 @@ effective_tasks=${ntasks:-$default_tasks}
 eval "$("$WRFKIT_ROOT/scripts/case-config.py" mpi-plan --case "$case_name" --requested "$effective_tasks" --shell)"
 
 if [[ -n "$ntasks" && "$WRFKIT_WRF_TASKS" != "$ntasks" ]]; then
-  printf 'run: explicit --ntasks=%s is unsafe for this WRF domain.\n' "$ntasks" >&2
+  ui_error "Explicit --ntasks=$ntasks is unsafe for this WRF domain."
   printf 'WRF-safe choice at or below that request: %s tasks (%s x %s).\n' \
     "$WRFKIT_WRF_TASKS" "$WRFKIT_NPROC_X" "$WRFKIT_NPROC_Y" >&2
   exit 2
@@ -89,37 +90,36 @@ marker="$work_dir/.wrfkit-run-started"
 : > "$marker"
 trap 'rm -f "$marker"' EXIT
 
-printf '\nwrfkit run\n'
-printf '  case:       %s\n' "$case_name"
-printf '  workspace:  %s\n' "$work_dir"
-printf '  WRF tasks:  %s (%s x %s)\n' \
-  "$WRFKIT_WRF_TASKS" "$WRFKIT_NPROC_X" "$WRFKIT_NPROC_Y"
+printf '\n'
+ui_heading "wrfkit run"
+ui_kv "case" "$case_name"
+ui_kv "workspace" "$work_dir"
+ui_kv "WRF tasks" "$WRFKIT_WRF_TASKS ($WRFKIT_NPROC_X x $WRFKIT_NPROC_Y)"
 if ((WRFKIT_TASKS_ADJUSTED)); then
-  printf '  note:       auto-adjusted from %s requested tasks for >=10-cell patches\n' \
-    "$effective_tasks"
+  ui_warn "WRF tasks auto-adjusted $effective_tasks -> $WRFKIT_WRF_TASKS for >=10-cell patches."
 fi
 printf '\n'
 
 "$WRFKIT_ROOT/wrfctl" exec wrf "${exec_case_args[@]}"
 
 [[ -f "$work_dir/rsl.out.0000" && "$work_dir/rsl.out.0000" -nt "$marker" ]] || {
-  printf 'run: current WRF run did not produce rsl.out.0000\n' >&2
+  ui_error "Current WRF run did not produce rsl.out.0000"
   exit 1
 }
 grep -q "SUCCESS COMPLETE WRF" "$work_dir/rsl.out.0000" || {
-  printf 'run: wrf.exe returned but SUCCESS COMPLETE WRF was not found in current rsl.out.0000\n' >&2
+  ui_error "wrf.exe returned but SUCCESS COMPLETE WRF was not found in current rsl.out.0000"
   exit 1
 }
 
 new_output=$(find "$work_dir" -maxdepth 1 -type f -name 'wrfout_d01_*' -newer "$marker" -print -quit)
 [[ -n "$new_output" ]] || {
-  printf 'run: WRF completed but no new wrfout_d01_* file was detected\n' >&2
+  ui_error "WRF completed but no new wrfout_d01_* file was detected"
   exit 1
 }
 
 rm -f "$marker"
 trap - EXIT
 
-printf '\nwrfkit run completed for case %s.\n' "$case_name"
-printf '  success: SUCCESS COMPLETE WRF\n'
-printf '  output:  %s\n' "$new_output"
+printf '\n'
+ui_ok "WRF completed for case $case_name: SUCCESS COMPLETE WRF"
+ui_kv "output" "$new_output"

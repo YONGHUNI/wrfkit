@@ -6,6 +6,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import os
 import pathlib
 import re
 import shlex
@@ -15,8 +16,37 @@ import tomllib
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
+def color_enabled(stream=sys.stdout) -> bool:
+    if os.environ.get("NO_COLOR"):
+        return False
+    mode = os.environ.get("WRFKIT_COLOR", "auto")
+    if mode == "always":
+        return True
+    if mode == "never":
+        return False
+    return mode == "auto" and stream.isatty() and os.environ.get("TERM", "dumb") != "dumb"
+
+
+def styled(text: str, code: str, stream=sys.stdout) -> str:
+    return f"\033[{code}m{text}\033[0m" if color_enabled(stream) else text
+
+
+def print_heading(text: str) -> None:
+    print(styled(text, "1;36"))
+
+
+def print_kv(label: str, value) -> None:
+    if color_enabled(sys.stdout):
+        label_text = styled(f"{label}:".ljust(13), "36")
+        value_text = styled(str(value), "1")
+        print(f"  {label_text} {value_text}")
+    else:
+        print(f"  {label + ':':13} {value}")
+
+
 def die(message: str, code: int = 2) -> None:
-    print(f"wrfkit config: {message}", file=sys.stderr)
+    prefix = styled("[ERROR]", "1;31", sys.stderr)
+    print(f"{prefix} wrfkit config: {message}", file=sys.stderr)
     raise SystemExit(code)
 
 
@@ -458,25 +488,28 @@ def configure(name: str, check_only: bool) -> None:
         if not (case_dir / filename).is_file():
             die(f"{filename} not found: {case_dir / filename}")
 
-    print(f"Case: {name}")
-    print(f"  TOML: {case_dir / 'case.toml'}")
-    print(f"  namelist managed: {'true' if managed else 'false'}")
+    print_heading("Case configuration")
+    print_kv("case", name)
+    print_kv("TOML", case_dir / "case.toml")
+    print_kv("namelist managed", "true" if managed else "false")
 
     if not managed:
-        print("  native namelists: read-only (wrfkit will not modify them)")
+        print_kv("native namelists", "read-only (wrfkit will not modify them)")
         return
 
-    print(f"  WPS overrides: {sum(map(len, wps.values()))}")
-    print(f"  WRF overrides: {sum(map(len, wrf.values()))}")
+    print_kv("WPS overrides", sum(map(len, wps.values())))
+    print_kv("WRF overrides", sum(map(len, wrf.values())))
 
     if check_only:
-        print("  check only: no files changed")
+        print(styled("[OK]", "1;32") + " Check only; no files changed.")
         return
 
     wps_changed = patch_namelist(case_dir / "namelist.wps", wps)
     wrf_changed = patch_namelist(case_dir / "namelist.input", wrf)
-    print(f"  namelist.wps: {'updated' if wps_changed else 'unchanged'}")
-    print(f"  namelist.input: {'updated' if wrf_changed else 'unchanged'}")
+    for filename, changed in (("namelist.wps", wps_changed), ("namelist.input", wrf_changed)):
+        state = "updated" if changed else "unchanged"
+        color = "1;33" if changed else "1;32"
+        print(f"  {filename + ':':19} {styled(state, color)}")
 
 
 def display_value(value) -> str:
@@ -494,42 +527,42 @@ def summarize_case(name: str) -> None:
     validate_time_forcing(data)
     managed, wps, wrf = build_patches(data)
 
-    print("Scientific configuration")
-    print(f"  case:        {name}")
+    print_heading("Scientific configuration")
+    print_kv("case", name)
 
     time = data.get("time", {})
     if "start" in time and "end" in time:
-        print(
-            "  period:      "
+        print_kv(
+            "period",
             f"{display_datetime(time['start'], 'time.start')} -> "
-            f"{display_datetime(time['end'], 'time.end')}"
+            f"{display_datetime(time['end'], 'time.end')}",
         )
     if "forcing_interval_seconds" in time:
-        print(f"  input step:  {time['forcing_interval_seconds']} s")
+        print_kv("input step", f"{time['forcing_interval_seconds']} s")
 
     forcing = data.get("forcing", {})
-    print(f"  forcing:     {forcing.get('provider', '<unset>')} {forcing.get('product', '<unset>')}")
+    print_kv("forcing", f"{forcing.get('provider', '<unset>')} {forcing.get('product', '<unset>')}")
     if "cycle" in forcing:
-        print(f"  cycle:       {display_datetime(forcing['cycle'], 'forcing.cycle')}")
+        print_kv("cycle", display_datetime(forcing["cycle"], "forcing.cycle"))
     if "forecast_hours" in forcing:
-        print(f"  fcst hours:  {display_value(forcing['forecast_hours'])}")
+        print_kv("fcst hours", display_value(forcing["forecast_hours"]))
     subset = forcing.get("subset", {})
     if isinstance(subset, dict) and all(k in subset for k in ("west", "east", "south", "north")):
-        print(
-            "  subset:      "
+        print_kv(
+            "subset",
             f"W={subset['west']} E={subset['east']} "
-            f"S={subset['south']} N={subset['north']}"
+            f"S={subset['south']} N={subset['north']}",
         )
 
     geography = data.get("geography", {})
-    print(
-        "  geography:   "
+    print_kv(
+        "geography",
         f"{geography.get('dataset', '<unset>')} "
-        f"({geography.get('resolution', '<unset>')})"
+        f"({geography.get('resolution', '<unset>')})",
     )
 
     domain = data.get("domain", {})
-    print(f"  domains:     {domain.get('max_dom', 1)}")
+    print_kv("domains", domain.get("max_dom", 1))
     for key, label, suffix in (
         ("dx", "dx", " m"),
         ("dy", "dy", " m"),
@@ -538,19 +571,19 @@ def summarize_case(name: str) -> None:
         ("e_vert", "e_vert", ""),
     ):
         if key in domain:
-            print(f"  {label + ':':12}{display_value(domain[key])}{suffix}")
+            print_kv(label, f"{display_value(domain[key])}{suffix}")
 
     model = data.get("model", {})
     if "time_step" in model:
-        print(f"  time step:   {model['time_step']} s")
+        print_kv("time step", f"{model['time_step']} s")
 
     physics = data.get("physics", {})
     if "suite" in physics:
-        print(f"  physics:     {physics['suite']}")
+        print_kv("physics", physics["suite"])
 
     output = data.get("output", {})
     if "history_interval_minutes" in output:
-        print(f"  history:     {output['history_interval_minutes']} min")
+        print_kv("history", f"{output['history_interval_minutes']} min")
 
     advanced = data.get("advanced", {})
     advanced_wps = sum(
@@ -567,15 +600,16 @@ def summarize_case(name: str) -> None:
     )
 
     if managed:
-        print(
-            "  namelists:   managed "
+        print_kv(
+            "namelists",
+            "managed "
             f"({sum(map(len, wps.values()))} WPS / "
-            f"{sum(map(len, wrf.values()))} WRF overrides)"
+            f"{sum(map(len, wrf.values()))} WRF overrides)",
         )
     else:
-        print("  namelists:   manual/read-only")
+        print_kv("namelists", "manual/read-only")
     if advanced_wps or advanced_wrf:
-        print(f"  advanced:    {advanced_wps} WPS / {advanced_wrf} WRF native overrides")
+        print_kv("advanced", f"{advanced_wps} WPS / {advanced_wrf} WRF native overrides")
 
 
 def normalized_for_fingerprint(value):
@@ -750,7 +784,7 @@ def mpi_plan(name: str, requested: int, shell: bool) -> None:
             print(f"{key}={shlex.quote(str(value))}")
         return
 
-    print("WRF MPI decomposition")
+    print_heading("WRF MPI decomposition")
     print(f"  requested:      {requested} tasks")
     if requested_mesh:
         print(

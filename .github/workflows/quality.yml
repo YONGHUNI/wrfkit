@@ -18,6 +18,92 @@ jobs:
         run: |
           python3 -m py_compile scripts/*.py
 
+      - name: Check terminal color policy
+        run: |
+          bash -c 'source scripts/ui.sh; ui_ok "plain"' > /tmp/plain
+          if grep -q 
+        run: |
+          python3 scripts/case-config.py config --case athens-smoke --check
+          python3 scripts/case-config.py summary --case athens-smoke
+          python3 scripts/case-config.py fingerprint --case athens-smoke
+
+      - name: Check WRF decomposition planner
+        run: |
+          python3 scripts/case-config.py mpi-plan --case athens-smoke --requested 32 --shell > /tmp/mpi-plan
+          cat /tmp/mpi-plan
+          grep -qx 'WRFKIT_REQUESTED_NPROC_X=4' /tmp/mpi-plan
+          grep -qx 'WRFKIT_REQUESTED_NPROC_Y=8' /tmp/mpi-plan
+          grep -qx 'WRFKIT_REQUESTED_SAFE=0' /tmp/mpi-plan
+          grep -qx 'WRFKIT_WRF_TASKS=30' /tmp/mpi-plan
+          grep -qx 'WRFKIT_NPROC_X=5' /tmp/mpi-plan
+          grep -qx 'WRFKIT_NPROC_Y=6' /tmp/mpi-plan
+
+      - name: Check TOML renderer idempotence
+        run: |
+          python3 scripts/case-config.py config --case athens-smoke
+          git diff --exit-code -- \
+            cases/athens-smoke/namelist.wps \
+            cases/athens-smoke/namelist.input
+\033' /tmp/plain; then
+            echo "non-interactive output unexpectedly contains ANSI color" >&2
+            exit 1
+          fi
+
+          WRFKIT_COLOR=always bash -c 'source scripts/ui.sh; ui_ok "colored"' > /tmp/color
+          grep -q 
+        run: |
+          python3 scripts/case-config.py config --case athens-smoke --check
+          python3 scripts/case-config.py summary --case athens-smoke
+          python3 scripts/case-config.py fingerprint --case athens-smoke
+
+      - name: Check WRF decomposition planner
+        run: |
+          python3 scripts/case-config.py mpi-plan --case athens-smoke --requested 32 --shell > /tmp/mpi-plan
+          cat /tmp/mpi-plan
+          grep -qx 'WRFKIT_REQUESTED_NPROC_X=4' /tmp/mpi-plan
+          grep -qx 'WRFKIT_REQUESTED_NPROC_Y=8' /tmp/mpi-plan
+          grep -qx 'WRFKIT_REQUESTED_SAFE=0' /tmp/mpi-plan
+          grep -qx 'WRFKIT_WRF_TASKS=30' /tmp/mpi-plan
+          grep -qx 'WRFKIT_NPROC_X=5' /tmp/mpi-plan
+          grep -qx 'WRFKIT_NPROC_Y=6' /tmp/mpi-plan
+
+      - name: Check TOML renderer idempotence
+        run: |
+          python3 scripts/case-config.py config --case athens-smoke
+          git diff --exit-code -- \
+            cases/athens-smoke/namelist.wps \
+            cases/athens-smoke/namelist.input
+\033' /tmp/color
+
+          NO_COLOR=1 WRFKIT_COLOR=always bash -c 'source scripts/ui.sh; ui_ok "plain"' > /tmp/no-color
+          if grep -q 
+        run: |
+          python3 scripts/case-config.py config --case athens-smoke --check
+          python3 scripts/case-config.py summary --case athens-smoke
+          python3 scripts/case-config.py fingerprint --case athens-smoke
+
+      - name: Check WRF decomposition planner
+        run: |
+          python3 scripts/case-config.py mpi-plan --case athens-smoke --requested 32 --shell > /tmp/mpi-plan
+          cat /tmp/mpi-plan
+          grep -qx 'WRFKIT_REQUESTED_NPROC_X=4' /tmp/mpi-plan
+          grep -qx 'WRFKIT_REQUESTED_NPROC_Y=8' /tmp/mpi-plan
+          grep -qx 'WRFKIT_REQUESTED_SAFE=0' /tmp/mpi-plan
+          grep -qx 'WRFKIT_WRF_TASKS=30' /tmp/mpi-plan
+          grep -qx 'WRFKIT_NPROC_X=5' /tmp/mpi-plan
+          grep -qx 'WRFKIT_NPROC_Y=6' /tmp/mpi-plan
+
+      - name: Check TOML renderer idempotence
+        run: |
+          python3 scripts/case-config.py config --case athens-smoke
+          git diff --exit-code -- \
+            cases/athens-smoke/namelist.wps \
+            cases/athens-smoke/namelist.input
+\033' /tmp/no-color; then
+            echo "NO_COLOR did not disable ANSI color" >&2
+            exit 1
+          fi
+
       - name: Validate tracked TOML smoke case
         run: |
           python3 scripts/case-config.py config --case athens-smoke --check

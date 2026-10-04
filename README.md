@@ -124,8 +124,10 @@ when a normal `nix` command is not already available.
 
 The bootstrap wrapper supports configuration profiles and does not require the
 user to remember rootless-Nix store paths. Interactive terminal output uses
-color to distinguish section headings, successful checkpoints, warnings, and
-errors; redirected/non-interactive output stays plain. Set `NO_COLOR=1` or
+a shared color convention across `bootstrap` and `wrfctl`: cyan for
+headings/information, green for successful checkpoints, yellow for warnings or
+automatic adjustments, and red for failures/errors. Redirected/non-interactive
+output stays plain. Set `NO_COLOR=1` or
 `WRFKIT_COLOR=never` to disable colors, or `WRFKIT_COLOR=always` to force
 them. It also manages the rootless Nix lifecycle explicitly:
 

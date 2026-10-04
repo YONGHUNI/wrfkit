@@ -57,7 +57,7 @@ while [[ $# -gt 0 ]]; do
       exit 0
       ;;
     *)
-      printf 'prep: unexpected argument: %s\n' "$1" >&2
+      ui_error "prep: unexpected argument: $1"
       usage >&2
       exit 2
       ;;
@@ -66,17 +66,17 @@ done
 
 [[ -n "$case_name" ]] || { usage >&2; exit 2; }
 [[ "$case_name" =~ ^[A-Za-z0-9._-]+$ ]] || {
-  printf 'prep: invalid case name: %s\n' "$case_name" >&2
+  ui_error "prep: invalid case name: $case_name"
   exit 2
 }
 [[ -z "$ntasks" || "$ntasks" =~ ^[1-9][0-9]*$ ]] || {
-  printf 'prep: invalid --ntasks value: %s\n' "$ntasks" >&2
+  ui_error "prep: invalid --ntasks value: $ntasks"
   exit 2
 }
 
 case "$launcher" in
   ""|auto|srun|mpirun|mpiexec|custom) ;;
-  *) printf 'prep: invalid --launcher value: %s\n' "$launcher" >&2; exit 2 ;;
+  *) ui_error "prep: invalid --launcher value: $launcher"; exit 2 ;;
 esac
 
 if ((dry_run)); then
@@ -89,11 +89,11 @@ fi
 
 case_dir="$WRFKIT_ROOT/cases/$case_name"
 [[ -d "$case_dir" ]] || {
-  printf 'prep: case not found: %s\n' "$case_dir" >&2
+  ui_error "prep: case not found: $case_dir"
   exit 2
 }
 [[ -r "$case_dir/case.toml" ]] || {
-  printf 'prep: case config not found: %s\n' "$case_dir/case.toml" >&2
+  ui_error "prep: case config not found: $case_dir/case.toml"
   exit 2
 }
 
@@ -105,8 +105,9 @@ printf '\n'
 "$WRFKIT_ROOT/scripts/case-config.py" summary --case "$case_name"
 
 if [[ "$GEOG_DATASET" != "wps-lowres-mandatory" || "$GEOG_RESOLUTION" != "lowres" ]]; then
+  ui_error "Automatic geography acquisition cannot satisfy this case."
   cat >&2 <<MSG
-prep: automatic geography acquisition currently supports only:
+Supported automatically:
   dataset = "wps-lowres-mandatory"
   resolution = "lowres"
 
@@ -122,7 +123,7 @@ forcing_provider=${FORCING_PROVIDER:-gfs}
 case "$forcing_provider" in
   gfs) ;;
   *)
-    printf 'prep: unsupported forcing provider: %s\n' "$forcing_provider" >&2
+    ui_error "prep: unsupported forcing provider: $forcing_provider"
     exit 2
     ;;
 esac
@@ -132,7 +133,7 @@ effective_tasks=${ntasks:-$default_tasks}
 eval "$("$WRFKIT_ROOT/scripts/case-config.py" mpi-plan --case "$case_name" --requested "$effective_tasks" --shell)"
 
 if [[ -n "$ntasks" && "$WRFKIT_WRF_TASKS" != "$ntasks" ]]; then
-  printf 'prep: explicit --ntasks=%s is unsafe for this WRF domain.\n' "$ntasks" >&2
+  ui_error "Explicit --ntasks=$ntasks is unsafe for this WRF domain."
   printf 'WRF-safe choice at or below that request: %s tasks (%s x %s).\n' \
     "$WRFKIT_WRF_TASKS" "$WRFKIT_NPROC_X" "$WRFKIT_NPROC_Y" >&2
   printf 'Omit --ntasks to allow stage-safe auto selection, or request a safe count.\n' >&2
@@ -147,20 +148,18 @@ wrf_exec_args=(--case "$case_name" --ntasks "$WRFKIT_WRF_TASKS")
 [[ -n "$launcher" ]] && wrf_exec_args+=(--launcher "$launcher")
 
 step() {
-  printf '\n==> %s\n' "$1"
+  ui_step "$1"
 }
 
-printf 'wrfkit prep\n'
-printf '  case:       %s\n' "$case_name"
-printf '  forcing:    %s\n' "$forcing_provider"
-printf '  data root:  %s\n' "$WRFKIT_DATA_DIR"
-printf '  workspace:  %s/work/%s\n' "$WRFKIT_STATE_DIR" "$case_name"
-printf '  WPS tasks:  %s\n' "$effective_tasks"
-printf '  WRF tasks:  %s (%s x %s)\n' \
-  "$WRFKIT_WRF_TASKS" "$WRFKIT_NPROC_X" "$WRFKIT_NPROC_Y"
+ui_heading "wrfkit prep"
+ui_kv "case" "$case_name"
+ui_kv "forcing" "$forcing_provider"
+ui_kv "data root" "$WRFKIT_DATA_DIR"
+ui_kv "workspace" "$WRFKIT_STATE_DIR/work/$case_name"
+ui_kv "WPS tasks" "$effective_tasks"
+ui_kv "WRF tasks" "$WRFKIT_WRF_TASKS ($WRFKIT_NPROC_X x $WRFKIT_NPROC_Y)"
 if ((WRFKIT_TASKS_ADJUSTED)); then
-  printf '  note:       auto-adjusted WRF tasks from %s to %s for >=10-cell patches\n' \
-    "$effective_tasks" "$WRFKIT_WRF_TASKS"
+  ui_warn "WRF tasks auto-adjusted $effective_tasks -> $WRFKIT_WRF_TASKS for >=10-cell patches."
 fi
 
 step "1/8 Ensure static geography"
@@ -192,20 +191,22 @@ rm -f "$work_dir"/wrfinput_d?? "$work_dir"/wrfbdy_d01
 for ((domain_id=1; domain_id<=MAX_DOM; domain_id++)); do
   printf -v domain "%02d" "$domain_id"
   [[ -s "$work_dir/wrfinput_d$domain" ]] || {
-    printf 'prep: real completed but wrfinput_d%s is missing or empty\n' "$domain" >&2
+    ui_error "real.exe completed but wrfinput_d$domain is missing or empty"
     exit 1
   }
 done
 [[ -s "$work_dir/wrfbdy_d01" ]] || {
-  printf 'prep: real completed but wrfbdy_d01 is missing or empty\n' >&2
+  ui_error "real.exe completed but wrfbdy_d01 is missing or empty"
   exit 1
 }
 
 write_prep_manifest "$case_name"
 
-printf '\nwrfkit prep completed for case %s.\n' "$case_name"
-printf 'Prepared model inputs:\n'
-printf '  %s/wrfinput_d0*\n' "$work_dir"
-printf '  %s/wrfbdy_d01\n' "$work_dir"
-printf 'Next:\n'
+printf '\n'
+ui_ok "Prep completed for case $case_name."
+ui_heading "Prepared model inputs"
+ui_kv "wrfinput" "$work_dir/wrfinput_d0*"
+ui_kv "wrfbdy" "$work_dir/wrfbdy_d01"
+printf '\n'
+ui_heading "Next"
 printf '  ./wrfctl run --case %s\n' "$case_name"
