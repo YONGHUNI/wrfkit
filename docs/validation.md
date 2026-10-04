@@ -22,6 +22,7 @@ merely implemented or planned.
 | `wrfctl plan` / `prep --dry-run` | Validated | Read-only resolved-science and stage view exercised on Lambda Vector and Sapelo2 |
 | WRF-safe MPI decomposition guard | Validated on Sapelo2 | 32 available tasks use 32 ranks for WPS and 30 ranks (5 x 6) for `real`/`wrf`; explicit unsafe `--ntasks 32` is rejected |
 | High-level `wrfctl run` | Validated on Sapelo2; fresh Lambda regression pending | `athens-smoke` auto-selected 30 ranks (5 x 6), observed `SUCCESS COMPLETE WRF`, and verified a new `wrfout_d01_*` |
+| Post-prep configuration warning | Validated on Sapelo2 | Modified `namelist.input` was detected after prep; `run` warned, reused existing `wrfinput`/`wrfbdy`, and still completed with `SUCCESS COMPLETE WRF` |
 | Optional shared `data_root` | Implemented, not yet regression-validated | Reusable geography/GFS may live outside a repository; default remains project-local |
 | GFS regional-subset cache identity | Implemented, not yet regression-validated | Cache path includes a request key derived from product and bounding box |
 | TOML `case.toml` parser + namelist overlay | Validated | `--check` and managed overlay exercised on Lambda Vector and Sapelo2; unspecified native keys are preserved |
@@ -88,9 +89,14 @@ The manifest policy has since been changed for research flexibility: changes to
 `case.toml`, `namelist.wps`, or `namelist.input` are reported prominently
 but do not block `wrfctl run`; the existing `wrfinput`/`wrfbdy` are reused.
 A missing prep manifest or a WRF/WPS version mismatch remains a hard error.
-This warn-and-continue path is covered by CI but still requires a live Sapelo2
-regression. A fresh high-level `wrfctl run` regression on Lambda Vector is
-also still pending.
+The warn-and-continue path has now been exercised live on Sapelo2. A tracked
+comment was appended to `namelist.input` after prep, and `wrfctl run`
+reported `namelist.input` as changed, warned that the prepared inputs predated
+the current configuration, reused the existing `wrfinput`/`wrfbdy`, retained
+the safe 30-rank (5 x 6) WRF decomposition, and completed with
+`SUCCESS COMPLETE WRF` plus a new `wrfout_d01_*`. The test file was then
+restored and `git status --short` was clean. A fresh high-level `wrfctl run`
+regression on Lambda Vector is still pending.
 
 The result also does not validate other forcing providers, research-grade
 static geography, shared `data_root`, or every advanced namelist passthrough.
