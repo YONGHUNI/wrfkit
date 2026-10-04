@@ -17,11 +17,21 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 GEOGRAPHY_PROFILES = {
     "wps-lowres-mandatory": {
-        "resolution": "lowres",
+        "management": "managed",
+        "storage_dir": "low-res-mandatory",
+        "required_resolution": "lowres",
         "auto_acquire": True,
     },
     "wps-highres-mandatory": {
-        "resolution": "default",
+        "management": "managed",
+        "storage_dir": "high-res-mandatory",
+        "required_resolution": None,
+        "auto_acquire": False,
+    },
+    "external": {
+        "management": "external",
+        "storage_dir": None,
+        "required_resolution": None,
         "auto_acquire": False,
     },
 }
@@ -193,7 +203,7 @@ def geography_settings(data):
         )
 
     resolution = geography.get("resolution")
-    if isinstance(resolution, str):
+    if isinstance(resolution, str) and resolution.strip():
         selectors = [resolution.strip()]
     elif isinstance(resolution, list) and resolution and all(
         isinstance(value, str) and value.strip() for value in resolution
@@ -208,19 +218,56 @@ def geography_settings(data):
     else:
         die("geography.resolution must be a non-empty string or array of strings")
 
-    expected = profile["resolution"]
-    if any(value != expected for value in selectors):
+    required = profile["required_resolution"]
+    if required is not None and any(value != required for value in selectors):
         rendered = ", ".join(repr(value) for value in selectors)
         die(
             f"geography profile {dataset!r} requires geography.resolution="
-            f"{expected!r}; got {rendered}"
+            f"{required!r}; got {rendered}"
         )
+
+    path = geography.get("path")
+    if profile["management"] == "external":
+        if not isinstance(path, str) or not path.strip():
+            die('geography.path is required when geography.dataset="external"')
+        path = path.strip()
+        expanded = os.path.expandvars(os.path.expanduser(path))
+        if not pathlib.Path(expanded).is_absolute() and ".." in pathlib.PurePath(expanded).parts:
+            die(
+                "relative geography.path must stay under data_root/geog; "
+                "use an absolute path to reference another filesystem"
+            )
+    elif path is not None:
+        die('geography.path is only valid when geography.dataset="external"')
+    else:
+        path = ""
 
     return {
         "GEOG_DATASET": dataset,
-        "GEOG_RESOLUTION": expected,
+        "GEOG_RESOLUTION": ", ".join(selectors),
+        "GEOG_MANAGEMENT": profile["management"],
         "GEOG_AUTO_ACQUIRE": "1" if profile["auto_acquire"] else "0",
+        "GEOG_STORAGE_DIR": profile["storage_dir"] or "",
+        "GEOG_PATH_SPEC": path,
     }
+
+
+def resolve_geography_path(name: str, data_root: str) -> str:
+    _, data = load_case(name)
+    settings = geography_settings(data)
+
+    root_text = os.path.expandvars(os.path.expanduser(data_root))
+    geog_root = pathlib.Path(root_text) / "geog"
+
+    if settings["GEOG_MANAGEMENT"] == "external":
+        path_text = os.path.expandvars(os.path.expanduser(settings["GEOG_PATH_SPEC"]))
+        path = pathlib.Path(path_text)
+        if not path.is_absolute():
+            path = geog_root / path
+    else:
+        path = geog_root / settings["GEOG_STORAGE_DIR"]
+
+    return os.path.normpath(str(path))
 
 
 def shell_env(name: str) -> None:
@@ -878,6 +925,12 @@ def main() -> None:
     )
     fingerprint_parser.add_argument("--case", required=True)
 
+    geog_path_parser = commands.add_parser(
+        "geography-path", help="resolve the case geography directory for a data root"
+    )
+    geog_path_parser.add_argument("--case", required=True)
+    geog_path_parser.add_argument("--data-root", required=True)
+
     mpi_parser = commands.add_parser(
         "mpi-plan", help="resolve a WRF-safe MPI task count and decomposition"
     )
@@ -902,6 +955,8 @@ def main() -> None:
         summarize_case(args.case)
     elif args.command == "fingerprint":
         case_fingerprint(args.case)
+    elif args.command == "geography-path":
+        print(resolve_geography_path(args.case, args.data_root))
     elif args.command == "mpi-plan":
         mpi_plan(args.case, args.requested, args.shell)
     else:

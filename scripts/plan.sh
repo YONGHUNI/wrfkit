@@ -69,16 +69,35 @@ if [[ -n "$ntasks" && "$WRFKIT_WRF_TASKS" != "$ntasks" ]]; then
 fi
 
 printf '\n'
+ui_heading "Geography"
+ui_kv "dataset" "$GEOG_DATASET"
+ui_kv "selector" "$GEOG_RESOLUTION"
+ui_kv "management" "$GEOG_MANAGEMENT"
+ui_kv "path" "$WRFKIT_GEOG_DIR"
+
+case "$GEOG_MANAGEMENT" in
+  external)
+    if [[ -d "$WRFKIT_GEOG_DIR" ]]; then
+      ui_ok "User-provided geography is available."
+    else
+      ui_warn "User-provided geography directory is missing."
+    fi
+    ;;
+  managed)
+    if [[ "${GEOG_AUTO_ACQUIRE:-0}" == "1" ]]; then
+      if [[ -d "$WRFKIT_GEOG_DIR" ]]; then
+        ui_ok "Geography cached."
+      else
+        ui_info "Geography missing; prep will acquire it."
+      fi
+    else
+      ui_warn "Automatic acquisition is not implemented yet for $GEOG_DATASET."
+    fi
+    ;;
+esac
+
+printf '\n'
 ui_heading "Reusable input state"
-if [[ "${GEOG_AUTO_ACQUIRE:-0}" == "1" ]]; then
-  if [[ -d "$WRFKIT_GEOG_DIR" ]]; then
-    ui_ok "Geography cached: $WRFKIT_GEOG_DIR"
-  else
-    ui_info "Geography missing; prep will acquire it."
-  fi
-else
-  ui_warn "Geography profile is recognized, but automatic acquisition is not implemented yet: $GEOG_DATASET ($GEOG_RESOLUTION)"
-fi
 
 if [[ "$FORCING_PROVIDER" == "gfs" ]]; then
   target_dir=$(gfs_target_dir)

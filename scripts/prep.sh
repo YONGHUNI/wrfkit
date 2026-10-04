@@ -104,21 +104,6 @@ load_case_env "$case_name"
 printf '\n'
 "$WRFKIT_ROOT/scripts/case-config.py" summary --case "$case_name"
 
-if [[ "${GEOG_AUTO_ACQUIRE:-0}" != "1" ]]; then
-  ui_error "Automatic geography acquisition is not implemented for this recognized profile."
-  cat >&2 <<MSG
-Case: $case_name
-Requested: dataset=$GEOG_DATASET resolution=$GEOG_RESOLUTION
-
-Currently acquired automatically:
-  dataset = "wps-lowres-mandatory"
-  resolution = "lowres"
-
-The profile is valid, but its downloader/staging path has not been implemented yet.
-MSG
-  exit 2
-fi
-
 forcing_provider=${FORCING_PROVIDER:-gfs}
 case "$forcing_provider" in
   gfs) ;;
@@ -154,6 +139,8 @@ step() {
 ui_heading "wrfkit prep"
 ui_kv "case" "$case_name"
 ui_kv "forcing" "$forcing_provider"
+ui_kv "geography" "$GEOG_DATASET ($GEOG_RESOLUTION)"
+ui_kv "geog path" "$WRFKIT_GEOG_DIR"
 ui_kv "data root" "$WRFKIT_DATA_DIR"
 ui_kv "workspace" "$WRFKIT_STATE_DIR/work/$case_name"
 ui_kv "WPS tasks" "$effective_tasks"
@@ -163,7 +150,29 @@ if ((WRFKIT_TASKS_ADJUSTED)); then
 fi
 
 step "1/8 Ensure static geography"
-"$WRFKIT_ROOT/wrfctl" fetch geog
+case "$GEOG_MANAGEMENT" in
+  external)
+    [[ -d "$WRFKIT_GEOG_DIR" ]] || {
+      ui_error "External geography directory not found: $WRFKIT_GEOG_DIR"
+      exit 2
+    }
+    ui_ok "Using user-provided geography: $WRFKIT_GEOG_DIR"
+    ;;
+  managed)
+    if [[ "${GEOG_AUTO_ACQUIRE:-0}" == "1" ]]; then
+      WRFKIT_GEOG_DIR="$WRFKIT_GEOG_DIR" "$WRFKIT_ROOT/wrfctl" fetch geog
+    else
+      ui_error "Automatic geography acquisition is not implemented for $GEOG_DATASET."
+      printf 'Resolved target: %s\n' "$WRFKIT_GEOG_DIR" >&2
+      printf 'Use dataset="external" with path=... for geography you provide yourself.\n' >&2
+      exit 2
+    fi
+    ;;
+  *)
+    ui_error "Unknown geography management mode: $GEOG_MANAGEMENT"
+    exit 2
+    ;;
+esac
 
 step "2/8 Run geogrid"
 "$WRFKIT_ROOT/wrfctl" exec geogrid "${wps_exec_args[@]}"

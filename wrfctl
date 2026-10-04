@@ -118,6 +118,7 @@ expand_machine_path() {
 
 configure_data_paths() {
   local data_dir=${WRFKIT_DATA_DIR:-${WRFKIT_DATA_ROOT:-}}
+  local geog_override=${WRFKIT_GEOG_DIR_OVERRIDE:-${WRFKIT_GEOG_DIR:-}}
   local file="${XDG_CONFIG_HOME:-$HOME/.config}/wrfkit/bootstrap.conf"
   local line key value
 
@@ -138,13 +139,16 @@ configure_data_paths() {
   data_dir=${data_dir:-"$WRFKIT_STATE_ROOT/data"}
   data_dir=$(expand_machine_path "$data_dir")
   export WRFKIT_DATA_DIR="$data_dir"
+  export WRFKIT_GEOG_ROOT="$WRFKIT_DATA_DIR/geog"
 
-  if [[ -n ${WRFKIT_GEOG_DIR:-} ]]; then
-    WRFKIT_GEOG_DIR=$(expand_machine_path "$WRFKIT_GEOG_DIR")
+  if [[ -n "$geog_override" ]]; then
+    geog_override=$(expand_machine_path "$geog_override")
+    export WRFKIT_GEOG_DIR_OVERRIDE="$geog_override"
+    export WRFKIT_GEOG_DIR="$geog_override"
   else
-    WRFKIT_GEOG_DIR="$WRFKIT_DATA_DIR/geog/low-res-mandatory"
+    unset WRFKIT_GEOG_DIR_OVERRIDE
+    export WRFKIT_GEOG_DIR="$WRFKIT_GEOG_ROOT/low-res-mandatory"
   fi
-  export WRFKIT_GEOG_DIR
 }
 
 load_mpi_config() {
@@ -563,9 +567,23 @@ stage_workspace_link() {
   ln -s "$src" "$dest"
 }
 
+resolve_case_geography_dir() {
+  local case_name=$1
+
+  if [[ -n ${WRFKIT_GEOG_DIR_OVERRIDE:-} ]]; then
+    printf '%s' "$WRFKIT_GEOG_DIR_OVERRIDE"
+    return
+  fi
+
+  run_dev "$ROOT/scripts/case-config.py" geography-path \
+    --case "$case_name" \
+    --data-root "$WRFKIT_DATA_DIR"
+}
+
+
 stage_case_workspace() {
   local case_name=$1 case_dir=$2 work_dir=$3
-  local name wps_src
+  local name wps_src geog_dir
 
   mkdir -p "$work_dir"
 
@@ -585,9 +603,11 @@ stage_case_workspace() {
     stage_workspace_link "$wps_src/metgrid/METGRID.TBL.ARW" "$work_dir/METGRID.TBL"
   fi
 
-  # The current smoke-case convention uses geog_data_path='geog'.
+  # Native WPS sees one stable workspace path; the case resolver decides
+  # whether it points at wrfkit-managed data or a user-provided directory.
   if [[ -r "$case_dir/namelist.wps" ]]; then
-    stage_workspace_link "$WRFKIT_GEOG_DIR" "$work_dir/geog"
+    geog_dir=$(resolve_case_geography_dir "$case_name") || return $?
+    stage_workspace_link "$geog_dir" "$work_dir/geog"
   fi
 }
 

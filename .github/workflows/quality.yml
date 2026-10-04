@@ -44,25 +44,49 @@ jobs:
           ./scripts/case-config.py env --case athens-smoke > /tmp/geog-smoke.env
           grep -qx 'GEOG_DATASET=wps-lowres-mandatory' /tmp/geog-smoke.env
           grep -qx 'GEOG_RESOLUTION=lowres' /tmp/geog-smoke.env
+          grep -qx 'GEOG_MANAGEMENT=managed' /tmp/geog-smoke.env
           grep -qx 'GEOG_AUTO_ACQUIRE=1' /tmp/geog-smoke.env
+          test "$(./scripts/case-config.py geography-path --case athens-smoke --data-root /tmp/wrfkit-data)" = "/tmp/wrfkit-data/geog/low-res-mandatory"
 
           cp -a cases/athens-smoke cases/geog-profile-test
-          trap 'rm -rf cases/geog-profile-test /tmp/geog-profile.env /tmp/geog-invalid.out /tmp/geog-invalid.err /tmp/geog-smoke.env' EXIT
+          trap 'rm -rf cases/geog-profile-test /tmp/geog-*.env /tmp/geog-invalid.*' EXIT
+
           sed -i 's/dataset = "wps-lowres-mandatory"/dataset = "wps-highres-mandatory"/' cases/geog-profile-test/case.toml
-          sed -i 's/resolution = "lowres"/resolution = "default"/' cases/geog-profile-test/case.toml
-
+          sed -i 's/resolution = "lowres"/resolution = "30s+default"/' cases/geog-profile-test/case.toml
           ./scripts/case-config.py config --case geog-profile-test --check
-          ./scripts/case-config.py env --case geog-profile-test > /tmp/geog-profile.env
-          grep -qx 'GEOG_DATASET=wps-highres-mandatory' /tmp/geog-profile.env
-          grep -qx 'GEOG_RESOLUTION=default' /tmp/geog-profile.env
-          grep -qx 'GEOG_AUTO_ACQUIRE=0' /tmp/geog-profile.env
+          ./scripts/case-config.py env --case geog-profile-test > /tmp/geog-highres.env
+          grep -qx 'GEOG_DATASET=wps-highres-mandatory' /tmp/geog-highres.env
+          grep -qx 'GEOG_RESOLUTION=30s+default' /tmp/geog-highres.env
+          grep -qx 'GEOG_MANAGEMENT=managed' /tmp/geog-highres.env
+          grep -qx 'GEOG_AUTO_ACQUIRE=0' /tmp/geog-highres.env
+          test "$(./scripts/case-config.py geography-path --case geog-profile-test --data-root /tmp/wrfkit-data)" = "/tmp/wrfkit-data/geog/high-res-mandatory"
 
-          sed -i 's/resolution = "default"/resolution = "lowres"/' cases/geog-profile-test/case.toml
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("cases/geog-profile-test/case.toml")
+          text = p.read_text()
+          text = text.replace(
+              'dataset = "wps-highres-mandatory"\nresolution = "30s+default"',
+              'dataset = "external"\nresolution = "30s+default"\npath = "custom/geog"',
+          )
+          p.write_text(text)
+          PY
+          ./scripts/case-config.py config --case geog-profile-test --check
+          ./scripts/case-config.py env --case geog-profile-test > /tmp/geog-external.env
+          grep -qx 'GEOG_DATASET=external' /tmp/geog-external.env
+          grep -qx 'GEOG_MANAGEMENT=external' /tmp/geog-external.env
+          grep -qx 'GEOG_PATH_SPEC=custom/geog' /tmp/geog-external.env
+          test "$(./scripts/case-config.py geography-path --case geog-profile-test --data-root /tmp/wrfkit-data)" = "/tmp/wrfkit-data/geog/custom/geog"
+
+          sed -i 's|path = "custom/geog"|path = "/otherfs/shared/WPS_GEOG"|' cases/geog-profile-test/case.toml
+          test "$(./scripts/case-config.py geography-path --case geog-profile-test --data-root /tmp/wrfkit-data)" = "/otherfs/shared/WPS_GEOG"
+
+          sed -i '/^path = /d' cases/geog-profile-test/case.toml
           if ./scripts/case-config.py config --case geog-profile-test --check > /tmp/geog-invalid.out 2> /tmp/geog-invalid.err; then
-            echo "Invalid geography profile unexpectedly passed validation" >&2
+            echo "External geography without a path unexpectedly passed validation" >&2
             exit 1
           fi
-          grep -q "requires geography.resolution='default'" /tmp/geog-invalid.err
+          grep -q 'geography.path is required' /tmp/geog-invalid.err
 
       - name: Check WRF decomposition planner
         run: |

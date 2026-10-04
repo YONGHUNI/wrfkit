@@ -11,7 +11,8 @@ fi
 WRFKIT_STATE_DIR=${WRFKIT_STATE_DIR:-"$WRFKIT_ROOT/.wrfkit"}
 WRFKIT_DATA_DIR=${WRFKIT_DATA_DIR:-"$WRFKIT_STATE_DIR/data"}
 WRFKIT_CACHE_DIR=${WRFKIT_CACHE_DIR:-"$WRFKIT_STATE_DIR/cache"}
-WRFKIT_GEOG_DIR=${WRFKIT_GEOG_DIR:-"$WRFKIT_DATA_DIR/geog/low-res-mandatory"}
+WRFKIT_GEOG_ROOT=${WRFKIT_GEOG_ROOT:-"$WRFKIT_DATA_DIR/geog"}
+WRFKIT_GEOG_DIR=${WRFKIT_GEOG_DIR:-"$WRFKIT_GEOG_ROOT/low-res-mandatory"}
 WRFKIT_GFS_DIR=${WRFKIT_GFS_DIR:-"$WRFKIT_DATA_DIR/gfs"}
 WRFKIT_WORK_DIR=${WRFKIT_WORK_DIR:-"$WRFKIT_STATE_DIR/work"}
 
@@ -104,6 +105,8 @@ stage_case_workspace() {
     return 2
   }
 
+  load_case_env "$case_name" || return $?
+
   mkdir -p "$work_dir"
 
   for name in namelist.wps namelist.input; do
@@ -151,9 +154,22 @@ gfs_target_dir() {
 
 
 load_case_env() {
-  local case_name=$1 output
+  local case_name=$1 output resolved_geog
   output=$("$WRFKIT_ROOT/scripts/case-config.py" env --case "$case_name") || return $?
   eval "$output"
+
+  if [[ -n ${WRFKIT_GEOG_DIR_OVERRIDE:-} ]]; then
+    resolved_geog=$WRFKIT_GEOG_DIR_OVERRIDE
+  else
+    resolved_geog=$(
+      "$WRFKIT_ROOT/scripts/case-config.py" geography-path \
+        --case "$case_name" \
+        --data-root "$WRFKIT_DATA_DIR"
+    ) || return $?
+  fi
+
+  WRFKIT_GEOG_DIR=$resolved_geog
+  export WRFKIT_GEOG_DIR
 }
 
 
