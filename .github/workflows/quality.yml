@@ -58,7 +58,7 @@ jobs:
           grep -qx 'GEOG_DATASET=wps-highres-mandatory' /tmp/geog-highres.env
           grep -qx 'GEOG_RESOLUTION=default' /tmp/geog-highres.env
           grep -qx 'GEOG_MANAGEMENT=managed' /tmp/geog-highres.env
-          grep -qx 'GEOG_AUTO_ACQUIRE=0' /tmp/geog-highres.env
+          grep -qx 'GEOG_AUTO_ACQUIRE=1' /tmp/geog-highres.env
           test "$(./scripts/case-config.py geography-path --case athens-highres --data-root /tmp/wrfkit-data)" = "/tmp/wrfkit-data/geog/high-res-mandatory"
 
           sed -i 's/resolution = "default"/resolution = "30s+default"/' cases/geog-profile-test/case.toml
@@ -67,7 +67,7 @@ jobs:
           grep -qx 'GEOG_DATASET=wps-highres-mandatory' /tmp/geog-highres.env
           grep -qx 'GEOG_RESOLUTION=30s+default' /tmp/geog-highres.env
           grep -qx 'GEOG_MANAGEMENT=managed' /tmp/geog-highres.env
-          grep -qx 'GEOG_AUTO_ACQUIRE=0' /tmp/geog-highres.env
+          grep -qx 'GEOG_AUTO_ACQUIRE=1' /tmp/geog-highres.env
           test "$(./scripts/case-config.py geography-path --case geog-profile-test --data-root /tmp/wrfkit-data)" = "/tmp/wrfkit-data/geog/high-res-mandatory"
 
           python3 - <<'PY'
@@ -96,6 +96,43 @@ jobs:
             exit 1
           fi
           grep -q 'geography.path is required' /tmp/geog-invalid.err
+
+      - name: Check high-resolution geography downloader with local fixture
+        run: |
+          export WRFKIT_NIX_SHELL=1
+          export WRFKIT_WRF_VERSION=4.8.0
+          export WRFKIT_WPS_VERSION=4.7.0
+          export WRFKIT_STATE_DIR=/tmp/wrfkit-geog-state
+          export WRFKIT_DATA_DIR=/tmp/wrfkit-geog-data
+
+          fixture=/tmp/wrfkit-geog-fixture/WPS_GEOG_HIGH_RES
+          archive=/tmp/geog_high_res_mandatory.tar.gz
+          rm -rf /tmp/wrfkit-geog-fixture "$WRFKIT_STATE_DIR" "$WRFKIT_DATA_DIR" "$archive"
+          mkdir -p "$fixture"
+
+          for d in \
+            albedo_modis greenfrac_fpar_modis lai_modis_10m lai_modis_30s \
+            maxsnowalb_modis modis_landuse_20class_30s_with_lakes \
+            orogwd_2deg orogwd_1deg orogwd_30m orogwd_20m orogwd_10m \
+            soiltemp_1deg soiltype_bot_30s soiltype_top_30s \
+            topo_gmted2010_30s varsso varsso_10m varsso_5m varsso_2m
+          do
+            mkdir -p "$fixture/$d"
+            printf 'fixture\n' > "$fixture/$d/index"
+          done
+
+          tar -czf "$archive" -C /tmp/wrfkit-geog-fixture WPS_GEOG_HIGH_RES
+
+          WRFKIT_GEOG_URL="file://$archive" ./scripts/fetch-geog.sh --case athens-highres
+
+          target="$WRFKIT_DATA_DIR/geog/high-res-mandatory"
+          test -d "$target/topo_gmted2010_30s"
+          test -d "$target/modis_landuse_20class_30s_with_lakes"
+          grep -qx 'dataset=wps-highres-mandatory' "$target/.wrfkit-geog-source"
+          test -s "$WRFKIT_DATA_DIR/geog/.archives/geog_high_res_mandatory.tar.gz"
+
+          # A second fetch must reuse the complete installation.
+          WRFKIT_GEOG_URL="file://$archive" ./scripts/fetch-geog.sh --case athens-highres
 
       - name: Check WRF decomposition planner
         run: |

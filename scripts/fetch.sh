@@ -20,7 +20,7 @@ shift
 case "$target" in
   wrf) [[ $# -eq 0 ]] || { printf 'fetch wrf: unexpected argument: %s\n' "$1" >&2; exit 2; }; exec "$SCRIPT_DIR/fetch-wrf.sh" ;;
   wps) [[ $# -eq 0 ]] || { printf 'fetch wps: unexpected argument: %s\n' "$1" >&2; exit 2; }; exec "$SCRIPT_DIR/fetch-wps.sh" ;;
-  geog) [[ $# -eq 0 ]] || { printf 'fetch geog: unexpected argument: %s\n' "$1" >&2; exit 2; }; exec "$SCRIPT_DIR/fetch-geog.sh" ;;
+  geog) exec "$SCRIPT_DIR/fetch-geog.sh" "$@" ;;
   gfs) exec "$SCRIPT_DIR/fetch-gfs.sh" "$@" ;;
   all)
     [[ $# -eq 0 ]] || { printf 'fetch all: unexpected argument: %s\n' "$1" >&2; exit 2; }

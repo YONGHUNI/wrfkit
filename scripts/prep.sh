@@ -160,7 +160,7 @@ case "$GEOG_MANAGEMENT" in
     ;;
   managed)
     if [[ "${GEOG_AUTO_ACQUIRE:-0}" == "1" ]]; then
-      WRFKIT_GEOG_DIR="$WRFKIT_GEOG_DIR" "$WRFKIT_ROOT/wrfctl" fetch geog
+      "$WRFKIT_ROOT/wrfctl" fetch geog --case "$case_name"
     else
       ui_error "Automatic geography acquisition is not implemented for $GEOG_DATASET."
       printf 'Resolved target: %s\n' "$WRFKIT_GEOG_DIR" >&2

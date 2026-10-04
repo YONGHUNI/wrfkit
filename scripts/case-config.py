@@ -26,7 +26,7 @@ GEOGRAPHY_PROFILES = {
         "management": "managed",
         "storage_dir": "high-res-mandatory",
         "required_resolution": None,
-        "auto_acquire": False,
+        "auto_acquire": True,
     },
     "external": {
         "management": "external",
