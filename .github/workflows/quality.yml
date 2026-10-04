@@ -37,6 +37,33 @@ jobs:
           python3 scripts/case-config.py summary --case athens-smoke
           python3 scripts/case-config.py fingerprint --case athens-smoke
 
+      - name: Check geography profile resolver
+        run: |
+          export WRFKIT_NIX_SHELL=1
+
+          ./scripts/case-config.py env --case athens-smoke > /tmp/geog-smoke.env
+          grep -qx 'GEOG_DATASET=wps-lowres-mandatory' /tmp/geog-smoke.env
+          grep -qx 'GEOG_RESOLUTION=lowres' /tmp/geog-smoke.env
+          grep -qx 'GEOG_AUTO_ACQUIRE=1' /tmp/geog-smoke.env
+
+          cp -a cases/athens-smoke cases/geog-profile-test
+          trap 'rm -rf cases/geog-profile-test /tmp/geog-profile.env /tmp/geog-invalid.out /tmp/geog-invalid.err /tmp/geog-smoke.env' EXIT
+          sed -i 's/dataset = "wps-lowres-mandatory"/dataset = "wps-highres-mandatory"/' cases/geog-profile-test/case.toml
+          sed -i 's/resolution = "lowres"/resolution = "default"/' cases/geog-profile-test/case.toml
+
+          ./scripts/case-config.py config --case geog-profile-test --check
+          ./scripts/case-config.py env --case geog-profile-test > /tmp/geog-profile.env
+          grep -qx 'GEOG_DATASET=wps-highres-mandatory' /tmp/geog-profile.env
+          grep -qx 'GEOG_RESOLUTION=default' /tmp/geog-profile.env
+          grep -qx 'GEOG_AUTO_ACQUIRE=0' /tmp/geog-profile.env
+
+          sed -i 's/resolution = "default"/resolution = "lowres"/' cases/geog-profile-test/case.toml
+          if ./scripts/case-config.py config --case geog-profile-test --check > /tmp/geog-invalid.out 2> /tmp/geog-invalid.err; then
+            echo "Invalid geography profile unexpectedly passed validation" >&2
+            exit 1
+          fi
+          grep -q "requires geography.resolution='default'" /tmp/geog-invalid.err
+
       - name: Check WRF decomposition planner
         run: |
           python3 scripts/case-config.py mpi-plan --case athens-smoke --requested 32 --shell > /tmp/mpi-plan
