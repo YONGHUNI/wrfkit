@@ -12,6 +12,11 @@ from cases/NAME/case.toml.
 USAGE
 }
 
+total_start=$SECONDS
+download_seconds=0
+hash_seconds=0
+extract_seconds=0
+
 case_name=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -153,15 +158,6 @@ if [[ ! -s "$archive" && "$GEOG_DATASET" == "wps-lowres-mandatory" && -s "$legac
   archive="$legacy_archive"
 fi
 
-archive_valid() {
-  [[ -s "$archive" ]] && tar -tzf "$archive" >/dev/null 2>&1
-}
-
-if [[ -s "$archive" ]] && ! archive_valid; then
-  ui_warn "Cached geography archive is invalid; it will be downloaded again."
-  rm -f "$archive"
-fi
-
 cleanup() {
   [[ -z "$partial" ]] || rm -f "$partial"
   [[ -z ${tmp:-} ]] || rm -rf "$tmp"
@@ -180,14 +176,12 @@ if [[ ! -s "$archive" ]]; then
     ui_info "The official package is large; keep data_root on persistent storage."
   fi
 
+  phase_start=$SECONDS
   curl --fail --location --retry 3 --retry-delay 2 --output "$partial" "$GEOG_URL"
+  download_seconds=$((SECONDS - phase_start))
 
-  ui_info "Checking downloaded tar.gz archive."
-  tar -tzf "$partial" >/dev/null
-
-  # The partial file is unique to this process. --no-clobber means two jobs may
-  # download concurrently, but neither can overwrite a complete archive created
-  # by the other.
+  # Avoid a separate tar -tzf pass. The real extraction below reads the
+  # gzip/tar stream once and serves as the integrity check.
   mv --no-clobber "$partial" "$archive" 2>/dev/null || true
   rm -f "$partial"
   partial=""
@@ -195,12 +189,14 @@ else
   ui_info "Using cached geography archive: $archive"
 fi
 
-archive_valid || {
-  ui_error "Geography archive failed tar/gzip validation: $archive"
+[[ -s "$archive" ]] || {
+  ui_error "Geography archive is missing or empty: $archive"
   exit 1
 }
 
+phase_start=$SECONDS
 archive_sha256=$(sha256sum "$archive" | awk '{print $1}')
+hash_seconds=$((SECONDS - phase_start))
 
 parent=$(dirname "$WRFKIT_GEOG_DIR")
 tmp=$(mktemp -d "$parent/.geog-extract.XXXXXX")
@@ -208,7 +204,14 @@ payload="$tmp/payload"
 mkdir -p "$payload"
 
 ui_info "Extracting $GEOG_DATASET."
-tar -xzf "$archive" -C "$payload"
+phase_start=$SECONDS
+if ! tar -xzf "$archive" -C "$payload"; then
+  extract_seconds=$((SECONDS - phase_start))
+  ui_error "Geography extraction failed after ${extract_seconds}s."
+  ui_warn "The cached archive was kept for diagnosis or retry."
+  exit 1
+fi
+extract_seconds=$((SECONDS - phase_start))
 
 source_dir=""
 if [[ -d "$payload/${required_dirs[0]}" ]]; then
@@ -279,6 +282,11 @@ ui_ok "$package_label ready."
 ui_kv "dataset" "$GEOG_DATASET"
 ui_kv "path" "$WRFKIT_GEOG_DIR"
 ui_kv "archive sha256" "$archive_sha256"
+ui_heading "Acquisition timing"
+(( download_seconds > 0 )) && ui_kv "download" "${download_seconds}s"
+ui_kv "sha256" "${hash_seconds}s"
+ui_kv "extract" "${extract_seconds}s"
+ui_kv "total" "$((SECONDS - total_start))s"
 if [[ "$GEOG_DATASET" == "wps-lowres-mandatory" ]]; then
   ui_info "This package is intended for workflow validation/education."
 fi
