@@ -2,16 +2,16 @@
 
 A **case** is the tracked scientific configuration for one WRF experiment.
 
-The bundled `athens-smoke` case is useful as a file-layout example, but it is
-not a research recommendation.
+The included `athens-smoke` case is useful for learning the file layout and
+testing the workflow. It is **not** a scientific recommendation.
 
-## 1. Copy the smoke case as a starting point
+## 1. Copy the example
 
 ```bash
 cp -a cases/athens-smoke cases/my-case
 ```
 
-Now you have:
+You now have:
 
 ```text
 cases/my-case/
@@ -21,128 +21,143 @@ cases/my-case/
 └── namelist.wps
 ```
 
-These tracked files are the part you intentionally edit and commit.
+These are the files you intentionally edit and commit.
 
-## 2. Decide the science before the compute settings
-
-At minimum, review:
-
-- study area and map projection;
-- horizontal grid spacing and domain size;
-- vertical levels;
-- simulation start/end time;
-- forcing dataset and boundary interval;
-- physics parameterizations;
-- time step;
-- spin-up period;
-- output interval;
-- static geography resolution.
-
-!!! danger "Changing only the date is not enough"
-    A WRF run can finish successfully and still be a poor scientific
-    experiment. `SUCCESS COMPLETE WRF` means the program completed; it does
-    not validate your research design.
-
-## 3. Keep configuration separate from generated files
-
-```mermaid
-flowchart LR
-    A["Tracked configuration<br/>cases/my-case/"]
-    B["wrfkit stages the case"]
-    C["Generated workspace<br/>.wrfkit/work/my-case/"]
-    D["Model products<br/>wrfout · logs · intermediates"]
-
-    A --> B --> C --> D
-```
-
-Edit:
-
-```text
-cases/my-case/
-```
-
-Expect generated products under:
+Generated WRF/WPS products live elsewhere, under:
 
 ```text
 .wrfkit/work/my-case/
 ```
 
-Do not copy generated `wrfout`, `met_em`, or RSL files back into the tracked
-case directory.
+## 2. Change the scientific design, not just the date
 
-## 4. Run the workflow for the new case
+At minimum, review these choices:
 
-For the currently supported low-resolution geography + GFS path, use the
-high-level preparation command:
+| Question | Examples of relevant settings |
+| --- | --- |
+| Where and how large is the model domain? | projection, center, `e_we`, `e_sn`, `dx`, `dy` |
+| How long does the simulation run? | start, end, spin-up |
+| What drives the model at its boundaries? | forcing dataset, cycle, interval |
+| How is the atmosphere represented? | vertical levels, physics, time step |
+| What output do you need? | history interval, variables, file frequency |
+| Is the static geography suitable? | WPS geography data and resolution |
 
-```bash
-./wrfctl plan --case my-case   # optional, read-only
-./wrfctl prep --case my-case
-./wrfctl run  --case my-case
+!!! danger "Changing only the date is not enough"
+    `SUCCESS COMPLETE WRF` means the program finished. It does not mean the
+    experiment is scientifically appropriate.
+
+## 3. Use `case.toml` for common controls
+
+Most common wrfkit-facing settings are in:
+
+```text
+cases/my-case/case.toml
 ```
 
-`prep` includes `real.exe`; its success condition is a current set of
-`wrfinput_d0*` and `wrfbdy_d01`. Before launching `wrf.exe`, `run`
-compares the current case with the last preparation record. If a TOML or native
-namelist file changed, wrfkit warns you and continues with the existing
-`wrfinput`/`wrfbdy`; rerun `prep` when your change requires new prepared
-inputs.
+For example:
 
-`case.toml` contains wrfkit-owned data/workflow settings and optional
-namelist overlays. The native `namelist.wps` and `namelist.input` remain
-visible and must remain scientifically consistent.
+```toml
+[time]
+start = 2026-10-01T00:00:00Z
+end   = 2026-10-02T00:00:00Z
 
-Inspect the TOML/native relationship without writing files:
+[domain]
+e_we = [151]
+e_sn = [151]
+dx = 9000
+dy = 9000
+
+[model]
+time_step = 45
+
+[output]
+history_interval_minutes = 60
+```
+
+The [case.toml guide](../reference/case-toml.md) explains each section and the
+current convenience fields.
+
+## 4. Use advanced TOML when you need lower-level control
+
+You do not have to wait for wrfkit to add a convenience field for every WRF
+option.
+
+For example:
+
+```toml
+[advanced.wrf.physics]
+mp_physics = [8]
+cu_physics = [1]
+ra_lw_physics = [4]
+ra_sw_physics = [4]
+
+[advanced.wrf.dynamics]
+hybrid_opt = 2
+diff_opt = [2]
+km_opt = [4]
+```
+
+These tables map directly to the corresponding native WRF namelist groups.
+
+The native `namelist.wps` and `namelist.input` remain visible so you can
+always inspect exactly what WPS and WRF receive.
+
+## 5. Check before preparing data
+
+Validate the TOML/native mapping without writing files:
 
 ```bash
 ./wrfctl config --case my-case --check
 ```
 
-If `namelist.managed=true`, `prep` runs `wrfctl config` automatically
-before WPS. Set `managed=false` when you want wrfkit to leave both native
-namelists completely untouched.
-
-### When you need one stage at a time
-
-The lower-level primitives remain supported for debugging, teaching, or
-rerunning only one stage:
+Then inspect the resolved experiment:
 
 ```bash
-./wrfctl fetch geog
-./wrfctl exec geogrid --case my-case
-
-./wrfctl fetch gfs --case my-case
-./wrfctl prepare gfs --case my-case
-./wrfctl exec ungrib --case my-case
-./wrfctl exec metgrid --case my-case
-
-./wrfctl prepare wrf --case my-case
-./wrfctl exec real --case my-case
-./wrfctl exec wrf --case my-case
+./wrfctl plan --case my-case
 ```
 
-Automatic `prep` currently accepts the bundled `lowres` geography path and
-GFS forcing only. Use the lower-level path for custom/high-resolution WPS static
-data until that selector is implemented.
+Read the output carefully. Check the simulation period, forcing, domain,
+timestep, physics suite, and planned stages.
 
-## 5. Do a short representative test first
+## 6. Prepare and run
 
-Before requesting a long production run, measure:
+For the currently supported automatic low-resolution geography + GFS path:
 
-- whether `real` and `wrf` complete;
+```bash
+./wrfctl prep --case my-case
+./wrfctl run  --case my-case
+```
+
+`prep` includes `real.exe` and should create:
+
+```text
+wrfinput_d0*
+wrfbdy_d01
+```
+
+`run` then executes `wrf.exe` and checks for current successful output.
+
+When you need to inspect or rerun one native stage, the lower-level
+`fetch`, `prepare`, and `exec` commands remain available.
+
+## 7. Run a short test before a long experiment
+
+Before committing many hours of compute time, use a representative short run
+and record:
+
+- whether `real` and WRF complete;
 - wall time;
 - memory use;
-- output size;
+- output volume;
 - expected variables and timestamps;
 - whether fields look physically reasonable.
 
-Then scale the simulation length or domain.
+Only then scale the experiment.
 
 ## What wrfkit does not choose for you
 
-wrfkit deliberately does **not** decide what resolution, microphysics, PBL
-scheme, cumulus treatment, radiation scheme, spin-up, or validation method is
+wrfkit does not decide which resolution, microphysics scheme, PBL scheme,
+cumulus treatment, radiation scheme, spin-up period, or validation method is
 best for your research question.
 
-That scientific configuration should remain visible and reviewable in the
-native WRF/WPS files.
+Those are scientific decisions and should remain visible and reviewable.

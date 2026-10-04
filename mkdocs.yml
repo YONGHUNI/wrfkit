@@ -9,10 +9,7 @@ theme:
   name: material
   language: en
   features:
-    - navigation.instant
     - navigation.tracking
-    - navigation.tabs
-    - navigation.tabs.sticky
     - navigation.sections
     - navigation.top
     - navigation.footer
@@ -63,26 +60,31 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Features: features.md
-  - Start here:
+
+  - Get started:
       - Your first WRF run: tutorials/first-run.md
-      - What do these words mean?: reference/glossary.md
-  - Guides:
-      - Single-node research guide: single-node-guide.md
-      - Run WRF with sbatch: how-to/sapelo2-batch.md
+      - UGA Sapelo2: single-node-guide.md
+
+  - User guide:
       - Make a research case: how-to/research-case.md
+      - Understand case.toml: reference/case-toml.md
+      - Run WRF with sbatch: how-to/sapelo2-batch.md
       - Check whether a run succeeded: how-to/check-run.md
       - Troubleshooting: troubleshooting.md
+
   - Reference:
       - wrfctl commands: reference/commands.md
-      - case.toml configuration: reference/case-toml.md
       - Files and folders: reference/files-and-folders.md
-      - Validation matrix: validation.md
-      - Caveats: caveats.md
-  - Learn:
+      - Glossary: reference/glossary.md
+      - Supported and validated: validation.md
+
+  - About:
       - How wrfkit works: explanation/how-it-works.md
-      - Design notes: design.md
-  - Project:
-      - Documentation site: development/docs-site.md
+      - Detailed notes:
+          - Feature details: features.md
+          - Caveats and safe patterns: caveats.md
+          - Design notes: design.md
+          - Validation notes: development/validation-notes.md
+          - Documentation site: development/docs-site.md
 
 copyright: "wrfkit documentation"

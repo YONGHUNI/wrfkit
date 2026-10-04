@@ -57,15 +57,16 @@ UGA Sapelo2.
 
 | If you want to... | Start here |
 | --- | --- |
-| Run wrfkit on one node | [Single-node research guide](docs/single-node-guide.md) |
-| See what is and is not validated | [Validation matrix](docs/validation.md) |
-| Avoid common HPC/WRF mistakes | [Caveats and safe patterns](docs/caveats.md) |
-| Understand the architecture | [Design notes](docs/design.md) |
-| Reproduce the included smoke case | [Athens smoke case](cases/athens-smoke/README.md) |
+| Run WRF for the first time | [First-run tutorial](docs/tutorials/first-run.md) |
+| Use UGA Sapelo2 | [Sapelo2 guide](docs/single-node-guide.md) |
+| Make your own experiment | [Research-case guide](docs/how-to/research-case.md) |
+| Understand or edit `case.toml` | [case.toml guide](docs/reference/case-toml.md) |
+| See what is actually supported | [Validation matrix](docs/validation.md) |
+| Fix an error | [Troubleshooting](docs/troubleshooting.md) |
 
-The documentation is intentionally task-first: the README stays short enough to
-scan, while detailed procedures, caveats, and implementation notes live in
-separate pages.
+The public documentation starts with the shortest beginner path. Detailed
+architecture, caveats, and development records remain available without being
+part of the main learning sequence.
 
 ## Quick start
 
