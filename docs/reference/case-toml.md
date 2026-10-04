@@ -242,13 +242,42 @@ resolution = "lowres"
 
 | Field | Meaning |
 | --- | --- |
-| `dataset` | static WPS geography package used by the automatic workflow |
-| `resolution` | value mapped to WPS `geog_data_res` |
+| `dataset` | wrfkit geography profile: which WPS static-data package the case expects |
+| `resolution` | value mapped to native WPS `geog_data_res` |
+
+wrfkit currently recognizes these profile pairs:
+
+| `dataset` | `resolution` | Meaning | Automatic acquisition |
+| --- | --- | --- | --- |
+| `"wps-lowres-mandatory"` | `"lowres"` | small smoke-test / teaching package | **Yes** |
+| `"wps-highres-mandatory"` | `"default"` | research-grade mandatory-data baseline | **Not yet** |
+
+The two fields are intentionally separate. `dataset` tells wrfkit which
+static-data package must exist; `resolution` tells WPS which
+`geog_data_res` selector to use. A mismatched known pair is rejected during
+configuration validation instead of being silently substituted.
+
+For example, the research profile can already be described and validated:
+
+```toml
+[geography]
+dataset = "wps-highres-mandatory"
+resolution = "default"
+```
+
+```bash
+./wrfctl config --case my-case --check
+```
+
+At this stage, that does **not** mean `prep` can download the high-resolution
+package. The resolver/validation contract is implemented first; automatic
+download, storage-path selection, and staging are separate follow-up steps.
 
 !!! warning
-    The current automatic downloader supports the small low-resolution
-    smoke-test geography package. Treat it as a workflow/education dataset,
-    not a general research-grade geography recommendation.
+    The low-resolution package remains a workflow/education dataset, not a
+    general research-grade geography recommendation. Until high-resolution
+    acquisition is implemented and validated, research cases must still provide
+    suitable WPS static geography through the lower-level workflow.
 
 ### Domain
 
