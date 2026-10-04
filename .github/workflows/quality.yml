@@ -21,19 +21,15 @@ jobs:
       - name: Check terminal color policy
         run: |
           bash -c 'source scripts/ui.sh; ui_ok "plain"' > /tmp/plain
-          if grep -q "$(printf '\\033')" /tmp/plain; then
-            echo "non-interactive output unexpectedly contains ANSI color" >&2
-            exit 1
-          fi
-
           WRFKIT_COLOR=always bash -c 'source scripts/ui.sh; ui_ok "colored"' > /tmp/color
-          grep -q "$(printf '\\033')" /tmp/color
-
           NO_COLOR=1 WRFKIT_COLOR=always bash -c 'source scripts/ui.sh; ui_ok "plain"' > /tmp/no-color
-          if grep -q "$(printf '\\033')" /tmp/no-color; then
-            echo "NO_COLOR did not disable ANSI color" >&2
-            exit 1
-          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          assert 27 not in Path("/tmp/plain").read_bytes()
+          assert 27 in Path("/tmp/color").read_bytes()
+          assert 27 not in Path("/tmp/no-color").read_bytes()
+          PY
 
       - name: Validate tracked TOML smoke case
         run: |
