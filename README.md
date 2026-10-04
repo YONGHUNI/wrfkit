@@ -427,7 +427,7 @@ source reset is needed.
 
 ### First real-data validation case
 
-The repository includes `cases/athens-minimal`, a one-domain 12 km geogrid smoke
+The repository includes `cases/athens-minimal`, a one-domain 12 km geogrid validation
 case centered near Athens, Georgia. Fetch the official NCAR low-resolution
 mandatory geography package and run geogrid with:
 

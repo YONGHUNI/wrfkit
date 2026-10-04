@@ -1,7 +1,7 @@
 # Caveats and safe patterns
 
-This page collects the limitations that matter most when moving from a smoke
-test to research use.
+This page collects the limitations that matter most when moving from a minimal validation
+case to research use.
 
 ## Quick reference
 
