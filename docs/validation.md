@@ -16,7 +16,7 @@ tested end to end.
 | Rootless Nix on Sapelo2 | **Validated** | Tested with the current single-node Sapelo2 profile |
 | GFS acquisition and staging | **Validated** | Tested with the bundled smoke-test GFS window |
 | Low-resolution smoke geography | **Validated** | Intended for testing and education |
-| WPS → `real` → WRF | **Validated** | Bundled `athens-smoke` workflow completed |
+| WPS → `real` → WRF | **Validated** | Bundled `athens-minimal` workflow completed |
 | Single-node interactive MPI | **Validated** | Tested during development |
 | Single-node `sbatch` MPI | **Validated** | Sapelo2 batch run completed successfully |
 | `wrfctl plan` | **Validated** | Tested on Lambda Vector and Sapelo2 |
@@ -55,7 +55,7 @@ one compute node
 local MPI or single-node Sapelo2 Slurm
 ```
 
-The bundled `athens-smoke` case is a workflow test. For research, create a
+The bundled `athens-minimal` case is a workflow test. For research, create a
 new case and redesign its scientific settings.
 
 ## How to validate your own case

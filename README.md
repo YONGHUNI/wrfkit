@@ -248,9 +248,9 @@ arguments if they contain wrfctl option names.
 Normal use is intentionally short:
 
 ```bash
-./wrfctl plan --case athens-smoke   # optional, read-only
-./wrfctl prep --case athens-smoke
-./wrfctl run  --case athens-smoke
+./wrfctl plan --case athens-minimal   # optional, read-only
+./wrfctl prep --case athens-minimal
+./wrfctl run  --case athens-minimal
 ```
 
 `plan` shows the resolved scientific configuration and the stages that will
@@ -407,7 +407,7 @@ the same bridge with `--overlap`. The WPS build enables
 MPI for geogrid/metgrid and GRIB2 support. WPS itself is compiled serially:
 the pinned WPS 4.7.0 CMake build can race when parallel targets write shared
 Fortran module files such as `filelist.mod` and `gridinfo.mod`.
-The included `athens-smoke` case
+The included `athens-minimal` case
 now validates the real-data path through geography, GFS forcing, Vtable
 selection, WPS staging, `real`, and `wrf`. This smoke case validates the
 workflow, not the scientific suitability of its configuration for research.
@@ -417,13 +417,13 @@ source reset is needed.
 
 ### First real-data smoke case
 
-The repository includes `cases/athens-smoke`, a one-domain 12 km geogrid smoke
+The repository includes `cases/athens-minimal`, a one-domain 12 km geogrid smoke
 case centered near Athens, Georgia. Fetch the official NCAR low-resolution
 mandatory geography package and run geogrid with:
 
 ```bash
 ./wrfctl fetch geog
-./wrfctl exec geogrid --case athens-smoke
+./wrfctl exec geogrid --case athens-minimal
 ```
 
 The geography is stored persistently at
@@ -433,9 +433,9 @@ only; production or research simulations should use the appropriate
 higher-resolution static datasets.
 
 A successful geogrid run creates
-`.wrfkit/work/athens-smoke/geo_em.d01.nc`. Native `geogrid.log` is collected
-under `.wrfkit/logs/athens-smoke/<run-id>/`. The tracked
-`cases/athens-smoke` directory remains configuration-only; wrfkit changes only
+`.wrfkit/work/athens-minimal/geo_em.d01.nc`. Native `geogrid.log` is collected
+under `.wrfkit/logs/athens-minimal/<run-id>/`. The tracked
+`cases/athens-minimal` directory remains configuration-only; wrfkit changes only
 its own child-process working directory, not the user's shell directory.
 
 The next smoke stage uses a fixed 2026-09-30 00Z GFS cycle and f000/f003/f006
@@ -443,9 +443,9 @@ files, regionally subset through the NOAA/NCEP NOMADS GFS 0.25-degree GRIB
 filter:
 
 ```bash
-./wrfctl fetch gfs --case athens-smoke
-./wrfctl prepare gfs --case athens-smoke
-./wrfctl exec ungrib --case athens-smoke
+./wrfctl fetch gfs --case athens-minimal
+./wrfctl prepare gfs --case athens-minimal
+./wrfctl exec ungrib --case athens-minimal
 ```
 
 Downloaded forcing is cached under `.wrfkit/data/gfs/<date>/<cycle>/<request-key>/atmos`.
@@ -534,9 +534,9 @@ It therefore includes the native `real.exe` stage and verifies that
 The native stages remain directly callable:
 
 ```bash
-./wrfctl prepare wrf --case athens-smoke
-./wrfctl exec real --case athens-smoke
-./wrfctl exec wrf --case athens-smoke
+./wrfctl prepare wrf --case athens-minimal
+./wrfctl exec real --case athens-minimal
+./wrfctl exec wrf --case athens-minimal
 ```
 
 Using the high-level pair adds a preparation manifest. `run` reports when the
@@ -544,6 +544,6 @@ TOML or native namelists changed after prep, while leaving the decision to reuse
 the existing prepared inputs visible to the researcher:
 
 ```bash
-./wrfctl prep --case athens-smoke
-./wrfctl run  --case athens-smoke
+./wrfctl prep --case athens-minimal
+./wrfctl run  --case athens-minimal
 ```

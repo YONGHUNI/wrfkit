@@ -4,7 +4,7 @@ This tutorial takes you from a fresh copy of wrfkit to one completed WRF
 simulation.
 
 You do **not** need to understand WRF, MPI, Slurm, or Nix before starting.
-The included `athens-smoke` case is deliberately small and exists to test the
+The included `athens-minimal` case is deliberately small and exists to test the
 workflow.
 
 **Goal:** finish with this message:
@@ -165,7 +165,7 @@ WPS build completed.
 The example configuration is here:
 
 ```text
-cases/athens-smoke/
+cases/athens-minimal/
 ├── case.toml
 ├── namelist.wps
 └── namelist.input
@@ -174,7 +174,7 @@ cases/athens-smoke/
 Ask wrfkit to show the resolved plan:
 
 ```bash
-./wrfctl plan --case athens-smoke
+./wrfctl plan --case athens-minimal
 ```
 
 `plan` is read-only. It shows the simulation period, forcing, domain, MPI
@@ -188,7 +188,7 @@ If the TOML file is unfamiliar, see
 Run:
 
 ```bash
-./wrfctl prep --case athens-smoke
+./wrfctl prep --case athens-minimal
 ```
 
 This high-level command performs the preparation chain for the currently
@@ -211,8 +211,8 @@ wrfinput + wrfbdy
 **Checkpoint:**
 
 ```bash
-ls .wrfkit/work/athens-smoke/wrfinput_d01
-ls .wrfkit/work/athens-smoke/wrfbdy_d01
+ls .wrfkit/work/athens-minimal/wrfinput_d01
+ls .wrfkit/work/athens-minimal/wrfbdy_d01
 ```
 
 Both files should exist.
@@ -222,7 +222,7 @@ Both files should exist.
 Run:
 
 ```bash
-./wrfctl run --case athens-smoke
+./wrfctl run --case athens-minimal
 ```
 
 On supported single-node Slurm systems, wrfkit manages the MPI launch. Do not
@@ -233,13 +233,13 @@ wrap this command in another multi-rank `srun`.
 First look for WRF output:
 
 ```bash
-ls .wrfkit/work/athens-smoke/wrfout_d01_*
+ls .wrfkit/work/athens-minimal/wrfout_d01_*
 ```
 
 Then inspect the newest archived rank-0 log:
 
 ```bash
-LOG=$(find .wrfkit/logs/athens-smoke   -maxdepth 1 -type d -name '*_wrf' | sort | tail -1)
+LOG=$(find .wrfkit/logs/athens-minimal   -maxdepth 1 -type d -name '*_wrf' | sort | tail -1)
 
 tar -xOf "$LOG/native-logs.tar" rsl.out.0000 |
   grep "SUCCESS COMPLETE WRF"
@@ -283,16 +283,16 @@ For learning or debugging, you can run the lower-level steps individually:
 
 ```bash
 ./wrfctl fetch geog
-./wrfctl exec geogrid --case athens-smoke
+./wrfctl exec geogrid --case athens-minimal
 
-./wrfctl fetch gfs --case athens-smoke
-./wrfctl prepare gfs --case athens-smoke
-./wrfctl exec ungrib --case athens-smoke
-./wrfctl exec metgrid --case athens-smoke
+./wrfctl fetch gfs --case athens-minimal
+./wrfctl prepare gfs --case athens-minimal
+./wrfctl exec ungrib --case athens-minimal
+./wrfctl exec metgrid --case athens-minimal
 
-./wrfctl prepare wrf --case athens-smoke
-./wrfctl exec real --case athens-smoke
-./wrfctl exec wrf --case athens-smoke
+./wrfctl prepare wrf --case athens-minimal
+./wrfctl exec real --case athens-minimal
+./wrfctl exec wrf --case athens-minimal
 ```
 
 For normal use, prefer the shorter `prep` + `run` path.

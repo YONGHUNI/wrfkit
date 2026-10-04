@@ -2,13 +2,13 @@
 
 A **case** is the tracked scientific configuration for one WRF experiment.
 
-The included `athens-smoke` case is useful for learning the file layout and
+The included `athens-minimal` case is useful for learning the file layout and
 testing the workflow. It is **not** a scientific recommendation.
 
 ## 1. Copy the example
 
 ```bash
-cp -a cases/athens-smoke cases/my-case
+cp -a cases/athens-minimal cases/my-case
 ```
 
 You now have:

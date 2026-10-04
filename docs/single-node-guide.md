@@ -53,9 +53,9 @@ node.
 Inside an appropriate compute allocation:
 
 ```bash
-./wrfctl plan --case athens-smoke
-./wrfctl prep --case athens-smoke
-./wrfctl run  --case athens-smoke
+./wrfctl plan --case athens-minimal
+./wrfctl prep --case athens-minimal
+./wrfctl run  --case athens-minimal
 ```
 
 For a first run, follow the full

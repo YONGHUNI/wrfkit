@@ -18,9 +18,9 @@ to learn or use WRF while keeping the real scientific settings visible.
 For a prepared example case, the main workflow is only three commands:
 
 ```bash
-./wrfctl plan --case athens-smoke
-./wrfctl prep --case athens-smoke
-./wrfctl run  --case athens-smoke
+./wrfctl plan --case athens-minimal
+./wrfctl prep --case athens-minimal
+./wrfctl run  --case athens-minimal
 ```
 
 - **plan** shows what wrfkit intends to do. It does not change files.

@@ -9,7 +9,7 @@ test to research use.
 | --- | --- |
 | Sapelo2 login nodes are not compute nodes | Build/run inside an allocation; submit `sbatch` from the login node |
 | wrfkit owns the single-node MPI launch | Call `./wrfctl exec wrf` directly inside the job |
-| `athens-smoke` is not a scientific template | Revisit all scientific configuration for each study |
+| `athens-minimal` is not a scientific template | Revisit all scientific configuration for each study |
 | `scratch_root` is not yet the execution workspace | Expect current work products under `.wrfkit/work/<case>` |
 | Default Sapelo2 Nix storage is node-local | Bootstrap per allocated node when needed |
 | Multi-node MPI is not validated | Stay on one node for supported research runs |
@@ -69,7 +69,7 @@ single-node bridge was introduced specifically to avoid that topology.
 
 ## 3. The smoke case is a workflow fixture
 
-`athens-smoke` currently uses a small 12 km, 61 x 61, 45-level,
+`athens-minimal` currently uses a small 12 km, 61 x 61, 45-level,
 single-domain configuration with low-resolution WPS geography and the WRF
 `CONUS` physics suite.
 
@@ -80,7 +80,7 @@ are appropriate for another location, process, season, or research question.
 
 ```mermaid
 flowchart LR
-    A["Copy athens-smoke"] --> B["Change dates only"] --> C["Call it a research experiment"]
+    A["Copy athens-minimal"] --> B["Change dates only"] --> C["Call it a research experiment"]
 ```
 
 **Use instead**
