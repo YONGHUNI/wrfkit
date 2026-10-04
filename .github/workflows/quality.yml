@@ -31,28 +31,37 @@ jobs:
           assert 27 not in Path("/tmp/no-color").read_bytes()
           PY
 
-      - name: Validate tracked TOML smoke case
+      - name: Validate tracked TOML cases
         run: |
           python3 scripts/case-config.py config --case athens-minimal --check
           python3 scripts/case-config.py summary --case athens-minimal
           python3 scripts/case-config.py fingerprint --case athens-minimal
+          python3 scripts/case-config.py config --case athens-highres --check
+          python3 scripts/case-config.py summary --case athens-highres
+          python3 scripts/case-config.py fingerprint --case athens-highres
 
       - name: Check geography profile resolver
         run: |
           export WRFKIT_NIX_SHELL=1
 
-          ./scripts/case-config.py env --case athens-minimal > /tmp/geog-smoke.env
-          grep -qx 'GEOG_DATASET=wps-lowres-mandatory' /tmp/geog-smoke.env
-          grep -qx 'GEOG_RESOLUTION=lowres' /tmp/geog-smoke.env
-          grep -qx 'GEOG_MANAGEMENT=managed' /tmp/geog-smoke.env
-          grep -qx 'GEOG_AUTO_ACQUIRE=1' /tmp/geog-smoke.env
+          ./scripts/case-config.py env --case athens-minimal > /tmp/geog-minimal.env
+          grep -qx 'GEOG_DATASET=wps-lowres-mandatory' /tmp/geog-minimal.env
+          grep -qx 'GEOG_RESOLUTION=lowres' /tmp/geog-minimal.env
+          grep -qx 'GEOG_MANAGEMENT=managed' /tmp/geog-minimal.env
+          grep -qx 'GEOG_AUTO_ACQUIRE=1' /tmp/geog-minimal.env
           test "$(./scripts/case-config.py geography-path --case athens-minimal --data-root /tmp/wrfkit-data)" = "/tmp/wrfkit-data/geog/low-res-mandatory"
 
-          cp -a cases/athens-minimal cases/geog-profile-test
+          cp -a cases/athens-highres cases/geog-profile-test
           trap 'rm -rf cases/geog-profile-test /tmp/geog-*.env /tmp/geog-invalid.*' EXIT
 
-          sed -i 's/dataset = "wps-lowres-mandatory"/dataset = "wps-highres-mandatory"/' cases/geog-profile-test/case.toml
-          sed -i 's/resolution = "lowres"/resolution = "30s+default"/' cases/geog-profile-test/case.toml
+          ./scripts/case-config.py env --case athens-highres > /tmp/geog-highres.env
+          grep -qx 'GEOG_DATASET=wps-highres-mandatory' /tmp/geog-highres.env
+          grep -qx 'GEOG_RESOLUTION=default' /tmp/geog-highres.env
+          grep -qx 'GEOG_MANAGEMENT=managed' /tmp/geog-highres.env
+          grep -qx 'GEOG_AUTO_ACQUIRE=0' /tmp/geog-highres.env
+          test "$(./scripts/case-config.py geography-path --case athens-highres --data-root /tmp/wrfkit-data)" = "/tmp/wrfkit-data/geog/high-res-mandatory"
+
+          sed -i 's/resolution = "default"/resolution = "30s+default"/' cases/geog-profile-test/case.toml
           ./scripts/case-config.py config --case geog-profile-test --check
           ./scripts/case-config.py env --case geog-profile-test > /tmp/geog-highres.env
           grep -qx 'GEOG_DATASET=wps-highres-mandatory' /tmp/geog-highres.env
@@ -102,9 +111,12 @@ jobs:
       - name: Check TOML renderer idempotence
         run: |
           python3 scripts/case-config.py config --case athens-minimal
+          python3 scripts/case-config.py config --case athens-highres
           git diff --exit-code -- \
             cases/athens-minimal/namelist.wps \
-            cases/athens-minimal/namelist.input
+            cases/athens-minimal/namelist.input \
+            cases/athens-highres/namelist.wps \
+            cases/athens-highres/namelist.input
 
       - name: Check prep-manifest warn-and-continue policy
         run: |

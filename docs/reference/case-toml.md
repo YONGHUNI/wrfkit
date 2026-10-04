@@ -258,6 +258,10 @@ dataset = "wps-highres-mandatory"
 resolution = "default"
 ```
 
+The tracked `athens-highres` case keeps the same Athens domain, time window,
+forcing, and physics as `athens-minimal`, so the geography profile is the
+controlled difference.
+
 The high-resolution downloader is still a follow-up milestone, but
 `resolution` is no longer forced to `"default"`. A researcher may keep WPS's
 native selector freedom, for example:

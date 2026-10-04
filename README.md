@@ -253,6 +253,16 @@ Normal use is intentionally short:
 ./wrfctl run  --case athens-minimal
 ```
 
+The repository now carries two Athens validation fixtures with the same
+domain/time/forcing setup:
+
+- `athens-minimal`: low-resolution mandatory geography; fast end-to-end path.
+- `athens-highres`: high-resolution mandatory geography; configuration/path
+  validation is available now, while automatic high-resolution acquisition is
+  still pending.
+
+Keeping the rest of the case equal makes geography the deliberate difference.
+
 `plan` shows the resolved scientific configuration and the stages that will
 run without changing files. `prep` prepares the case through `real.exe`, so
 its final contract is the existence of `wrfinput_d0*` and `wrfbdy_d01`.
