@@ -82,8 +82,11 @@ high-level preparation command:
 ```
 
 `prep` includes `real.exe`; its success condition is a current set of
-`wrfinput_d0*` and `wrfbdy_d01`. `run` checks that the scientific
-configuration has not changed since prep before launching `wrf.exe`.
+`wrfinput_d0*` and `wrfbdy_d01`. Before launching `wrf.exe`, `run`
+compares the current case with the last preparation record. If a TOML or native
+namelist file changed, wrfkit warns you and continues with the existing
+`wrfinput`/`wrfbdy`; rerun `prep` when your change requires new prepared
+inputs.
 
 `case.toml` contains wrfkit-owned data/workflow settings and optional
 namelist overlays. The native `namelist.wps` and `namelist.input` remain
