@@ -6,8 +6,10 @@ usage() {
   cat <<'USAGE'
 Usage: ./wrfctl run --case NAME [--ntasks N] [--launcher NAME]
 
-Run wrf.exe from a case prepared by wrfctl prep. The command refuses to use
-prepared inputs when case.toml or the native namelists changed after prep.
+Run wrf.exe from a case prepared by wrfctl prep. Managed case.toml values are
+rendered before launch. If case.toml or a native namelist changed after prep,
+wrfkit prints a warning and continues with the existing wrfinput/wrfbdy.
+Missing prep state or WRF/WPS version drift remains a hard error.
 USAGE
 }
 
@@ -49,9 +51,18 @@ work_dir="$WRFKIT_WORK_DIR/$case_name"
   exit 2
 }
 
+# Apply managed case.toml values so changes made after prep are actually what
+# wrf.exe receives. The manifest check below reports that prepared inputs predate
+# those changes but deliberately leaves the reuse decision to the researcher.
+"$WRFKIT_ROOT/wrfctl" config --case "$case_name"
+printf '\n'
 "$WRFKIT_ROOT/scripts/case-config.py" summary --case "$case_name"
 verify_prep_manifest "$case_name"
-ui_ok "Prepared inputs match the current case configuration."
+if ((WRFKIT_PREP_CHANGED)); then
+  ui_warn "Prepared inputs predate the current configuration; proceeding by user policy."
+else
+  ui_ok "Prepared inputs match the current case configuration."
+fi
 load_case_env "$case_name"
 
 for ((domain_id=1; domain_id<=MAX_DOM; domain_id++)); do

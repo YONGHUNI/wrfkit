@@ -203,7 +203,14 @@ prep_manifest_value() {
 verify_prep_manifest() {
   local case_name=$1
   local case_dir="$WRFKIT_ROOT/cases/$case_name"
-  local manifest expected actual
+  local manifest expected actual prepared_at
+  local -a changes=()
+
+  # Exposed to callers so they can distinguish an exact match from a
+  # warn-and-continue launch without parsing human-readable output.
+  WRFKIT_PREP_CHANGED=0
+  WRFKIT_PREP_CHANGE_COUNT=0
+  WRFKIT_PREP_PREPARED_AT=""
 
   manifest=$(prep_manifest_path "$case_name")
   [[ -r "$manifest" ]] || {
@@ -218,30 +225,9 @@ verify_prep_manifest() {
     return 2
   }
 
-  expected=$(prep_manifest_value "$manifest" case_fingerprint)
-  actual=$(case_config_fingerprint "$case_name")
-  [[ -n "$expected" && "$expected" == "$actual" ]] || {
-    ui_error "case.toml scientific configuration changed after prep."
-    printf 'Run ./wrfctl prep --case %s again before ./wrfctl run.\n' "$case_name" >&2
-    return 2
-  }
-
-  expected=$(prep_manifest_value "$manifest" namelist_wps_sha256)
-  actual=$(file_sha256 "$case_dir/namelist.wps" 2>/dev/null || true)
-  [[ -n "$expected" && "$expected" == "$actual" ]] || {
-    ui_error "namelist.wps changed after prep."
-    printf 'Run ./wrfctl prep --case %s again before ./wrfctl run.\n' "$case_name" >&2
-    return 2
-  }
-
-  expected=$(prep_manifest_value "$manifest" namelist_input_sha256)
-  actual=$(file_sha256 "$case_dir/namelist.input" 2>/dev/null || true)
-  [[ -n "$expected" && "$expected" == "$actual" ]] || {
-    ui_error "namelist.input changed after prep."
-    printf 'Run ./wrfctl prep --case %s again before ./wrfctl run.\n' "$case_name" >&2
-    return 2
-  }
-
+  # Binary-version drift remains a hard stop. Reusing prepared artifacts across
+  # a different pinned WRF/WPS toolchain is a different compatibility question
+  # from intentionally editing a case between real.exe and wrf.exe.
   expected=$(prep_manifest_value "$manifest" wrf_version)
   [[ "$expected" == "${WRFKIT_WRF_VERSION:-unknown}" ]] || {
     ui_error "WRF version changed after prep ($expected -> ${WRFKIT_WRF_VERSION:-unknown})."
@@ -255,4 +241,33 @@ verify_prep_manifest() {
     printf 'Run ./wrfctl prep --case %s again.\n' "$case_name" >&2
     return 2
   }
+
+  expected=$(prep_manifest_value "$manifest" case_fingerprint)
+  actual=$(case_config_fingerprint "$case_name")
+  [[ -n "$expected" && "$expected" == "$actual" ]] ||
+    changes+=("case.toml scientific configuration")
+
+  expected=$(prep_manifest_value "$manifest" namelist_wps_sha256)
+  actual=$(file_sha256 "$case_dir/namelist.wps" 2>/dev/null || true)
+  [[ -n "$expected" && "$expected" == "$actual" ]] ||
+    changes+=("namelist.wps")
+
+  expected=$(prep_manifest_value "$manifest" namelist_input_sha256)
+  actual=$(file_sha256 "$case_dir/namelist.input" 2>/dev/null || true)
+  [[ -n "$expected" && "$expected" == "$actual" ]] ||
+    changes+=("namelist.input")
+
+  prepared_at=$(prep_manifest_value "$manifest" prepared_at)
+  WRFKIT_PREP_PREPARED_AT=$prepared_at
+
+  if (("${#changes[@]}" > 0)); then
+    WRFKIT_PREP_CHANGED=1
+    WRFKIT_PREP_CHANGE_COUNT=${#changes[@]}
+    ui_warn "Configuration changed since the last prep${prepared_at:+ ($prepared_at)}."
+    printf '  Changed since prep:\n' >&2
+    printf '    - %s\n' "${changes[@]}" >&2
+    ui_warn "Continuing with the existing wrfinput/wrfbdy. Re-run prep to regenerate them."
+  fi
+
+  return 0
 }

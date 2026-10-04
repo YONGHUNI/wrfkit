@@ -82,9 +82,15 @@ and contained the case fingerprint, hashes of both native namelists, pinned
 WRF/WPS versions, and the preparation timestamp. `wrfctl run` accepted that
 matching manifest, observed `SUCCESS COMPLETE WRF`, and verified a newly
 created `wrfout_d01_*` before reporting success. This validates the positive
-manifest/freshness path; an intentional stale-manifest rejection test remains
-separate. A fresh high-level `wrfctl run` regression on Lambda Vector is still
-pending.
+manifest path.
+
+The manifest policy has since been changed for research flexibility: changes to
+`case.toml`, `namelist.wps`, or `namelist.input` are reported prominently
+but do not block `wrfctl run`; the existing `wrfinput`/`wrfbdy` are reused.
+A missing prep manifest or a WRF/WPS version mismatch remains a hard error.
+This warn-and-continue path is covered by CI but still requires a live Sapelo2
+regression. A fresh high-level `wrfctl run` regression on Lambda Vector is
+also still pending.
 
 The result also does not validate other forcing providers, research-grade
 static geography, shared `data_root`, or every advanced namelist passthrough.

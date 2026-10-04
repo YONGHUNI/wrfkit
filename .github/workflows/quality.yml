@@ -54,3 +54,36 @@ jobs:
           git diff --exit-code -- \
             cases/athens-smoke/namelist.wps \
             cases/athens-smoke/namelist.input
+
+      - name: Check prep-manifest warn-and-continue policy
+        run: |
+          export WRFKIT_NIX_SHELL=1
+          export WRFKIT_WRF_VERSION=4.8.0
+          export WRFKIT_WPS_VERSION=4.7.0
+          source scripts/lib.sh
+
+          mkdir -p .wrfkit/work/athens-smoke
+          cp cases/athens-smoke/case.toml /tmp/case.toml
+          cp cases/athens-smoke/namelist.input /tmp/namelist.input
+          trap 'cp /tmp/case.toml cases/athens-smoke/case.toml; cp /tmp/namelist.input cases/athens-smoke/namelist.input' EXIT
+
+          write_prep_manifest athens-smoke
+
+          sed -i 's/history_interval_minutes = 180/history_interval_minutes = 181/' cases/athens-smoke/case.toml
+          verify_prep_manifest athens-smoke 2>/tmp/case-warning
+          test "$WRFKIT_PREP_CHANGED" -eq 1
+          grep -q 'case.toml scientific configuration' /tmp/case-warning
+          cp /tmp/case.toml cases/athens-smoke/case.toml
+
+          printf '\n! CI stale-manifest warning test\n' >> cases/athens-smoke/namelist.input
+          verify_prep_manifest athens-smoke 2>/tmp/namelist-warning
+          test "$WRFKIT_PREP_CHANGED" -eq 1
+          grep -q 'namelist.input' /tmp/namelist-warning
+          cp /tmp/namelist.input cases/athens-smoke/namelist.input
+
+          sed -i 's/^wrf_version=.*/wrf_version=0.0.0/' .wrfkit/work/athens-smoke/.wrfkit-prep-manifest
+          if verify_prep_manifest athens-smoke 2>/tmp/version-error; then
+            echo "WRF version mismatch unexpectedly passed" >&2
+            exit 1
+          fi
+          grep -q 'WRF version changed after prep' /tmp/version-error
