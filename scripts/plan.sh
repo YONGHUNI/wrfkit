@@ -24,27 +24,27 @@ while [[ $# -gt 0 ]]; do
     --launcher) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; launcher=$2; shift 2 ;;
     --launcher=*) launcher=${1#--launcher=}; shift ;;
     -h|--help) usage; exit 0 ;;
-    *) printf 'plan: unexpected argument: %s\n' "$1" >&2; usage >&2; exit 2 ;;
+    *) ui_error "plan: unexpected argument: $1"; usage >&2; exit 2 ;;
   esac
 done
 
 [[ -n "$case_name" ]] || { usage >&2; exit 2; }
 [[ "$case_name" =~ ^[A-Za-z0-9._-]+$ ]] || {
-  printf 'plan: invalid case name: %s\n' "$case_name" >&2
+  ui_error "plan: invalid case name: $case_name"
   exit 2
 }
 [[ -z "$ntasks" || "$ntasks" =~ ^[1-9][0-9]*$ ]] || {
-  printf 'plan: invalid --ntasks value: %s\n' "$ntasks" >&2
+  ui_error "plan: invalid --ntasks value: $ntasks"
   exit 2
 }
 case "$launcher" in
   ""|auto|srun|mpirun|mpiexec|custom) ;;
-  *) printf 'plan: invalid --launcher value: %s\n' "$launcher" >&2; exit 2 ;;
+  *) ui_error "plan: invalid --launcher value: $launcher"; exit 2 ;;
 esac
 
 case_dir="$WRFKIT_ROOT/cases/$case_name"
 [[ -r "$case_dir/case.toml" ]] || {
-  printf 'plan: case.toml not found: %s\n' "$case_dir/case.toml" >&2
+  ui_error "plan: case.toml not found: $case_dir/case.toml"
   exit 2
 }
 
@@ -56,24 +56,24 @@ effective_tasks=${ntasks:-$default_tasks}
 effective_launcher=${launcher:-$("$WRFKIT_ROOT/wrfctl" __resolve-mpi-launcher)}
 eval "$("$WRFKIT_ROOT/scripts/case-config.py" mpi-plan --case "$case_name" --requested "$effective_tasks" --shell)"
 
-printf '\nExecution plan\n'
-printf '  launcher:    %s\n' "$effective_launcher"
-printf '  WPS MPI:     %s tasks\n' "$effective_tasks"
-printf '  real / WRF:  %s tasks (%s x %s decomposition)\n' \
-  "$WRFKIT_WRF_TASKS" "$WRFKIT_NPROC_X" "$WRFKIT_NPROC_Y"
+printf '\n'
+ui_heading "Execution plan"
+ui_kv "launcher" "$effective_launcher"
+ui_kv "WPS MPI" "$effective_tasks tasks"
+ui_kv "real / WRF" "$WRFKIT_WRF_TASKS tasks ($WRFKIT_NPROC_X x $WRFKIT_NPROC_Y decomposition)"
 if ((WRFKIT_TASKS_ADJUSTED)); then
-  printf '  adjustment:  %s -> %s tasks to keep WRF patches >= 10 cells\n' \
-    "$effective_tasks" "$WRFKIT_WRF_TASKS"
+  ui_warn "WRF tasks auto-adjusted $effective_tasks -> $WRFKIT_WRF_TASKS to keep patches >= 10 cells."
 fi
 if [[ -n "$ntasks" && "$WRFKIT_WRF_TASKS" != "$ntasks" ]]; then
-  printf '  warning:     explicit --ntasks=%s is unsafe for real/wrf; prep/run will reject it\n' "$ntasks"
+  ui_warn "Explicit --ntasks=$ntasks is unsafe for real/wrf; prep/run will reject it."
 fi
 
-printf '\nReusable input state\n'
+printf '\n'
+ui_heading "Reusable input state"
 if [[ -d "$WRFKIT_GEOG_DIR" ]]; then
-  printf '  geography:  cached (%s)\n' "$WRFKIT_GEOG_DIR"
+  ui_ok "Geography cached: $WRFKIT_GEOG_DIR"
 else
-  printf '  geography:  missing; prep will acquire it\n'
+  ui_info "Geography missing; prep will acquire it."
 fi
 
 if [[ "$FORCING_PROVIDER" == "gfs" ]]; then
@@ -85,12 +85,18 @@ if [[ "$FORCING_PROVIDER" == "gfs" ]]; then
     file="$target_dir/gfs.t${GFS_CYCLE}z.pgrb2.0p25.f${fh}"
     [[ -s "$file" ]] && cached=$((cached + 1))
   done
-  printf '  forcing:    %d/%d files cached (%s)\n' "$cached" "$total" "$target_dir"
+  if ((cached == total)); then
+    ui_ok "Forcing cached: $cached/$total files ($target_dir)"
+  else
+    ui_info "Forcing cached: $cached/$total files ($target_dir)"
+  fi
 else
-  printf '  forcing:    provider %s (not supported by automatic prep yet)\n' "$FORCING_PROVIDER"
+  ui_warn "Forcing provider $FORCING_PROVIDER is not supported by automatic prep yet."
 fi
 
-printf '\nPreparation plan\n'
+printf '\n'
+ui_heading "Preparation plan"
+
 cat <<'PLAN'
   1. ensure static geography
   2. run geogrid
@@ -106,9 +112,12 @@ Run plan
 PLAN
 
 if [[ -n "$ntasks" || -n "$launcher" ]]; then
-  printf '\nRequested execution overrides\n'
+  printf '\n'
+  ui_heading "Requested execution overrides"
   [[ -n "$ntasks" ]] && printf '  MPI tasks:   %s\n' "$ntasks"
   [[ -n "$launcher" ]] && printf '  launcher:    %s\n' "$launcher"
 fi
 
-printf '\nNo files were changed.\n'
+printf '\n'
+ui_ok "Read-only plan; no files were changed."
+

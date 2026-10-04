@@ -9,12 +9,12 @@ while [[ $# -gt 0 ]]; do
     --jobs|-j)
       requested_jobs=$2
       [[ "$requested_jobs" =~ ^[1-9][0-9]*$ ]] || {
-        printf 'build-wps: invalid job count: %s\n' "$requested_jobs" >&2
+        ui_error "build wps: invalid job count: $requested_jobs"
         exit 2
       }
       if [[ "$requested_jobs" != "1" ]]; then
-        cat >&2 <<MSG
-build-wps: WPS ${WRFKIT_WPS_VERSION} is built serially by wrfkit.
+        ui_error "WPS ${WRFKIT_WPS_VERSION} is built serially by wrfkit."
+        cat >&2 <<'MSG'
 
 Parallel WPS builds can race while multiple targets write shared Fortran
 module files (for example ungrib filelist.mod/gridinfo.mod).
@@ -31,13 +31,13 @@ MSG
       echo "WPS is built serially to avoid upstream Fortran module-file races."
       exit 0
       ;;
-    *) printf 'build-wps: unknown option: %s\n' "$1" >&2; exit 2 ;;
+    *) ui_error "build wps: unknown option: $1"; exit 2 ;;
   esac
 done
 
 wrf_config="$WRFKIT_INSTALL_DIR/lib/cmake/WRF/WRFConfig.cmake"
 [[ -r "$wrf_config" ]] || {
-  printf 'wrfkit: WPS requires the CMake-built WRF install at %s\n' "$WRFKIT_INSTALL_DIR" >&2
+  ui_error "WPS requires the CMake-built WRF install at $WRFKIT_INSTALL_DIR"
   printf 'Run ./wrfctl build wrf first, or ./wrfctl build all.\n' >&2
   exit 2
 }
@@ -48,12 +48,17 @@ reset_wps_source
 rm -rf "$WRFKIT_WPS_BUILD_DIR" "$WRFKIT_WPS_INSTALL_DIR"
 mkdir -p "$WRFKIT_WPS_BUILD_DIR" "$WRFKIT_WPS_INSTALL_DIR"
 
-printf 'WPS build configuration\n'
-printf '  version: %s\n  revision: %s\n  MPI: enabled\n  GRIB2: bundled externals\n' \
-  "$WRFKIT_WPS_VERSION" "$WRFKIT_WPS_REV"
-printf '  WRF root: %s\n  source: %s\n  build: %s\n  install: %s\n  jobs: %s (serial)\n\n' \
-  "$WRFKIT_INSTALL_DIR" "$WRFKIT_WPS_SRC_DIR" "$WRFKIT_WPS_BUILD_DIR" \
-  "$WRFKIT_WPS_INSTALL_DIR" "$jobs"
+ui_heading "WPS build configuration"
+ui_kv "version" "$WRFKIT_WPS_VERSION"
+ui_kv "revision" "$WRFKIT_WPS_REV"
+ui_kv "MPI" "enabled"
+ui_kv "GRIB2" "bundled externals"
+ui_kv "WRF root" "$WRFKIT_INSTALL_DIR"
+ui_kv "source" "$WRFKIT_WPS_SRC_DIR"
+ui_kv "build" "$WRFKIT_WPS_BUILD_DIR"
+ui_kv "install" "$WRFKIT_WPS_INSTALL_DIR"
+ui_kv "jobs" "$jobs (serial)"
+printf '\n'
 
 cd "$WRFKIT_WPS_SRC_DIR"
 
@@ -80,13 +85,15 @@ cd "$WRFKIT_WPS_SRC_DIR"
 for executable in geogrid ungrib metgrid; do
   path="$WRFKIT_WPS_INSTALL_DIR/bin/$executable"
   [[ -x "$path" ]] || {
-    printf 'wrfkit: expected WPS executable was not produced: %s\n' "$path" >&2
+    ui_error "Expected WPS executable was not produced: $path"
     exit 1
   }
 done
 
-printf '\nWPS build completed.\n'
-printf '  geogrid: %s/bin/geogrid\n' "$WRFKIT_WPS_INSTALL_DIR"
-printf '  ungrib:  %s/bin/ungrib\n' "$WRFKIT_WPS_INSTALL_DIR"
-printf '  metgrid: %s/bin/metgrid\n' "$WRFKIT_WPS_INSTALL_DIR"
-printf '\nWPS data acquisition and real-data prepare workflow are not yet claimed by this build step.\n'
+printf '\n'
+ui_ok "WPS build completed."
+ui_kv "geogrid" "$WRFKIT_WPS_INSTALL_DIR/bin/geogrid"
+ui_kv "ungrib" "$WRFKIT_WPS_INSTALL_DIR/bin/ungrib"
+ui_kv "metgrid" "$WRFKIT_WPS_INSTALL_DIR/bin/metgrid"
+printf '\n'
+ui_info "Build completion does not by itself validate the real-data preparation workflow."

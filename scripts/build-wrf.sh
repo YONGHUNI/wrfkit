@@ -11,7 +11,7 @@ while [[ $# -gt 0 ]]; do
       echo "Usage: ./wrfctl build wrf [--jobs N]"
       exit 0
       ;;
-    *) printf 'build-wrf: unknown option: %s\n' "$1" >&2; exit 2 ;;
+    *) ui_error "build wrf: unknown option: $1"; exit 2 ;;
   esac
 done
 
@@ -19,7 +19,7 @@ if [[ -z "$jobs" ]]; then
   jobs=$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf '4')
 fi
 [[ "$jobs" =~ ^[1-9][0-9]*$ ]] || {
-  printf 'build-wrf: invalid job count: %s\n' "$jobs" >&2
+  ui_error "build wrf: invalid job count: $jobs"
   exit 2
 }
 
@@ -27,10 +27,16 @@ ensure_wrf_source
 rm -rf "$WRFKIT_BUILD_DIR" "$WRFKIT_INSTALL_DIR"
 mkdir -p "$WRFKIT_BUILD_DIR" "$WRFKIT_INSTALL_DIR"
 
-printf 'WRF build configuration\n'
-printf '  version: %s\n  core: ARW\n  case: EM_REAL\n  MPI: enabled\n' "$WRFKIT_WRF_VERSION"
-printf '  source: %s\n  build: %s\n  install: %s\n  jobs: %s\n\n' \
-  "$WRFKIT_SRC_DIR" "$WRFKIT_BUILD_DIR" "$WRFKIT_INSTALL_DIR" "$jobs"
+ui_heading "WRF build configuration"
+ui_kv "version" "$WRFKIT_WRF_VERSION"
+ui_kv "core" "ARW"
+ui_kv "case" "EM_REAL"
+ui_kv "MPI" "enabled"
+ui_kv "source" "$WRFKIT_SRC_DIR"
+ui_kv "build" "$WRFKIT_BUILD_DIR"
+ui_kv "install" "$WRFKIT_INSTALL_DIR"
+ui_kv "jobs" "$jobs"
+printf '\n'
 
 cd "$WRFKIT_SRC_DIR"
 
@@ -53,11 +59,14 @@ cd "$WRFKIT_SRC_DIR"
 for executable in real wrf; do
   path="$WRFKIT_INSTALL_DIR/bin/$executable"
   [[ -x "$path" ]] || {
-    printf 'wrfkit: expected executable was not produced: %s\n' "$path" >&2
+    ui_error "Expected executable was not produced: $path"
     exit 1
   }
 done
 
-printf '\nWRF build completed.\n  real: %s/bin/real\n  wrf:  %s/bin/wrf\n' \
-  "$WRFKIT_INSTALL_DIR" "$WRFKIT_INSTALL_DIR"
-printf '\nMulti-node MPI portability is not yet claimed by this MVP.\n'
+printf '\n'
+ui_ok "WRF build completed."
+ui_kv "real" "$WRFKIT_INSTALL_DIR/bin/real"
+ui_kv "wrf" "$WRFKIT_INSTALL_DIR/bin/wrf"
+printf '\n'
+ui_warn "Multi-node MPI portability is not yet claimed by this MVP."
