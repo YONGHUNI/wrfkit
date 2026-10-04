@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 
+WRFKIT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+source "$WRFKIT_ROOT/scripts/ui.sh"
+ui_validate_color
+
 if [[ -z ${WRFKIT_NIX_SHELL:-} ]]; then
-  echo "wrfkit: helper must run inside the project Nix environment" >&2
+  ui_error "Helper must run inside the project Nix environment."
   exit 2
 fi
-
-WRFKIT_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 WRFKIT_STATE_DIR=${WRFKIT_STATE_DIR:-"$WRFKIT_ROOT/.wrfkit"}
 WRFKIT_DATA_DIR=${WRFKIT_DATA_DIR:-"$WRFKIT_STATE_DIR/data"}
 WRFKIT_CACHE_DIR=${WRFKIT_CACHE_DIR:-"$WRFKIT_STATE_DIR/cache"}
@@ -31,17 +33,17 @@ ensure_wrf_source() {
   [[ -x "$WRFKIT_SRC_DIR/configure_new" ]] && return 0
 
   [[ -r ${WRFKIT_WRF_ARCHIVE:-} ]] || {
-    echo "wrfkit: pinned WRF archive is unavailable" >&2
+    ui_error "Pinned WRF archive is unavailable."
     exit 2
   }
 
   rm -rf "$WRFKIT_SRC_DIR"
   mkdir -p "$WRFKIT_SRC_DIR"
-  echo "Extracting WRF ${WRFKIT_WRF_VERSION} source..."
+  ui_info "Extracting WRF ${WRFKIT_WRF_VERSION} source."
   tar -xzf "$WRFKIT_WRF_ARCHIVE" -C "$WRFKIT_SRC_DIR" --strip-components=1
 
   [[ -x "$WRFKIT_SRC_DIR/configure_new" ]] || {
-    echo "wrfkit: extracted WRF source is missing configure_new" >&2
+    ui_error "Extracted WRF source is missing configure_new."
     exit 2
   }
 }
@@ -55,20 +57,20 @@ ensure_wps_source() {
   fi
 
   [[ -d ${WRFKIT_WPS_SOURCE:-} ]] || {
-    echo "wrfkit: pinned WPS source is unavailable" >&2
+    ui_error "Pinned WPS source is unavailable."
     exit 2
   }
 
   rm -rf "$WRFKIT_WPS_SRC_DIR"
   mkdir -p "$WRFKIT_WPS_SRC_DIR"
 
-  echo "Copying WPS ${WRFKIT_WPS_VERSION} source..."
+  ui_info "Copying WPS ${WRFKIT_WPS_VERSION} source."
   cp -a "$WRFKIT_WPS_SOURCE"/. "$WRFKIT_WPS_SRC_DIR"/
   chmod -R u+w "$WRFKIT_WPS_SRC_DIR"
   printf '%s\n' "$WRFKIT_WPS_REV" > "$marker"
 
   [[ -x "$WRFKIT_WPS_SRC_DIR/configure_new" ]] || {
-    echo "wrfkit: copied WPS source is missing configure_new" >&2
+    ui_error "Copied WPS source is missing configure_new."
     exit 2
   }
 }
@@ -83,7 +85,7 @@ stage_workspace_link() {
   local src=$1 dest=$2
 
   if [[ -e "$dest" && ! -L "$dest" ]]; then
-    printf 'wrfkit: refusing to replace non-symlink workspace file: %s\n' "$dest" >&2
+    ui_error "Refusing to replace non-symlink workspace file: $dest"
     return 2
   fi
 
@@ -98,7 +100,7 @@ stage_case_workspace() {
   local name
 
   [[ -d "$case_dir" ]] || {
-    printf 'wrfkit: case not found: %s\n' "$case_dir" >&2
+    ui_error "Case not found: $case_dir"
     return 2
   }
 
@@ -205,21 +207,21 @@ verify_prep_manifest() {
 
   manifest=$(prep_manifest_path "$case_name")
   [[ -r "$manifest" ]] || {
-    printf 'wrfkit: prepared-case manifest not found: %s\n' "$manifest" >&2
+    ui_error "Prepared-case manifest not found: $manifest"
     printf 'Run ./wrfctl prep --case %s first.\n' "$case_name" >&2
     return 2
   }
 
   expected=$(prep_manifest_value "$manifest" case)
   [[ "$expected" == "$case_name" ]] || {
-    printf 'wrfkit: preparation manifest belongs to case %s, not %s\n' "$expected" "$case_name" >&2
+    ui_error "Preparation manifest belongs to case $expected, not $case_name"
     return 2
   }
 
   expected=$(prep_manifest_value "$manifest" case_fingerprint)
   actual=$(case_config_fingerprint "$case_name")
   [[ -n "$expected" && "$expected" == "$actual" ]] || {
-    printf 'wrfkit: case.toml scientific configuration changed after prep.\n' >&2
+    ui_error "case.toml scientific configuration changed after prep."
     printf 'Run ./wrfctl prep --case %s again before ./wrfctl run.\n' "$case_name" >&2
     return 2
   }
@@ -227,7 +229,7 @@ verify_prep_manifest() {
   expected=$(prep_manifest_value "$manifest" namelist_wps_sha256)
   actual=$(file_sha256 "$case_dir/namelist.wps" 2>/dev/null || true)
   [[ -n "$expected" && "$expected" == "$actual" ]] || {
-    printf 'wrfkit: namelist.wps changed after prep.\n' >&2
+    ui_error "namelist.wps changed after prep."
     printf 'Run ./wrfctl prep --case %s again before ./wrfctl run.\n' "$case_name" >&2
     return 2
   }
@@ -235,23 +237,21 @@ verify_prep_manifest() {
   expected=$(prep_manifest_value "$manifest" namelist_input_sha256)
   actual=$(file_sha256 "$case_dir/namelist.input" 2>/dev/null || true)
   [[ -n "$expected" && "$expected" == "$actual" ]] || {
-    printf 'wrfkit: namelist.input changed after prep.\n' >&2
+    ui_error "namelist.input changed after prep."
     printf 'Run ./wrfctl prep --case %s again before ./wrfctl run.\n' "$case_name" >&2
     return 2
   }
 
   expected=$(prep_manifest_value "$manifest" wrf_version)
   [[ "$expected" == "${WRFKIT_WRF_VERSION:-unknown}" ]] || {
-    printf 'wrfkit: WRF version changed after prep (%s -> %s).\n' \
-      "$expected" "${WRFKIT_WRF_VERSION:-unknown}" >&2
+    ui_error "WRF version changed after prep ($expected -> ${WRFKIT_WRF_VERSION:-unknown})."
     printf 'Run ./wrfctl prep --case %s again.\n' "$case_name" >&2
     return 2
   }
 
   expected=$(prep_manifest_value "$manifest" wps_version)
   [[ "$expected" == "${WRFKIT_WPS_VERSION:-unknown}" ]] || {
-    printf 'wrfkit: WPS version changed after prep (%s -> %s).\n' \
-      "$expected" "${WRFKIT_WPS_VERSION:-unknown}" >&2
+    ui_error "WPS version changed after prep ($expected -> ${WRFKIT_WPS_VERSION:-unknown})."
     printf 'Run ./wrfctl prep --case %s again.\n' "$case_name" >&2
     return 2
   }

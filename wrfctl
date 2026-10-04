@@ -2,6 +2,8 @@
 set -Eeuo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+source "$ROOT/scripts/ui.sh"
+ui_validate_color
 WRF_VERSION=4.8.0
 WPS_VERSION=4.7.0
 WRFKIT_STATE_ROOT="${WRFKIT_STATE_DIR:-$ROOT/.wrfkit}"
@@ -44,8 +46,8 @@ is_sapelo_login() {
 
 ensure_compute_context() {
   if is_sapelo_login; then
+    ui_error "Sapelo2 login node detected."
     cat >&2 <<'MSG'
-wrfkit: Sapelo2 login node detected.
 
 Environment realization and WRF/WPS compilation/execution must run on a compute node.
 Start an allocation first, for example:
@@ -64,8 +66,8 @@ ensure_nix() {
   fi
 
   if ! command -v nix >/dev/null 2>&1; then
+    ui_error "Nix was not found."
     cat >&2 <<'MSG'
-wrfkit: nix was not found.
 
 Run:
   ./bootstrap
@@ -229,7 +231,7 @@ resolve_mpi_launcher() {
       printf '%s' "$requested"
       ;;
     *)
-      printf 'wrfkit: unsupported MPI launcher: %s\n' "$requested" >&2
+      ui_error "Unsupported MPI launcher: $requested"
       printf 'Supported launchers: auto, srun, mpirun, mpiexec, custom\n' >&2
       return 2
       ;;
@@ -265,7 +267,7 @@ resolve_mpi_tasks() {
   fi
 
   [[ "$requested" =~ ^[1-9][0-9]*$ ]] || {
-    printf 'wrfkit: invalid MPI task count: %s\n' "$requested" >&2
+    ui_error "Invalid MPI task count: $requested"
     return 2
   }
   printf '%s' "$requested"
@@ -289,7 +291,7 @@ run_slurm_single_node_bridge() {
   # treat as one slot. Hide the child resource-manager variables before mpirun;
   # the kernel/Slurm cpuset still constrains the process to the allocated CPUs.
   export WRFKIT_EFFECTIVE_MPI_INNER_LAUNCHER=mpirun
-  printf 'wrfkit: MPI launcher=srun tasks=%s (single-node bridge; inner=mpirun)\n' "$tasks" >&2
+  ui_info_err "MPI launcher=srun tasks=$tasks (single-node bridge; inner=mpirun)"
 
   env \
     -u SLURM_CPU_BIND \
@@ -316,7 +318,7 @@ run_slurm_mpi_step() {
   shift 2
 
   in_slurm_allocation || {
-    echo "wrfkit: srun launcher requires an active Slurm allocation" >&2
+    ui_error "srun launcher requires an active Slurm allocation"
     return 2
   }
 
@@ -339,7 +341,7 @@ run_slurm_mpi_step() {
   # create one task per MPI rank. Multi-node rootless-Nix environment sharing
   # is a separate milestone.
   export WRFKIT_EFFECTIVE_MPI_INNER_LAUNCHER=""
-  printf 'wrfkit: MPI launcher=srun tasks=%s (multi-node Slurm tasks)\n' "$tasks" >&2
+  ui_warn "MPI launcher=srun tasks=$tasks (multi-node path is not validated)"
   env \
     -u SLURM_CPU_BIND \
     -u SLURM_CPU_BIND_TYPE \
@@ -356,25 +358,25 @@ run_generic_mpi() {
 
   case "$launcher" in
     mpirun)
-      printf 'wrfkit: MPI launcher=mpirun tasks=%s\n' "$tasks" >&2
+      ui_info_err "MPI launcher=mpirun tasks=$tasks"
       run_dev mpirun -np "$tasks" "$binary" "$@"
       ;;
     mpiexec)
-      printf 'wrfkit: MPI launcher=mpiexec tasks=%s\n' "$tasks" >&2
+      ui_info_err "MPI launcher=mpiexec tasks=$tasks"
       run_dev mpiexec -n "$tasks" "$binary" "$@"
       ;;
     custom)
       local command=$WRFKIT_CONFIG_MPI_LAUNCHER_COMMAND
       local task_flag=$WRFKIT_CONFIG_MPI_TASK_FLAG
       [[ -n "$command" ]] || {
-        echo "wrfkit: custom MPI launcher requires mpi_launcher_command" >&2
+        ui_error "custom MPI launcher requires mpi_launcher_command"
         return 2
       }
       [[ "$command" != *[[:space:]]* ]] || {
-        echo "wrfkit: mpi_launcher_command must be a single executable/path" >&2
+        ui_error "mpi_launcher_command must be a single executable/path"
         return 2
       }
-      printf 'wrfkit: MPI launcher=custom (%s) tasks=%s\n' "$command" "$tasks" >&2
+      ui_info_err "MPI launcher=custom ($command) tasks=$tasks"
       if [[ -n "$task_flag" ]]; then
         run_dev "$command" "$task_flag" "$tasks" "$binary" "$@"
       else
@@ -545,7 +547,7 @@ run_logged() {
   archive_program_logs "$program" "$log_dir" "$marker"
   write_run_metadata "$log_dir" "$program" "$status" "$@"
 
-  printf 'wrfkit: logs: %s\n' "$log_dir" >&2
+  ui_info_err "Logs: $log_dir"
   return "$status"
 }
 
@@ -553,7 +555,7 @@ stage_workspace_link() {
   local src=$1 dest=$2
 
   if [[ -e "$dest" && ! -L "$dest" ]]; then
-    printf 'wrfkit: refusing to replace non-symlink workspace file: %s\n' "$dest" >&2
+    ui_error "Refusing to replace non-symlink workspace file: $dest"
     return 2
   fi
 
