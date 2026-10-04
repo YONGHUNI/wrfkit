@@ -104,17 +104,17 @@ load_case_env "$case_name"
 printf '\n'
 "$WRFKIT_ROOT/scripts/case-config.py" summary --case "$case_name"
 
-if [[ "$GEOG_DATASET" != "wps-lowres-mandatory" || "$GEOG_RESOLUTION" != "lowres" ]]; then
-  ui_error "Automatic geography acquisition cannot satisfy this case."
+if [[ "${GEOG_AUTO_ACQUIRE:-0}" != "1" ]]; then
+  ui_error "Automatic geography acquisition is not implemented for this recognized profile."
   cat >&2 <<MSG
-Supported automatically:
+Case: $case_name
+Requested: dataset=$GEOG_DATASET resolution=$GEOG_RESOLUTION
+
+Currently acquired automatically:
   dataset = "wps-lowres-mandatory"
   resolution = "lowres"
 
-Case: $case_name
-Requested: dataset=$GEOG_DATASET resolution=$GEOG_RESOLUTION
-Use the lower-level geography workflow until research-grade geography selection
-is implemented.
+The profile is valid, but its downloader/staging path has not been implemented yet.
 MSG
   exit 2
 fi
