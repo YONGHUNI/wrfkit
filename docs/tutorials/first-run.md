@@ -28,9 +28,12 @@ You need:
 - enough storage for WRF/WPS builds, input data, and output;
 - on an HPC cluster, permission to request a compute allocation.
 
-If you are using **UGA Sapelo2**, read the short
-[Sapelo2 guide](../single-node-guide.md) as well. In particular, do not compile
-WRF or run the model on an `ss-sub*` login node.
+If you are using an HPC cluster, this tutorial uses **generic Slurm commands**.
+Your site may require extra options such as an account, partition, or QoS.
+
+UGA Sapelo2 users should also read the dedicated
+[Sapelo2 guide](../single-node-guide.md), which documents Sapelo2-specific
+commands and storage rules.
 
 ## Step 1 — get wrfkit
 
@@ -63,20 +66,36 @@ You should see files such as `wrfctl`, `bootstrap`, `flake.nix`, and
 
     Stay in the repository and continue to Step 3.
 
-=== "UGA Sapelo2"
+=== "Slurm HPC"
 
-    From a login node, request an interactive compute allocation:
+    From a login node, request a single-node interactive allocation:
 
     ```bash
-    interact -c 16 --mem=64G --time=02:00:00 --gres=lscratch:100
+    salloc --nodes=1 --ntasks=16 --mem=64G --time=02:00:00
+    srun --pty bash
     ```
 
-    When the prompt changes to a compute node, return to the wrfkit repository.
+    Your cluster may require additional site-specific options, for example:
+
+    ```text
+    --partition=<partition>
+    --account=<account>
+    --qos=<qos>
+    ```
+
+    When the shell is running on a compute node, return to the wrfkit
+    repository.
 
     !!! important
-        The login node is for lightweight tasks such as editing files,
+        A login node is normally for lightweight tasks such as editing files,
         checking jobs, and submitting jobs. Building WRF/WPS and running WRF
-        belong on compute nodes.
+        should happen inside a compute allocation.
+
+    !!! note
+        Some Slurm sites provide their own interactive-job helper or enter the
+        compute shell differently. Use your site's documented equivalent when
+        needed. UGA Sapelo2 users can follow the
+        [Sapelo2 guide](../single-node-guide.md).
 
 ## Step 3 — prepare the software environment
 
@@ -94,10 +113,17 @@ yet.
 
     Choose **Standalone Linux workstation/server** when prompted.
 
-=== "UGA Sapelo2"
+=== "Slurm HPC"
 
-    Choose **Slurm HPC cluster** and then **UGA Sapelo2**. Run bootstrap from
-    the compute allocation obtained in Step 2.
+    Choose **Slurm HPC cluster** and then **Generic Slurm HPC**.
+
+    Run bootstrap from the compute allocation obtained in Step 2. If wrfkit
+    asks about a custom rootless-Nix store, use a writable scratch or
+    project-storage path recommended by your HPC site.
+
+    If your cluster has a dedicated wrfkit site profile, use that instead of
+    the generic profile. UGA Sapelo2 users should use the Sapelo2 profile
+    described in the [Sapelo2 guide](../single-node-guide.md).
 
 If a working Nix installation is already available, bootstrap may say that no
 installation is needed. That is normal.
