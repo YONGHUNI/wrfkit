@@ -33,7 +33,7 @@ merely implemented or planned.
 | Multi-node MPI | Not validated | Do not treat as supported research execution |
 | WRF restart/recovery workflow | Not validated | Requires dedicated workflow testing |
 | Scratch-backed execution workspace | Not implemented | `scratch_root` is currently configuration metadata |
-| Full research-grade geography selector | Planned | Current automatic `prep` geography remains low-resolution validation data |
+| High-resolution mandatory geography downloader | Implemented, live validation pending | Official URL/profile resolution, archive validation, expected-directory checks, shared archive cache, atomic install, and CI fixture are implemented; full official archive still needs end-to-end WPS validation |
 
 ## Clean build regression
 

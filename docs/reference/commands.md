@@ -18,9 +18,10 @@ Commands below are run from the repository root unless noted otherwise.
 `prep` + `run` is the normal orchestration layer. The lower-level commands below remain
 available when you want to inspect, teach, debug, or rerun only one stage.
 
-Current automatic geography download is still deliberately narrow: wrfkit
-downloads the low-resolution validation package. Research-grade managed
-geography download is the next milestone.
+Automatic geography acquisition supports both WPS mandatory packages:
+the low-resolution validation package and the highest-resolution mandatory
+package. Use the case-aware form when the package should come from
+`case.toml`.
 
 High-level `prep` can already use user-provided WPS geography through
 `dataset="external"`; wrfkit resolves the configured path and stages it
@@ -44,7 +45,8 @@ without copying or modifying the source data.
 
 | Command | Purpose |
 | --- | --- |
-| `./wrfctl fetch geog` | Download low-resolution geography used by the minimal validation case |
+| `./wrfctl fetch geog` | Download the low-resolution geography used by the minimal validation case |
+| `./wrfctl fetch geog --case NAME` | Download the managed geography package selected by a case |
 | `./wrfctl fetch gfs --case NAME` | Download GFS forcing configured by a case |
 | `./wrfctl prepare gfs --case NAME` | Stage Vtable.GFS and GRIBFILE links |
 | `./wrfctl exec geogrid --case NAME` | Create the model-domain geography |

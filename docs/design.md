@@ -96,10 +96,18 @@ settings. `case.toml` carries acquisition/workflow metadata and optional
 namelist overlays, while `namelist.wps` and `namelist.input` remain the
 native execution files.
 
-Automatic geography acquisition is currently restricted to the bundled
-low-resolution validation package. This prevents `prep` from silently
-substituting low-resolution data for a research case requesting a different
-static-data resolution.
+Automatic geography acquisition supports the two WPS mandatory package
+profiles: low-resolution validation data and the highest-resolution mandatory
+data. `prep` resolves the package from the case and never substitutes one
+profile for another. User-provided geography remains an explicit `external`
+profile.
+
+Managed geography is extracted into a sibling temporary directory, checked for
+the expected mandatory-field directories, given a provenance marker containing
+the source URL and computed archive SHA-256, and renamed into place only after
+validation. New archives live under the geography data root so a shared
+`data_root` avoids one multi-gigabyte archive per repository clone; an existing
+legacy low-resolution cache remains reusable.
 
 ## Storage model
 

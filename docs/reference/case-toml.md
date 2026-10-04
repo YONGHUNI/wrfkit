@@ -262,9 +262,18 @@ The tracked `athens-highres` case keeps the same Athens domain, time window,
 forcing, and physics as `athens-minimal`, so the geography profile is the
 controlled difference.
 
-The high-resolution downloader is still a follow-up milestone, but
-`resolution` is no longer forced to `"default"`. A researcher may keep WPS's
-native selector freedom, for example:
+wrfkit can automatically acquire this managed package. The official archive is
+stored alongside the geography data so a shared `data_root` can reuse it across
+repository clones. The downloader validates the tar/gzip archive, checks the
+expected mandatory-field directories, records the archive SHA-256 for
+provenance, and installs the extracted tree atomically.
+
+The full official archive path is large, so the current implementation is
+covered in CI with a local archive fixture; a live official-archive end-to-end
+validation remains pending.
+
+`resolution` is not forced to `"default"`. A researcher may keep WPS's native
+selector freedom, for example:
 
 ```toml
 resolution = "30s+default"

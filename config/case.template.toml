@@ -62,7 +62,7 @@ north = 42.0
 #     dataset    = "wps-lowres-mandatory"
 #     resolution = "lowres"
 #
-#   Research baseline (recognized, downloader still pending):
+#   Research baseline (downloaded and cached by wrfkit):
 #     dataset    = "wps-highres-mandatory"
 #     resolution = "default"        # or another valid native WPS selector
 #

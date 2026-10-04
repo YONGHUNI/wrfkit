@@ -17,11 +17,16 @@ pretending that this is a complete scientific research template.
 
 Current status:
 
-- `wrfctl config --case athens-highres --check` is supported.
+- `wrfctl config --case athens-highres --check` validates the case.
 - `wrfctl plan --case athens-highres` resolves the managed high-resolution path.
-- automatic download of `wps-highres-mandatory` is not implemented yet;
-  therefore high-level `prep` stops before `geogrid` instead of falling back
-  to low-resolution data.
+- `wrfctl fetch geog --case athens-highres` downloads, validates, caches, and
+  installs the official high-resolution mandatory package.
+- `wrfctl prep --case athens-highres` now uses that acquisition path
+  automatically and never falls back to the low-resolution package.
 
-Once the high-resolution downloader is implemented, this case is intended to be
-the first end-to-end validation fixture for that path.
+The downloader is covered by CI with a small local archive that has the same
+expected directory structure. A live run with the full official archive through
+WPS/real is still pending.
+
+For a machine with shared persistent storage, configure `data_root` first so
+the large geography tree and its source archive can be reused.
