@@ -19,15 +19,20 @@ If a term on this page is unfamiliar, use the
 | --- | --- | --- |
 | Reproducible software environment | Use a controlled set of compilers, MPI, NetCDF, WRF, and WPS instead of whatever happens to be installed on a machine | **Validated** |
 | Transparent case configuration | Keep a short TOML description while the real WRF/WPS namelists remain visible | **Validated** |
-| Plan → Prep → Run workflow | See the plan first, prepare all model inputs, then run WRF | **Validated** |
+| Plan → Prep → Run workflow | See the plan first, prepare all model inputs, then run WRF | **Validated on Sapelo2; plan/prep also on Lambda** |
 | Slurm-aware MPI execution | Use CPUs assigned by a Slurm cluster without manually rebuilding the launch command | **Validated on Sapelo2** |
 | WRF-safe MPI decomposition | Reduce an automatic rank count when WRF's grid would otherwise be split into patches that are too small | **Validated on Sapelo2** |
 | Reusable input data | Store geography and weather-input files once and reuse them across cases or repository clones | **Validated on Sapelo2** |
 | Preparation-change warnings | Warn when a case changed after preparation, while still allowing an intentional research run | **Validated on Sapelo2** |
-| Run checks and logs | Check for WRF's success message, a new output file, and archive native logs for each run | **Validated** |
+| Run checks and logs | Check for WRF's success message, a new output file, and archive native logs for each run | **Validated on Sapelo2** |
 
 The exact test boundary is recorded in the
 [validation matrix](validation.md).
+
+Here, **validated** means the path has actually been run and produced the
+expected program-level result. **Validated on Sapelo2** means that specific
+behavior was exercised on UGA's Slurm cluster. It does not mean every HPC
+system will behave the same way.
 
 ## Where WPS fits
 
