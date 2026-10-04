@@ -136,8 +136,10 @@ planning path.
 
 A successful high-level prep continues through `real.exe`, verifies
 `wrfinput_d0*` and `wrfbdy_d01`, and records a preparation fingerprint.
-`wrfctl run` requires that fingerprint to still match `case.toml` and the
-native namelists.
+`wrfctl run` compares that record with the current `case.toml` and native
+namelists. Case/namelist changes are reported as warnings and the run may
+continue with the existing prepared inputs; a missing manifest or WRF/WPS
+version mismatch remains a hard error.
 
 !!! note "Implementation boundary"
     The namelist passthrough is intentionally broad, but automatic data
