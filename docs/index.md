@@ -1,146 +1,84 @@
 # wrfkit
 
-**Run WRF without first becoming an expert in compilers, MPI, NetCDF, or Nix.**
+**Run WRF without first becoming an expert in compilers, MPI, NetCDF, Nix, or Slurm.**
 
-wrfkit gives WRF and WPS a reproducible software environment, keeps each
-experiment organized, and provides a reproducible single-node workflow for
-Linux and Slurm HPC systems, with the Slurm path validated on UGA Sapelo2.
+wrfkit gives the Weather Research and Forecasting (**WRF**) model a repeatable
+software environment and a simple workflow. It is designed for people who want
+to learn or use WRF while keeping the real scientific settings visible.
 
 [Start your first WRF run](tutorials/first-run.md){ .md-button .md-button--primary }
-[Explore the features](features.md){ .md-button }
-[See what is validated](validation.md){ .md-button }
 
-!!! tip "You can start before you understand every acronym"
-    If words such as **WRF**, **WPS**, **MPI**, **Slurm**, or **Nix** are new,
-    that is fine. Follow the first-run tutorial first. The
-    [glossary](reference/glossary.md) explains them in plain language when you
-    need them.
+!!! note "New to WRF or HPC?"
+    That is fine. The first-run tutorial explains each step and tells you what
+    result to look for. When an unfamiliar word appears, use the
+    [glossary](reference/glossary.md).
 
-## What wrfkit does for you
+## The basic workflow
 
-<div class="grid cards" markdown>
+For a prepared example case, the main workflow is only three commands:
 
--   **Keeps the software environment repeatable**
+```bash
+./wrfctl plan --case athens-smoke
+./wrfctl prep --case athens-smoke
+./wrfctl run  --case athens-smoke
+```
 
-    ---
-
-    wrfkit pins the compiler, MPI, NetCDF, WRF, and WPS environment instead of
-    depending on whatever a machine happens to provide.
-
-    [Reproducible environments](features.md#repeatable-software-environments)
-
--   **Keeps your scientific settings visible**
-
-    ---
-
-    Use a compact <code>case.toml</code> without giving up the native WRF/WPS
-    namelists.
-
-    [Transparent case configuration](features.md#scientific-settings-stay-visible)
-
--   **Understands single-node Slurm execution**
-
-    ---
-
-    wrfkit uses the assigned CPUs and can protect WRF from an automatically
-    chosen MPI layout that would make grid patches too small.
-
-    [Slurm-aware MPI](features.md#slurm-aware-mpi-without-hiding-mpi)
-
--   **Reuses large input data**
-
-    ---
-
-    Geography and raw weather input can live in one reusable data root while
-    each experiment keeps its own generated workspace.
-
-    [Reusable data](features.md#reuse-large-input-data)
-
-</div>
-
-[See all features and their validation status](features.md)
-
-## Pick what you want to do
-
-<div class="grid cards" markdown>
-
--   **I have never run WRF before**
-
-    ---
-
-    Follow one guided run from cloning the repository to
-    `SUCCESS COMPLETE WRF`.
-
-    [First-run tutorial](tutorials/first-run.md)
-
--   **I need to run on a Slurm HPC cluster**
-
-    ---
-
-    Follow the single-node Slurm workflow. The examples use UGA Sapelo2,
-    where this execution path has been validated.
-
-    [Run WRF with sbatch](how-to/sapelo2-batch.md)
-
--   **I want to make my own experiment**
-
-    ---
-
-    Learn what belongs in a case, what wrfkit generates, and which scientific
-    choices still belong to you.
-
-    [Make a research case](how-to/research-case.md)
-
--   **Something failed**
-
-    ---
-
-    Start with the short error-to-action guide before reading long logs.
-
-    [Troubleshooting](troubleshooting.md)
-
-</div>
-
-## The whole idea in one picture
+- **plan** shows what wrfkit intends to do. It does not change files.
+- **prep** prepares geography and weather input, then creates WRF initial and
+  boundary files.
+- **run** starts WRF and checks that the run really produced a new output file.
 
 ```mermaid
 flowchart LR
-    A["Your scientific configuration<br/>cases/my-case/"]
-    B["wrfkit"]
-    C["WPS<br/>prepare model inputs"]
-    D["WRF<br/>run the simulation"]
-    E["Model output<br/>wrfout_d01_*"]
+    A["case.toml + native namelists"]
+    B["plan"]
+    C["prep"]
+    D["run"]
+    E["wrfout"]
 
     A --> B --> C --> D --> E
 ```
 
-wrfkit tries to hide **computer setup complexity**, not **scientific choices**.
-You still control the native WRF/WPS namelists.
+## What wrfkit handles, and what you still control
 
-## What is ready today?
+wrfkit handles the **computer setup and workflow**: the compiler, MPI, NetCDF,
+WRF/WPS versions, build steps, and supported single-node execution path.
 
-The strongest supported path is currently:
+You still control the **science**: the simulation dates, model domain,
+resolution, physics choices, time step, output frequency, and the native
+`namelist.wps` / `namelist.input` files.
+
+A `case.toml` file gives you a shorter way to set many common options. It can
+also pass lower-level WRF/WPS namelist settings when you need more control.
+
+[Learn what every case.toml section means](reference/case-toml.md)
+
+## Where should I go next?
+
+| I want to... | Read this |
+| --- | --- |
+| run WRF for the first time | [Your first WRF run](tutorials/first-run.md) |
+| use UGA Sapelo2 | [UGA Sapelo2](single-node-guide.md) |
+| make my own experiment | [Make a research case](how-to/research-case.md) |
+| understand or edit `case.toml` | [Understand case.toml](reference/case-toml.md) |
+| find a command quickly | [wrfctl command reference](reference/commands.md) |
+| fix an error | [Troubleshooting](troubleshooting.md) |
+| check what is actually supported | [Supported and validated](validation.md) |
+
+## Current support boundary
+
+The strongest tested path is currently:
 
 ```text
 Linux x86_64
 + WRF 4.8.0 / WPS 4.7.0
-+ rootless or normal Nix
++ normal or rootless Nix
++ GFS real-data preparation
 + one compute node
-+ interactive or Slurm sbatch MPI
-+ real-data GFS -> WPS -> real -> WRF
++ local or single-node Slurm MPI
 ```
 
-Multi-node MPI is not yet claimed as validated. See the
-[validation matrix](validation.md) for the exact support boundary.
+Multi-node MPI, WRF restart/recovery, WRF-Chem, WRFDA, and automatic
+research-grade geography selection are not yet claimed as supported.
 
-## If you are learning
-
-A useful order is:
-
-1. Do the [first-run tutorial](tutorials/first-run.md).
-2. Read the [glossary](reference/glossary.md) only when a word blocks you.
-3. Learn [where files go](reference/files-and-folders.md).
-4. Read the [research-case guide](how-to/research-case.md) before changing the
-   smoke test into a scientific experiment.
-5. Use the [command reference](reference/commands.md) after the basic workflow
-   makes sense.
+The [validation page](validation.md) is the source of truth for this boundary.
