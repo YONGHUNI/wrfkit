@@ -70,10 +70,14 @@ fi
 
 printf '\n'
 ui_heading "Reusable input state"
-if [[ -d "$WRFKIT_GEOG_DIR" ]]; then
-  ui_ok "Geography cached: $WRFKIT_GEOG_DIR"
+if [[ "${GEOG_AUTO_ACQUIRE:-0}" == "1" ]]; then
+  if [[ -d "$WRFKIT_GEOG_DIR" ]]; then
+    ui_ok "Geography cached: $WRFKIT_GEOG_DIR"
+  else
+    ui_info "Geography missing; prep will acquire it."
+  fi
 else
-  ui_info "Geography missing; prep will acquire it."
+  ui_warn "Geography profile is recognized, but automatic acquisition is not implemented yet: $GEOG_DATASET ($GEOG_RESOLUTION)"
 fi
 
 if [[ "$FORCING_PROVIDER" == "gfs" ]]; then
