@@ -120,34 +120,187 @@ Before changing anything, remember two useful read-only checks:
 The first checks the configuration. The second shows the resolved experiment
 that wrfkit intends to run.
 
-## TOML in 60 seconds
+## TOML syntax and wrfkit schema
 
-A normal value:
+A `case.toml` file uses standard TOML syntax. The important distinction is
+between **TOML syntax** and the **wrfkit schema**:
 
-```toml
-time_step = 72
-```
+- TOML decides whether the text is a valid TOML document.
+- wrfkit decides whether a top-level section or convenience field belongs to
+  the supported case schema.
+- WRF/WPS decide whether a native `[advanced.*]` namelist group/key/value is
+  actually valid for the model version.
 
-A section:
+### Values
 
-```toml
-[model]
-time_step = 72
-```
-
-An array:
+Strings use quotes:
 
 ```toml
-e_we = [101]
+suite = "CONUS"
 ```
 
-A Boolean:
+Integers and floating-point values are unquoted:
+
+```toml
+time_step = 18
+ref_lat = 33.95
+```
+
+TOML Booleans are lowercase:
 
 ```toml
 restart = false
+managed = true
 ```
 
-For nested WRF domains, several settings use arrays with one value per domain.
+`True` and `False` are **not** TOML Boolean literals.
+
+Arrays use square brackets:
+
+```toml
+forecast_hours = [0, 3, 6]
+e_we = [241]
+e_sn = [241]
+```
+
+WRF settings that vary by domain often use one array element per domain.
+Follow the upstream WRF/WPS documentation for the expected number and meaning
+of values.
+
+TOML also supports date/time values. wrfkit requires an explicit UTC offset for
+case times:
+
+```toml
+start = 2026-09-30T00:00:00Z
+end   = 2026-09-30T06:00:00Z
+```
+
+A trailing `Z` means UTC.
+
+Comments begin with `#`:
+
+```toml
+time_step = 18  # seconds
+```
+
+### Tables
+
+A section such as:
+
+```toml
+[model]
+time_step = 18
+```
+
+creates the `model` table.
+
+A nested section:
+
+```toml
+[forcing.subset]
+west = 265
+east = 288
+south = 25
+north = 42
+```
+
+creates `subset` inside `forcing`.
+
+Native passthrough tables use the same TOML nesting:
+
+```toml
+[advanced.wrf.physics]
+cu_physics = [0]
+radt = [3]
+```
+
+Here `wrf` identifies the native model family and `physics` maps to
+`&physics` in `namelist.input`.
+
+### The supported top-level schema
+
+The current schema accepts these top-level sections/keys:
+
+```text
+schema_version
+case
+namelist
+time
+domain
+geography
+forcing
+model
+physics
+output
+advanced
+```
+
+Unknown top-level sections and unknown fields inside the convenience tables are
+rejected. This is deliberate: a typo such as:
+
+```toml
+[physcs]
+suite = "CONUS"
+```
+
+should fail rather than silently do nothing.
+
+For a setting taken directly from the WRF/WPS manual, use the native
+passthrough layer instead of inventing another wrfkit top-level table.
+
+For example, this is **not** the intended interface:
+
+```toml
+[some_good_stuff]
+manual_said = 1
+how_about_this = true
+```
+
+If the upstream WRF manual really defines a namelist group named
+`&some_good_stuff`, write:
+
+```toml
+[advanced.wrf.some_good_stuff]
+manual_said = 1
+how_about_this = true
+```
+
+wrfkit intentionally does not hard-code every possible native group/key under
+`advanced.wrf` or `advanced.wps`. That lets newer or uncommon WRF/WPS
+options be used without waiting for a new wrfkit convenience field.
+
+!!! warning "Passthrough does not certify the upstream option"
+    wrfkit can render an arbitrary native group/key, but it cannot guarantee
+    that the name, type, range, or scientific value is valid for your WRF/WPS
+    version. Check the upstream manual. A made-up group can still be rejected
+    later by the native program.
+
+### Three levels of configuration
+
+A useful mental model is:
+
+```text
+1. wrfkit convenience layer
+   [time], [domain], [geography], [forcing], [model], [physics], [output]
+          ↓
+   common settings + wrfkit validation
+
+2. native passthrough layer
+   [advanced.wrf.<group>]
+   [advanced.wps.<group>]
+          ↓
+   arbitrary native namelist groups/keys
+
+3. raw native layer
+   [advanced.wrf_raw.<group>]
+   [advanced.wps_raw.<group>]
+          ↓
+   verbatim Fortran namelist values when ordinary TOML conversion is not enough
+```
+
+Prefer level 1 when wrfkit provides the field. Use level 2 for valid manual
+options that are not convenience fields. Use level 3 only for syntax that
+cannot be represented normally.
 
 ## Settings you will use most often
 
@@ -272,9 +425,10 @@ repository clones. The downloader validates the tar/gzip archive, checks the
 expected mandatory-field directories, records the archive SHA-256 for
 provenance, and installs the extracted tree atomically.
 
-The full official archive path is large, so the current implementation is
-covered in CI with a local archive fixture; a live official-archive end-to-end
-validation remains pending.
+The official high-resolution package has now been exercised in the current
+validation workflow. The downloader also remains covered in CI with a local
+archive fixture. See [Supported and validated](../validation.md) for the
+current environment-specific boundary.
 
 `resolution` is not forced to `"default"`. A researcher may keep WPS's native
 selector freedom, for example:
@@ -479,6 +633,12 @@ storage.
 The convenience fields above are intentionally limited. wrfkit does not try to
 re-create every WRF/WPS namelist option as a custom TOML field.
 
+That limitation is intentional. Reproducing the entire upstream WRF/WPS
+namelist surface as a second wrfkit-specific schema would create another manual
+to keep synchronized with every model release. Instead, frequently used fields
+can become convenience settings when wrfkit can add useful validation, while
+the native passthrough remains open-ended.
+
 Instead, advanced sections map directly to native namelist groups:
 
 ```text
@@ -507,7 +667,8 @@ opt_geogrid_tbl_path = "."
 ```
 
 If a convenience field and an advanced field write the same native key, the
-**advanced value wins**.
+**advanced value wins**. Keep advanced tables at the end of the file so this
+override boundary remains obvious during review.
 
 ??? example "More advanced WRF examples"
 
@@ -583,27 +744,36 @@ Use `*_raw` only when ordinary TOML values are not enough.
 
 ## A safe editing routine
 
-Use the same sequence whenever you change a research case:
+The documentation's default interactive workflow is to enter the pinned shell
+once, then work with `wrfctl` directly:
+
+```bash
+./wrfctl shell
+```
+
+Inside the `(wrfkit)` shell:
 
 ```bash
 # 1. edit
 $EDITOR cases/my-case/case.toml
 
 # 2. validate without writing native namelists
-./wrfctl config --case my-case --check
+wrfctl config --case my-case --check
 
 # 3. inspect the resolved experiment
-./wrfctl plan --case my-case
+wrfctl plan --case my-case
 
-# 4. prepare inputs
-./wrfctl prep --case my-case
+# 4. render + prepare inputs
+wrfctl prep --case my-case
 
 # 5. run WRF
-./wrfctl run --case my-case
+wrfctl run --case my-case
 ```
 
-If the scientific configuration changes after preparation, run `prep` again
-when the change requires new `wrfinput` or `wrfbdy` files.
+If the scientific configuration changes after preparation, the freshness guard
+normally stops `run` until you prepare again. See
+[High-level and low-level workflows](../how-to/low-level-workflow.md) for the
+exact stage mapping and the explicit stale-prep override boundary.
 
 ## Complete annotated template
 
@@ -617,3 +787,11 @@ It includes additional advanced examples and comments.
 
 For native WRF/WPS options beyond wrfkit's convenience layer, use the official
 WRF documentation together with the `[advanced.*]` interface.
+
+## Related pages
+
+- Machine setup and shell: [Bootstrap and enter the wrfkit shell](../tutorials/bootstrap-and-shell.md)
+- Build a real experiment: [Make a research case](../how-to/research-case.md)
+- Inspect every WPS/WRF stage: [High-level and low-level workflows](../how-to/low-level-workflow.md)
+- Change the software environment: [Customize flake.nix](../how-to/customize-flake.md)
+- Command syntax: [wrfctl command reference](commands.md)
