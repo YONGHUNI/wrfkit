@@ -178,7 +178,7 @@ jobs:
           grep -qx 'WRFKIT_NPROC_X=5' /tmp/mpi-plan
           grep -qx 'WRFKIT_NPROC_Y=6' /tmp/mpi-plan
 
-      - name: Check TOML renderer idempotence
+      - name: Check tracked namelist consistency
         run: |
           python3 scripts/case-config.py config --case athens-minimal
           python3 scripts/case-config.py config --case athens-highres
@@ -187,6 +187,222 @@ jobs:
             cases/athens-minimal/namelist.input \
             cases/athens-highres/namelist.wps \
             cases/athens-highres/namelist.input
+
+          python3 scripts/case-config.py summary --case athens-highres > /tmp/highres-summary
+          grep -Eq 'dx:[[:space:]]+3000 m
+      - name: Check prep-manifest freshness guard
+        run: |
+          export WRFKIT_NIX_SHELL=1
+          export WRFKIT_WRF_VERSION=4.8.0
+          export WRFKIT_WPS_VERSION=4.7.0
+          source scripts/lib.sh
+
+          mkdir -p .wrfkit/work/athens-minimal
+          cp cases/athens-minimal/case.toml /tmp/case.toml
+          cp cases/athens-minimal/namelist.input /tmp/namelist.input
+          trap 'cp /tmp/case.toml cases/athens-minimal/case.toml; cp /tmp/namelist.input cases/athens-minimal/namelist.input' EXIT
+
+          write_prep_manifest athens-minimal
+          enforce_prep_freshness athens-minimal 0 > /tmp/fresh.out 2> /tmp/fresh.err
+          grep -q 'Prepared inputs match the current case configuration' /tmp/fresh.out
+
+          sed -i 's/history_interval_minutes = 180/history_interval_minutes = 181/' cases/athens-minimal/case.toml
+          if enforce_prep_freshness athens-minimal 0 > /tmp/case-block.out 2> /tmp/case-block.err; then
+            echo "Stale case.toml unexpectedly passed the default freshness guard" >&2
+            exit 1
+          fi
+          grep -q 'case.toml scientific configuration' /tmp/case-block.err
+          grep -q 'refusing to launch wrf.exe' /tmp/case-block.err
+
+          enforce_prep_freshness athens-minimal 1 > /tmp/case-allow.out 2> /tmp/case-allow.err
+          grep -q -- '--allow-stale-prep was supplied' /tmp/case-allow.err
+          cp /tmp/case.toml cases/athens-minimal/case.toml
+
+          printf '\n! CI stale-manifest guard test\n' >> cases/athens-minimal/namelist.input
+          if enforce_prep_freshness athens-minimal 0 > /tmp/namelist-block.out 2> /tmp/namelist-block.err; then
+            echo "Stale namelist.input unexpectedly passed the default freshness guard" >&2
+            exit 1
+          fi
+          grep -q 'namelist.input' /tmp/namelist-block.err
+          cp /tmp/namelist.input cases/athens-minimal/namelist.input
+
+          sed -i 's/^wrf_version=.*/wrf_version=0.0.0/' .wrfkit/work/athens-minimal/.wrfkit-prep-manifest
+          if enforce_prep_freshness athens-minimal 1 > /tmp/version.out 2> /tmp/version.err; then
+            echo "WRF version mismatch unexpectedly passed with --allow-stale-prep" >&2
+            exit 1
+          fi
+          grep -q 'WRF version changed after prep' /tmp/version.err
+      - name: Check prep-manifest warn-and-continue policy
+        run: |
+          export WRFKIT_NIX_SHELL=1
+          export WRFKIT_WRF_VERSION=4.8.0
+          export WRFKIT_WPS_VERSION=4.7.0
+          source scripts/lib.sh
+
+          mkdir -p .wrfkit/work/athens-minimal
+          cp cases/athens-minimal/case.toml /tmp/case.toml
+          cp cases/athens-minimal/namelist.input /tmp/namelist.input
+          trap 'cp /tmp/case.toml cases/athens-minimal/case.toml; cp /tmp/namelist.input cases/athens-minimal/namelist.input' EXIT
+
+          write_prep_manifest athens-minimal
+
+          sed -i 's/history_interval_minutes = 180/history_interval_minutes = 181/' cases/athens-minimal/case.toml
+          verify_prep_manifest athens-minimal 2>/tmp/case-warning
+          test "$WRFKIT_PREP_CHANGED" -eq 1
+          grep -q 'case.toml scientific configuration' /tmp/case-warning
+          cp /tmp/case.toml cases/athens-minimal/case.toml
+
+          printf '\n! CI stale-manifest warning test\n' >> cases/athens-minimal/namelist.input
+          verify_prep_manifest athens-minimal 2>/tmp/namelist-warning
+          test "$WRFKIT_PREP_CHANGED" -eq 1
+          grep -q 'namelist.input' /tmp/namelist-warning
+          cp /tmp/namelist.input cases/athens-minimal/namelist.input
+
+          sed -i 's/^wrf_version=.*/wrf_version=0.0.0/' .wrfkit/work/athens-minimal/.wrfkit-prep-manifest
+          if verify_prep_manifest athens-minimal 2>/tmp/version-error; then
+            echo "WRF version mismatch unexpectedly passed" >&2
+            exit 1
+          fi
+          grep -q 'WRF version changed after prep' /tmp/version-error
+ /tmp/highres-summary
+          grep -Eq 'e_we:[[:space:]]+\[241\]
+      - name: Check prep-manifest warn-and-continue policy
+        run: |
+          export WRFKIT_NIX_SHELL=1
+          export WRFKIT_WRF_VERSION=4.8.0
+          export WRFKIT_WPS_VERSION=4.7.0
+          source scripts/lib.sh
+
+          mkdir -p .wrfkit/work/athens-minimal
+          cp cases/athens-minimal/case.toml /tmp/case.toml
+          cp cases/athens-minimal/namelist.input /tmp/namelist.input
+          trap 'cp /tmp/case.toml cases/athens-minimal/case.toml; cp /tmp/namelist.input cases/athens-minimal/namelist.input' EXIT
+
+          write_prep_manifest athens-minimal
+
+          sed -i 's/history_interval_minutes = 180/history_interval_minutes = 181/' cases/athens-minimal/case.toml
+          verify_prep_manifest athens-minimal 2>/tmp/case-warning
+          test "$WRFKIT_PREP_CHANGED" -eq 1
+          grep -q 'case.toml scientific configuration' /tmp/case-warning
+          cp /tmp/case.toml cases/athens-minimal/case.toml
+
+          printf '\n! CI stale-manifest warning test\n' >> cases/athens-minimal/namelist.input
+          verify_prep_manifest athens-minimal 2>/tmp/namelist-warning
+          test "$WRFKIT_PREP_CHANGED" -eq 1
+          grep -q 'namelist.input' /tmp/namelist-warning
+          cp /tmp/namelist.input cases/athens-minimal/namelist.input
+
+          sed -i 's/^wrf_version=.*/wrf_version=0.0.0/' .wrfkit/work/athens-minimal/.wrfkit-prep-manifest
+          if verify_prep_manifest athens-minimal 2>/tmp/version-error; then
+            echo "WRF version mismatch unexpectedly passed" >&2
+            exit 1
+          fi
+          grep -q 'WRF version changed after prep' /tmp/version-error
+ /tmp/highres-summary
+          grep -Eq 'e_sn:[[:space:]]+\[241\]
+      - name: Check prep-manifest warn-and-continue policy
+        run: |
+          export WRFKIT_NIX_SHELL=1
+          export WRFKIT_WRF_VERSION=4.8.0
+          export WRFKIT_WPS_VERSION=4.7.0
+          source scripts/lib.sh
+
+          mkdir -p .wrfkit/work/athens-minimal
+          cp cases/athens-minimal/case.toml /tmp/case.toml
+          cp cases/athens-minimal/namelist.input /tmp/namelist.input
+          trap 'cp /tmp/case.toml cases/athens-minimal/case.toml; cp /tmp/namelist.input cases/athens-minimal/namelist.input' EXIT
+
+          write_prep_manifest athens-minimal
+
+          sed -i 's/history_interval_minutes = 180/history_interval_minutes = 181/' cases/athens-minimal/case.toml
+          verify_prep_manifest athens-minimal 2>/tmp/case-warning
+          test "$WRFKIT_PREP_CHANGED" -eq 1
+          grep -q 'case.toml scientific configuration' /tmp/case-warning
+          cp /tmp/case.toml cases/athens-minimal/case.toml
+
+          printf '\n! CI stale-manifest warning test\n' >> cases/athens-minimal/namelist.input
+          verify_prep_manifest athens-minimal 2>/tmp/namelist-warning
+          test "$WRFKIT_PREP_CHANGED" -eq 1
+          grep -q 'namelist.input' /tmp/namelist-warning
+          cp /tmp/namelist.input cases/athens-minimal/namelist.input
+
+          sed -i 's/^wrf_version=.*/wrf_version=0.0.0/' .wrfkit/work/athens-minimal/.wrfkit-prep-manifest
+          if verify_prep_manifest athens-minimal 2>/tmp/version-error; then
+            echo "WRF version mismatch unexpectedly passed" >&2
+            exit 1
+          fi
+          grep -q 'WRF version changed after prep' /tmp/version-error
+ /tmp/highres-summary
+          grep -Eq 'time step:[[:space:]]+18 s
+      - name: Check prep-manifest warn-and-continue policy
+        run: |
+          export WRFKIT_NIX_SHELL=1
+          export WRFKIT_WRF_VERSION=4.8.0
+          export WRFKIT_WPS_VERSION=4.7.0
+          source scripts/lib.sh
+
+          mkdir -p .wrfkit/work/athens-minimal
+          cp cases/athens-minimal/case.toml /tmp/case.toml
+          cp cases/athens-minimal/namelist.input /tmp/namelist.input
+          trap 'cp /tmp/case.toml cases/athens-minimal/case.toml; cp /tmp/namelist.input cases/athens-minimal/namelist.input' EXIT
+
+          write_prep_manifest athens-minimal
+
+          sed -i 's/history_interval_minutes = 180/history_interval_minutes = 181/' cases/athens-minimal/case.toml
+          verify_prep_manifest athens-minimal 2>/tmp/case-warning
+          test "$WRFKIT_PREP_CHANGED" -eq 1
+          grep -q 'case.toml scientific configuration' /tmp/case-warning
+          cp /tmp/case.toml cases/athens-minimal/case.toml
+
+          printf '\n! CI stale-manifest warning test\n' >> cases/athens-minimal/namelist.input
+          verify_prep_manifest athens-minimal 2>/tmp/namelist-warning
+          test "$WRFKIT_PREP_CHANGED" -eq 1
+          grep -q 'namelist.input' /tmp/namelist-warning
+          cp /tmp/namelist.input cases/athens-minimal/namelist.input
+
+          sed -i 's/^wrf_version=.*/wrf_version=0.0.0/' .wrfkit/work/athens-minimal/.wrfkit-prep-manifest
+          if verify_prep_manifest athens-minimal 2>/tmp/version-error; then
+            echo "WRF version mismatch unexpectedly passed" >&2
+            exit 1
+          fi
+          grep -q 'WRF version changed after prep' /tmp/version-error
+ /tmp/highres-summary
+          grep -Eq 'advanced:[[:space:]]+0 WPS / 2 WRF native overrides
+      - name: Check prep-manifest warn-and-continue policy
+        run: |
+          export WRFKIT_NIX_SHELL=1
+          export WRFKIT_WRF_VERSION=4.8.0
+          export WRFKIT_WPS_VERSION=4.7.0
+          source scripts/lib.sh
+
+          mkdir -p .wrfkit/work/athens-minimal
+          cp cases/athens-minimal/case.toml /tmp/case.toml
+          cp cases/athens-minimal/namelist.input /tmp/namelist.input
+          trap 'cp /tmp/case.toml cases/athens-minimal/case.toml; cp /tmp/namelist.input cases/athens-minimal/namelist.input' EXIT
+
+          write_prep_manifest athens-minimal
+
+          sed -i 's/history_interval_minutes = 180/history_interval_minutes = 181/' cases/athens-minimal/case.toml
+          verify_prep_manifest athens-minimal 2>/tmp/case-warning
+          test "$WRFKIT_PREP_CHANGED" -eq 1
+          grep -q 'case.toml scientific configuration' /tmp/case-warning
+          cp /tmp/case.toml cases/athens-minimal/case.toml
+
+          printf '\n! CI stale-manifest warning test\n' >> cases/athens-minimal/namelist.input
+          verify_prep_manifest athens-minimal 2>/tmp/namelist-warning
+          test "$WRFKIT_PREP_CHANGED" -eq 1
+          grep -q 'namelist.input' /tmp/namelist-warning
+          cp /tmp/namelist.input cases/athens-minimal/namelist.input
+
+          sed -i 's/^wrf_version=.*/wrf_version=0.0.0/' .wrfkit/work/athens-minimal/.wrfkit-prep-manifest
+          if verify_prep_manifest athens-minimal 2>/tmp/version-error; then
+            echo "WRF version mismatch unexpectedly passed" >&2
+            exit 1
+          fi
+          grep -q 'WRF version changed after prep' /tmp/version-error
+ /tmp/highres-summary
+          grep -Eq '^[[:space:]]*cu_physics[[:space:]]*=[[:space:]]*0,' cases/athens-highres/namelist.input
+          grep -Eq '^[[:space:]]*radt[[:space:]]*=[[:space:]]*3,' cases/athens-highres/namelist.input
 
       - name: Check prep-manifest warn-and-continue policy
         run: |
