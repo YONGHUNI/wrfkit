@@ -4,11 +4,12 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)/lib.sh"
 
 usage() {
   cat <<'USAGE'
-Usage: ./wrfctl run --case NAME [--ntasks N] [--launcher NAME]
+Usage: ./wrfctl run --case NAME [--ntasks N] [--launcher NAME] [--allow-stale-prep]
 
 Run wrf.exe from a case prepared by wrfctl prep. Managed case.toml values are
 rendered before launch. If case.toml or a native namelist changed after prep,
-wrfkit prints a warning and continues with the existing wrfinput/wrfbdy.
+wrfkit refuses to launch by default because wrfinput/wrfbdy may be stale.
+Use --allow-stale-prep only when reusing those prepared inputs is intentional.
 Missing prep state or WRF/WPS version drift remains a hard error.
 USAGE
 }
@@ -16,6 +17,7 @@ USAGE
 case_name=""
 ntasks=""
 launcher=""
+allow_stale_prep=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -25,6 +27,7 @@ while [[ $# -gt 0 ]]; do
     --ntasks=*) ntasks=${1#--ntasks=}; shift ;;
     --launcher) [[ $# -ge 2 ]] || { usage >&2; exit 2; }; launcher=$2; shift 2 ;;
     --launcher=*) launcher=${1#--launcher=}; shift ;;
+    --allow-stale-prep) allow_stale_prep=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) ui_error "run: unexpected argument: $1"; usage >&2; exit 2 ;;
   esac
@@ -57,12 +60,7 @@ work_dir="$WRFKIT_WORK_DIR/$case_name"
 "$WRFKIT_ROOT/wrfctl" config --case "$case_name"
 printf '\n'
 "$WRFKIT_ROOT/scripts/case-config.py" summary --case "$case_name"
-verify_prep_manifest "$case_name"
-if ((WRFKIT_PREP_CHANGED)); then
-  ui_warn "Prepared inputs predate the current configuration; proceeding by user policy."
-else
-  ui_ok "Prepared inputs match the current case configuration."
-fi
+enforce_prep_freshness "$case_name" "$allow_stale_prep"
 load_case_env "$case_name"
 
 for ((domain_id=1; domain_id<=MAX_DOM; domain_id++)); do
