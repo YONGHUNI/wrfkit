@@ -267,7 +267,12 @@ resolve_mpi_tasks() {
           ;;
       esac
     else
-      requested=$(wrfkit_detect_available_logical_cpus 2>/dev/null || printf '1')
+      # OpenMPI/PRRTE counts physical cores as launch slots by default on a
+      # standalone host. Match that topology-aware capacity instead of blindly
+      # requesting every SMT/hardware thread, which can make mpirun reject the
+      # launch with "not enough slots". If topology cannot be read, the helper
+      # falls back conservatively to half of the visible logical CPUs.
+      requested=$(wrfkit_derive_default_mpi_tasks 2>/dev/null || printf '1')
     fi
   fi
 
