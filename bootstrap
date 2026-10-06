@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+source "$ROOT/scripts/system-resources.sh"
 
 color_enabled() {
   local fd=${1:-1}
@@ -88,6 +89,7 @@ reset=0
 purge=0
 rnb_dir=""
 guided_config_path=""
+guided_mpi_tasks=""
 
 usage() {
   cat <<'USAGE'
@@ -262,9 +264,59 @@ ask_yes_no() {
   done
 }
 
+choose_standalone_mpi_tasks() {
+  local logical physical="" default answer
+
+  logical=$(wrfkit_detect_available_logical_cpus 2>/dev/null || printf '1')
+  default=$(wrfkit_derive_default_mpi_tasks 2>/dev/null || printf '1')
+  physical=$(wrfkit_detect_available_physical_cores 2>/dev/null || true)
+
+  printf '\n'
+  heading "CPU resources"
+  print_kv "logical CPUs" "$logical"
+  if [[ "$physical" =~ ^[1-9][0-9]*$ ]]; then
+    print_kv "physical cores" "$physical"
+    printf '  Default MPI tasks: %s (one rank per detected physical core, capped by available capacity)\n' "$default"
+  else
+    print_kv "physical cores" "unavailable"
+    printf '  Default MPI tasks: %s (wrfkit fallback heuristic: half of available logical CPUs)\n' "$default"
+  fi
+
+  cat <<EOF
+
+Choose the machine-level MPI task policy.
+
+  Enter  Use the default shown above. This is a starting value, not a
+         performance recommendation.
+  auto   Request all $logical logical CPUs currently available to wrfkit.
+  N      Use a fixed number of MPI ranks from 1 to $logical.
+
+High-level WRF prep/run may reduce the requested count when the model domain is
+too small for a valid MPI decomposition.
+EOF
+
+  while true; do
+    read -r -p "MPI tasks [$default]: " answer
+    answer=${answer:-$default}
+
+    if [[ "$answer" == "auto" ]]; then
+      guided_mpi_tasks=auto
+      return
+    fi
+
+    if [[ "$answer" =~ ^[1-9][0-9]*$ ]] && (( answer <= logical )); then
+      guided_mpi_tasks=$answer
+      return
+    fi
+
+    echo "Enter a number from 1 to $logical, or auto."
+  done
+}
+
 write_guided_config() {
   local system_type=$1 selected_profile=$2 scheduler_value=$3 require_value=$4
   local store_root_value=${5:-}
+  local mpi_tasks_value=${6:-1}
   local user_config="${XDG_CONFIG_HOME:-$HOME/.config}/wrfkit/bootstrap.conf"
   local config_dir
   config_dir=$(dirname "$user_config")
@@ -299,7 +351,7 @@ write_guided_config() {
       echo "mpi_tasks=auto"
     else
       echo "mpi_launcher=auto"
-      echo "mpi_tasks=1"
+      echo "mpi_tasks=$mpi_tasks_value"
     fi
   } > "$user_config"
 
@@ -375,7 +427,8 @@ MSG
   if [[ "$choice" == "1" ]]; then
     printf '\n'
     status_ok "Selected standalone Linux workstation/server."
-    write_guided_config "standalone" "generic" "none" "false"
+    choose_standalone_mpi_tasks
+    write_guided_config "standalone" "generic" "none" "false" "" "$guided_mpi_tasks"
     return
   fi
 
