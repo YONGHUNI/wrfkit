@@ -24,8 +24,8 @@ merely implemented or planned.
 | High-level `wrfctl prep` through `real` | Validated | `athens-minimal` completed through `real.exe` with verified `wrfinput`/`wrfbdy` on Lambda Vector and Sapelo2 |
 | `wrfctl plan` / `prep --dry-run` | Validated | Read-only resolved-science and stage view exercised on Lambda Vector and Sapelo2 |
 | WRF-safe MPI decomposition guard | Validated on Sapelo2 | 32 available tasks use 32 ranks for WPS and 30 ranks (5 x 6) for `real`/`wrf`; explicit unsafe `--ntasks 32` is rejected |
-| High-level `wrfctl run` | Validated on Sapelo2; fresh Lambda regression pending | `athens-minimal` auto-selected 30 ranks (5 x 6), observed `SUCCESS COMPLETE WRF`, and verified a new `wrfout_d01_*` |
-| Post-prep configuration warning | Validated on Sapelo2 | Modified `namelist.input` was detected after prep; `run` warned, reused existing `wrfinput`/`wrfbdy`, and still completed with `SUCCESS COMPLETE WRF` |
+| High-level `wrfctl run` | Validated on Lambda Vector and Sapelo2 | Historical 12 km validations completed on both; the current 3 km `athens-highres` case is additionally validated on Sapelo2 |
+| Preparation freshness guard | CI validated; stale detection live-validated on Sapelo2 | Historical warn-and-continue detection was exercised live; current policy blocks stale prep by default and requires `--allow-stale-prep` for intentional reuse |
 | Optional shared `data_root` | Validated on Sapelo2 | External `/work` data root supplied through `WRFKIT_DATA_ROOT` was used for cached geography and GFS through `geogrid -> ungrib -> metgrid -> real` |
 | GFS regional-subset cache identity | Implemented, not yet regression-validated | Cache path includes a request key derived from product and bounding box |
 | TOML `case.toml` parser + namelist overlay | Validated | `--check` and managed overlay exercised on Lambda Vector and Sapelo2; unspecified native keys are preserved |
@@ -33,7 +33,7 @@ merely implemented or planned.
 | Multi-node MPI | Not validated | Do not treat as supported research execution |
 | WRF restart/recovery workflow | Not validated | Requires dedicated workflow testing |
 | Scratch-backed execution workspace | Not implemented | `scratch_root` is currently configuration metadata |
-| High-resolution mandatory geography downloader | Implemented, live validation pending | Official URL/profile resolution, archive validation, expected-directory checks, shared archive cache, atomic install, and CI fixture are implemented; full official archive still needs end-to-end WPS validation |
+| High-resolution mandatory geography downloader | Validated | Official package acquisition has been exercised, and the downloader remains covered by a local CI archive fixture |
 
 ## Clean build regression
 
@@ -88,18 +88,20 @@ matching manifest, observed `SUCCESS COMPLETE WRF`, and verified a newly
 created `wrfout_d01_*` before reporting success. This validates the positive
 manifest path.
 
-The manifest policy has since been changed for research flexibility: changes to
-`case.toml`, `namelist.wps`, or `namelist.input` are reported prominently
-but do not block `wrfctl run`; the existing `wrfinput`/`wrfbdy` are reused.
-A missing prep manifest or a WRF/WPS version mismatch remains a hard error.
-The warn-and-continue path has now been exercised live on Sapelo2. A tracked
-comment was appended to `namelist.input` after prep, and `wrfctl run`
-reported `namelist.input` as changed, warned that the prepared inputs predated
-the current configuration, reused the existing `wrfinput`/`wrfbdy`, retained
-the safe 30-rank (5 x 6) WRF decomposition, and completed with
-`SUCCESS COMPLETE WRF` plus a new `wrfout_d01_*`. The test file was then
-restored and `git status --short` was clean. A fresh high-level `wrfctl run`
-regression on Lambda Vector is still pending.
+During development, the manifest initially used a warn-and-continue policy for
+research flexibility. That historical path was exercised live on Sapelo2: a
+tracked comment was appended to `namelist.input` after prep, the change was
+detected, the existing `wrfinput`/`wrfbdy` were reused, and WRF still reached
+`SUCCESS COMPLETE WRF`.
+
+The current policy is stricter. High-level `wrfctl run` now refuses to launch
+when `case.toml`, `namelist.wps`, or `namelist.input` no longer match the
+prep manifest. The normal recovery is to run `wrfctl prep --case NAME` again.
+Researchers who deliberately want to reuse older prepared inputs can opt in
+with `--allow-stale-prep`. Missing prep state and pinned WRF/WPS version drift
+remain hard errors and cannot be bypassed by that flag. The hard-stop and
+explicit-override branches are covered in CI; a post-change live cluster
+regression is still pending.
 
 A shared-data regression was also completed on Sapelo2 using
 `WRFKIT_DATA_ROOT=/work/whlab/$USER/wrfkit-data-test`. `wrfctl plan`
@@ -112,6 +114,31 @@ separation between reusable data and case-specific execution state.
 
 The result does not validate other forcing providers, research-grade static
 geography, or every advanced namelist passthrough.
+
+## 3 km athens-highres regression (2026-10-06)
+
+The tracked `athens-highres` fixture now represents a true 3 km WRF grid rather
+than the earlier 12 km grid with only higher-resolution source geography. The
+current resolved configuration is 241 x 241 horizontal grid points, 45 vertical
+levels, a 3 km grid spacing, and an 18 s integration step. The CONUS physics
+suite is retained while `cu_physics=0` and `radt=3` are applied as explicit
+native overrides.
+
+On Sapelo2, a fresh `wrfctl prep --case athens-highres` completed the full WPS
+chain and `real.exe`, producing `wrfinput_d01` and `wrfbdy_d01`. The WRF
+stages used 32 ranks with a 4 x 8 decomposition. A subsequent high-level
+`wrfctl run --case athens-highres` reported a matching prep manifest and
+completed with `SUCCESS COMPLETE WRF`. The run produced `wrfout_d01_*`, and
+the 06 UTC output was readable by the project plotting environment. Terrain,
+2 m temperature, and 10 m wind plots were inspected only as sanity checks; no
+claim of observational or scientific validation is made from those figures.
+
+On Lambda Vector, `config` and `plan` resolved the same 3 km case correctly.
+The standalone automatic CPU policy selected 128 MPI tasks with an 8 x 16 WRF
+decomposition, but OpenMPI/PRRTE rejected the launch because that environment
+did not expose 128 launch slots. The 3 km Lambda end-to-end regression is
+therefore still pending. This should not be confused with the earlier 12 km
+high-resolution-geography Lambda runs, which did complete successfully.
 
 ## Single-node Slurm validation
 
