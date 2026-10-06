@@ -288,7 +288,9 @@ Choose the machine-level MPI task policy.
 
   Enter  Use the default shown above. This is a starting value, not a
          performance recommendation.
-  auto   Request all $logical logical CPUs currently available to wrfkit.
+  auto   Re-detect a topology-aware MPI rank count at runtime: one rank per
+         detected physical core, capped by the CPUs visible to wrfkit. If
+         physical topology is unavailable, use half of the visible logical CPUs.
   N      Use a fixed number of MPI ranks from 1 to $logical.
 
 High-level WRF prep/run may reduce the requested count when the model domain is
