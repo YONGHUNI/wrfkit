@@ -23,7 +23,7 @@ If a term on this page is unfamiliar, use the
 | Slurm-aware MPI execution | Use CPUs assigned by a Slurm cluster without manually rebuilding the launch command | **Validated on Sapelo2** |
 | WRF-safe MPI decomposition | Reduce an automatic rank count when WRF's grid would otherwise be split into patches that are too small | **Validated on Sapelo2** |
 | Reusable input data | Store geography and weather-input files once and reuse them across cases or repository clones | **Validated on Sapelo2** |
-| Preparation-change warnings | Warn when a case changed after preparation, while still allowing an intentional research run | **Validated on Sapelo2** |
+| Preparation freshness guard | Stop a high-level run when its prepared inputs no longer match the case; allow deliberate reuse only with an explicit flag | **CI validated; stale detection validated on Sapelo2** |
 | Run checks and logs | Check for WRF's success message, a new output file, and archive native logs for each run | **Validated on Sapelo2** |
 
 The exact test boundary is recorded in the
@@ -166,9 +166,11 @@ report <code>SUCCESS COMPLETE WRF</code>, and checks that a new
 The individual WPS/WRF programs are still available through lower-level
 commands for debugging and teaching.
 
-**Status:** <code>plan</code> and <code>prep</code> are validated on Lambda
-Vector and Sapelo2. The current high-level <code>run</code> path is validated
-on Sapelo2; a fresh Lambda regression remains pending.
+**Status:** the high-level workflow has been validated on Lambda Vector and
+Sapelo2 for the earlier validation cases. The current 3 km
+<code>athens-highres</code> case is validated end to end on Sapelo2; its 3 km
+Lambda Vector end-to-end regression remains pending because the observed
+automatic 128-rank launch exceeded the available PRRTE slots.
 
 [Follow the first-run tutorial](tutorials/first-run.md)
 
@@ -271,31 +273,45 @@ Sapelo2.
 
 [See where files are stored](reference/files-and-folders.md#reuse-downloaded-data-across-projects)
 
-## Warn about changed preparation, but keep research flexible
+## Guard against stale prepared inputs
 
-A researcher may intentionally change a setting after <code>real.exe</code> has
-already created <code>wrfinput</code> and <code>wrfbdy</code>.
+A case can change after <code>real.exe</code> has already created
+<code>wrfinput</code> and <code>wrfbdy</code>. Running WRF with those older
+prepared inputs while the tracked namelists describe something else is easy to
+do accidentally.
 
-wrfkit records a small preparation manifest. At <code>run</code> time it
-compares that record with the current case.
-
-If the case changed, wrfkit clearly reports the fact:
+wrfkit records a preparation manifest and compares it with the current case at
+high-level <code>run</code> time. If <code>case.toml</code>,
+<code>namelist.wps</code>, or <code>namelist.input</code> changed, the default
+behavior is now to stop before <code>wrf.exe</code> launches:
 
 ~~~text
 [WARN] Configuration changed since the last prep.
   Changed since prep:
     - namelist.input
-[WARN] Continuing with the existing wrfinput/wrfbdy.
+[ERROR] Prepared inputs are stale; refusing to launch wrf.exe.
 ~~~
 
-It does **not** try to decide whether your scientific change requires re-running
-WPS or <code>real.exe</code>. That decision stays with you.
+The normal fix is:
 
-A missing preparation manifest or a different pinned WRF/WPS version remains a
-hard error because those conditions are different from an intentional case edit.
+~~~bash
+./wrfctl prep --case my-case
+./wrfctl run  --case my-case
+~~~
 
-**Status:** the warn-and-continue path was exercised successfully on Sapelo2
-through <code>SUCCESS COMPLETE WRF</code>.
+If reusing the older <code>wrfinput</code>/<code>wrfbdy</code> is deliberate,
+make that decision explicit:
+
+~~~bash
+./wrfctl run --case my-case --allow-stale-prep
+~~~
+
+A missing prep manifest or a pinned WRF/WPS version mismatch remains a hard
+error and is not bypassed by the flag.
+
+**Status:** stale-case detection was exercised live on Sapelo2 under the earlier
+warn-and-continue policy. The current hard-stop and explicit-override behavior
+is covered by CI; a post-change live cluster regression remains pending.
 
 ## Check success and keep useful logs
 
@@ -329,9 +345,10 @@ supported features.
 
 Current important boundaries include:
 
-- **high-resolution mandatory geography:** downloader implemented and covered
-  by a local archive fixture; live official-archive end-to-end validation is
-  still pending;
+- **3 km Lambda Vector regression:** the current case resolves correctly, but
+  the observed 128-rank standalone automatic launch exceeded PRRTE's available
+  slots; use a compatible explicit rank count or adjust the auto-task policy
+  before claiming the 3 km Lambda path as validated;
 - **multi-node MPI:** not validated;
 - **restart/recovery workflow:** not validated;
 - **WRF-Chem / WRFDA:** not currently claimed as supported.
