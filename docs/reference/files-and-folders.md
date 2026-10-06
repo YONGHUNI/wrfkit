@@ -5,12 +5,18 @@ wrfkit separates **things you edit** from **things programs generate**.
 ## The short version
 
 ```text
-cases/                 you edit and commit these
+flake.nix              reproducible project software environment
+~/.config/wrfkit/
+  bootstrap.conf       machine/site policy
+cases/                 tracked scientific case configuration
 .wrfkit/work/          generated working files and model products
 .wrfkit/logs/          run-by-run provenance and archived native logs
 .wrfkit/data/          reusable downloaded input data (default)
 .wrfkit/install/       built WRF/WPS programs
 ```
+
+These layers have different jobs. See
+[How wrfkit works](../explanation/how-it-works.md) for the design model.
 
 ## A case
 
@@ -127,3 +133,10 @@ Relative paths are resolved under:
 
 The case workspace still uses the stable `geog` link expected by
 `namelist.wps`; wrfkit points that link at the resolved external directory.
+
+## Related pages
+
+- Machine-level configuration: [Bootstrap and enter the wrfkit shell](../tutorials/bootstrap-and-shell.md)
+- Scientific cases: [Understand case.toml](case-toml.md)
+- Software environment: [Customize flake.nix](../how-to/customize-flake.md)
+- Generated stage files: [High-level and low-level workflows](../how-to/low-level-workflow.md)
