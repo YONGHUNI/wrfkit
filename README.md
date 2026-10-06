@@ -38,10 +38,10 @@ Validated high-level workflow:
 
 - `wrfctl plan` / `prep --dry-run` on Lambda Vector and Sapelo2
 - `prep` through `real.exe` on Lambda Vector and Sapelo2
+- official high-resolution mandatory geography through `geogrid -> ungrib -> metgrid -> real -> wrf` on Lambda Vector and Sapelo2
 - stage-aware WRF MPI decomposition on Sapelo2 (32 available -> 30 safe ranks)
-- `wrfctl run` on Sapelo2 with stale-preparation, success-marker, and new-output checks
-
-A fresh high-level `wrfctl run` regression on Lambda Vector remains pending.
+- standalone CPU-policy detection on Lambda Vector (128 logical CPUs / 64 physical cores) with WRF domain guard reducing the Athens case to 36 safe ranks
+- `wrfctl run` on Lambda Vector and Sapelo2 with preparation checks and WRF success/output verification
 
 Not yet claimed as supported:
 
@@ -268,9 +268,9 @@ The repository now carries two Athens validation fixtures with the same
 domain/time/forcing setup:
 
 - `athens-minimal`: low-resolution mandatory geography; fast end-to-end path.
-- `athens-highres`: high-resolution mandatory geography; automatic
-  acquisition is implemented, while a live official-archive end-to-end run
-  remains to be validated.
+- `athens-highres`: high-resolution mandatory geography; the official
+  archive has been validated end to end through WPS, `real.exe`, and `wrf.exe`
+  on Lambda Vector and Sapelo2.
 
 Keeping the rest of the case equal makes geography the deliberate difference.
 
