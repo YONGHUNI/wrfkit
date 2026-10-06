@@ -282,8 +282,30 @@ verify_prep_manifest() {
     ui_warn "Configuration changed since the last prep${prepared_at:+ ($prepared_at)}."
     printf '  Changed since prep:\n' >&2
     printf '    - %s\n' "${changes[@]}" >&2
-    ui_warn "Continuing with the existing wrfinput/wrfbdy. Re-run prep to regenerate them."
+    ui_warn "Prepared inputs are stale. Re-run prep to regenerate wrfinput/wrfbdy."
   fi
 
   return 0
+}
+
+
+enforce_prep_freshness() {
+  local case_name=$1
+  local allow_stale=${2:-0}
+
+  verify_prep_manifest "$case_name" || return $?
+
+  if ((WRFKIT_PREP_CHANGED)); then
+    if [[ "$allow_stale" == "1" ]]; then
+      ui_warn "Proceeding with stale prepared inputs because --allow-stale-prep was supplied."
+      return 0
+    fi
+
+    ui_error "Prepared inputs are stale; refusing to launch wrf.exe."
+    printf 'Run ./wrfctl prep --case %s again.\n' "$case_name" >&2
+    printf 'If reuse is intentional, re-run with --allow-stale-prep.\n' >&2
+    return 2
+  fi
+
+  ui_ok "Prepared inputs match the current case configuration."
 }
