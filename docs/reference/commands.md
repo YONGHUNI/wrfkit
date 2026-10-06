@@ -11,7 +11,8 @@ Commands below are run from the repository root unless noted otherwise.
 | `./wrfctl plan --case NAME` | Show resolved scientific configuration, input-cache state, and planned stages without changes |
 | `./wrfctl prep --case NAME --dry-run` | Show the same read-only preparation plan |
 | `./wrfctl prep --case NAME` | Prepare through `geogrid -> ungrib -> metgrid -> real`; verify `wrfinput`/`wrfbdy` |
-| `./wrfctl run --case NAME` | Verify the prep manifest, run WRF, and require a current success marker/output |
+| `./wrfctl run --case NAME` | Verify the prep manifest, refuse stale prepared inputs by default, run WRF, and require a current success marker/output |
+| `./wrfctl run --case NAME --allow-stale-prep` | Explicitly allow intentional reuse of older `wrfinput`/`wrfbdy` after a case or namelist change |
 | `./wrfctl exec real --case NAME` | Low-level direct `real.exe` execution |
 | `./wrfctl exec wrf --case NAME` | Low-level direct `wrf.exe` execution |
 
@@ -145,13 +146,19 @@ of preparation-relevant TOML, hashes of both native namelists, and the pinned
 WRF/WPS versions. `wrfctl run` checks that manifest before launching WRF.
 
 If `case.toml`, `namelist.wps`, or `namelist.input` changed after prep,
-`wrfctl run` reports which component changed and warns that the existing
-`wrfinput`/`wrfbdy` were prepared earlier. It then continues with those
-prepared inputs so an intentional research change is not silently blocked.
+`wrfctl run` reports which component changed and refuses to launch
+`wrf.exe` by default. Re-run `wrfctl prep --case NAME` to regenerate the
+prepared inputs.
 
-Re-run `wrfctl prep --case NAME` when the change requires new prepared inputs.
+When older `wrfinput`/`wrfbdy` are intentionally being reused, the override
+must be explicit:
+
+```bash
+./wrfctl run --case NAME --allow-stale-prep
+```
+
 A missing prep manifest or a pinned WRF/WPS version mismatch remains a hard
-error.
+error and cannot be bypassed by `--allow-stale-prep`.
 
 
 ## WRF-safe MPI decomposition
