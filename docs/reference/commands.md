@@ -66,6 +66,12 @@ without copying or modifying the source data.
 Supported launcher names are `auto`, `srun`, `mpirun`, `mpiexec`, and
 `custom`.
 
+Outside Slurm, `mpi_tasks=auto` now selects a topology-aware standalone rank
+count: one rank per detected physical core, capped by the CPUs visible to the
+current process. If physical-core topology cannot be read, wrfkit falls back to
+half of the visible logical CPUs. This avoids accidental SMT oversubscription
+with OpenMPI/PRRTE's normal physical-core slot model.
+
 On the validated single-node Slurm path, the profile normally uses `srun`
 as the outer backend and wrfkit launches the actual MPI ranks with its pinned
 OpenMPI inside one Nix namespace.
