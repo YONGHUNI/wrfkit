@@ -5,6 +5,7 @@ schema_version = 1
 description = "Athens, Georgia 3-km convection-permitting high-resolution validation case"
 
 [namelist]
+# This is wrfkit policy, not a native WRF/WPS namelist group.
 # true: case.toml owns only the fields it specifies; other native namelist
 # fields are preserved. false: wrfkit never modifies namelist.wps/input.
 managed = true
@@ -13,22 +14,6 @@ managed = true
 start = 2026-09-30T00:00:00Z
 end = 2026-09-30T06:00:00Z
 forcing_interval_seconds = 10800
-
-[forcing]
-provider = "gfs"
-product = "0p25"
-cycle = 2026-09-30T00:00:00Z
-forecast_hours = [0, 3, 6]
-
-[forcing.subset]
-west = 265
-east = 288
-north = 42
-south = 25
-
-[geography]
-dataset = "wps-highres-mandatory"
-resolution = "default"
 
 [domain]
 max_dom = 1
@@ -51,6 +36,22 @@ truelat1 = 30.0
 truelat2 = 60.0
 stand_lon = -84.0
 
+[geography]
+dataset = "wps-highres-mandatory"
+resolution = "default"
+
+[forcing]
+provider = "gfs"
+product = "0p25"
+cycle = 2026-09-30T00:00:00Z
+forecast_hours = [0, 3, 6]
+
+[forcing.subset]
+west = 265
+east = 288
+north = 42
+south = 25
+
 [model]
 # WRF guidance uses <= 6 * dx(km) as a typical upper rule of thumb.
 time_step = 18
@@ -61,11 +62,16 @@ suite = "CONUS"
 # At 3-km grid spacing, explicitly resolve deep convection instead of using
 # the CONUS suite's default cumulus parameterization. Radiation is called
 # every ~1 minute per km of d01 grid spacing.
-[advanced.wrf.physics]
-cu_physics = [0]
-radt = [3]
-
 [output]
 history_interval_minutes = 180
 frames_per_outfile = 1
 restart = false
+# ---------------------------------------------------------------------------
+# Native namelist overrides
+# ---------------------------------------------------------------------------
+# These map directly to &physics in namelist.input and intentionally live
+# after the wrfkit convenience sections.
+[advanced.wrf.physics]
+cu_physics = [0]
+radt = [3]
+
