@@ -5,6 +5,7 @@ schema_version = 1
 description = "Athens, Georgia minimal single-domain validation case"
 
 [namelist]
+# This is wrfkit policy, not a native WRF/WPS namelist group.
 # true: case.toml owns only the fields it specifies; other native namelist
 # fields are preserved. false: wrfkit never modifies namelist.wps/input.
 managed = true
@@ -13,22 +14,6 @@ managed = true
 start = 2026-09-30T00:00:00Z
 end = 2026-09-30T06:00:00Z
 forcing_interval_seconds = 10800
-
-[forcing]
-provider = "gfs"
-product = "0p25"
-cycle = 2026-09-30T00:00:00Z
-forecast_hours = [0, 3, 6]
-
-[forcing.subset]
-west = 265
-east = 288
-north = 42
-south = 25
-
-[geography]
-dataset = "wps-lowres-mandatory"
-resolution = "lowres"
 
 [domain]
 max_dom = 1
@@ -47,6 +32,22 @@ ref_lon = -83.38
 truelat1 = 30.0
 truelat2 = 60.0
 stand_lon = -84.0
+
+[geography]
+dataset = "wps-lowres-mandatory"
+resolution = "lowres"
+
+[forcing]
+provider = "gfs"
+product = "0p25"
+cycle = 2026-09-30T00:00:00Z
+forecast_hours = [0, 3, 6]
+
+[forcing.subset]
+west = 265
+east = 288
+north = 42
+south = 25
 
 [model]
 time_step = 72
