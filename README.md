@@ -38,7 +38,7 @@ Validated high-level workflow:
 
 - `wrfctl plan` / `prep --dry-run` on Lambda Vector and Sapelo2
 - `prep` through `real.exe` on Lambda Vector and Sapelo2
-- official high-resolution mandatory geography through `geogrid -> ungrib -> metgrid -> real -> wrf` on Lambda Vector and Sapelo2
+- official high-resolution mandatory geography acquisition and workflow validation on Lambda Vector and Sapelo2; the current 3 km `athens-highres` end-to-end case is validated on Sapelo2, while its 3 km Lambda regression remains pending
 - stage-aware WRF MPI decomposition on Sapelo2 (32 available -> 30 safe ranks)
 - standalone CPU-policy detection on Lambda Vector (128 logical CPUs / 64 physical cores) with WRF domain guard reducing the Athens case to 36 safe ranks
 - `wrfctl run` on Lambda Vector and Sapelo2 with preparation checks and WRF success/output verification
@@ -264,23 +264,27 @@ Normal use is intentionally short:
 ./wrfctl run  --case athens-minimal
 ```
 
-The repository now carries two Athens validation fixtures with the same
-domain/time/forcing setup:
+The repository carries two Athens validation fixtures with different purposes:
 
-- `athens-minimal`: low-resolution mandatory geography; fast end-to-end path.
-- `athens-highres`: high-resolution mandatory geography; the official
-  archive has been validated end to end through WPS, `real.exe`, and `wrf.exe`
-  on Lambda Vector and Sapelo2.
+- `athens-minimal`: 12 km, 61 x 61, low-resolution mandatory geography; the
+  fast end-to-end workflow fixture.
+- `athens-highres`: 3 km, 241 x 241, high-resolution mandatory geography;
+  the current higher-resolution integration fixture. It also disables cumulus
+  parameterization explicitly and uses a 3-minute radiation interval.
 
-Keeping the rest of the case equal makes geography the deliberate difference.
+The current 3 km `athens-highres` path has completed end to end on Sapelo2.
+On Lambda Vector, its configuration and plan resolve correctly, but the observed
+standalone automatic 128-rank launch exceeded PRRTE's available slots, so the
+3 km Lambda end-to-end regression remains pending. Earlier successful Lambda
+runs of `athens-highres` used its former 12 km geography-only configuration.
 
 `plan` shows the resolved scientific configuration and the stages that will
 run without changing files. `prep` prepares the case through `real.exe`, so
 its final contract is the existence of `wrfinput_d0*` and `wrfbdy_d01`.
 `run` compares the current case with the preparation manifest before launching
-`wrf.exe`. Case/namelist changes are reported as warnings and may continue
-with the existing prepared inputs; missing prep state or WRF/WPS version drift
-remains a hard error.
+`wrf.exe`. Case/namelist drift is a hard stop by default; intentional reuse of
+older prepared inputs requires `--allow-stale-prep`. Missing prep state or
+WRF/WPS version drift remains a hard error regardless of that flag.
 
 This follows the project rule: `case.toml` describes **what** experiment is
 being run, the native namelists show **what WRF/WPS actually receive**, and
@@ -394,7 +398,8 @@ multi-node portability is not yet claimed.
 ./wrfctl plan --case NAME          show resolved science and the workflow plan without changes
 ./wrfctl prep --case NAME          prepare through real.exe; create wrfinput/wrfbdy
 ./wrfctl prep --case NAME --dry-run show the plan without changing files
-./wrfctl run --case NAME           check prep state, warn on case drift, then run wrf.exe
+./wrfctl run --case NAME           check prep state, refuse stale prep by default, then run wrf.exe
+./wrfctl run --case NAME --allow-stale-prep intentionally reuse stale wrfinput/wrfbdy
 ./wrfctl fetch geog                download low-res mandatory WPS geography for minimal validation
 ./wrfctl fetch geog --case NAME    download the managed geography selected by a case
 ./wrfctl fetch gfs --case NAME     download configured GFS forcing from NOMADS
@@ -561,11 +566,14 @@ The native stages remain directly callable:
 ./wrfctl exec wrf --case athens-minimal
 ```
 
-Using the high-level pair adds a preparation manifest. `run` reports when the
-TOML or native namelists changed after prep, while leaving the decision to reuse
-the existing prepared inputs visible to the researcher:
+Using the high-level pair adds a preparation manifest. `run` refuses stale
+prepared inputs when the TOML or native namelists changed after prep. Re-run
+`prep` normally; use `--allow-stale-prep` only when reusing the older
+`wrfinput`/`wrfbdy` is deliberate:
 
 ```bash
 ./wrfctl prep --case athens-minimal
 ./wrfctl run  --case athens-minimal
+# or, deliberately:
+./wrfctl run  --case athens-minimal --allow-stale-prep
 ```
