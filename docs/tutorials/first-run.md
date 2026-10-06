@@ -111,7 +111,19 @@ yet.
 
 === "Standalone Linux"
 
-    Choose **Standalone Linux workstation/server** when prompted.
+    Choose **Standalone Linux workstation/server** when prompted. wrfkit then
+    shows the logical CPU capacity visible to the process and, when Linux CPU
+    topology is available, the detected physical-core count.
+
+    The pre-filled MPI task value is a **default**, not a performance
+    recommendation. wrfkit uses one rank per detected physical core, capped by
+    the currently available logical CPU capacity. If physical topology cannot
+    be read, it falls back to half of the available logical CPUs.
+
+    Press Enter to keep that default, enter a fixed positive number, or enter
+    `auto` to request all logical CPUs currently available to wrfkit.
+    High-level WRF `prep`/`run` may reduce the final rank count when the
+    model domain is too small for a valid decomposition.
 
 === "Slurm HPC"
 
