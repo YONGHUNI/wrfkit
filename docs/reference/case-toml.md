@@ -258,9 +258,10 @@ dataset = "wps-highres-mandatory"
 resolution = "default"
 ```
 
-The tracked `athens-highres` case keeps the same Athens domain, time window,
-forcing, and physics as `athens-minimal`, so the geography profile is the
-controlled difference.
+The tracked `athens-highres` case now uses the same general Athens region and
+validation forcing window but a 3 km, 241 x 241 WRF grid with high-resolution
+mandatory geography. It is no longer a controlled geography-only pair with the
+12 km `athens-minimal` case.
 
 wrfkit can automatically acquire this managed package. The official archive is
 stored alongside the geography data so a shared `data_root` can reuse it across
