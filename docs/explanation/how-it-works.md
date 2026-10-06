@@ -20,6 +20,11 @@ know what the wrapper is doing for you.
 
 Keeping these layers separate is the main design idea.
 
+For interactive work, `wrfctl shell` makes layer 1 explicit. The project
+`flake.nix` defines that shell, while bootstrap records machine/site policy.
+See [Bootstrap and enter the wrfkit shell](../tutorials/bootstrap-and-shell.md)
+and [Customize flake.nix](../how-to/customize-flake.md).
+
 ## Why does `prep` exist if the individual commands still exist?
 
 The native preparation chain contains several distinct programs and staging
@@ -46,6 +51,10 @@ wrfkit therefore keeps both layers. `prep` orchestrates the case, while
 control over one stage. `wrfctl config` resolves `case.toml` first and,
 when allowed, overlays TOML-owned values onto the native namelists.
 
+The complete stage-by-stage mapping, including what safety checks high-level
+`prep`/`run` add beyond direct `exec`, is documented in
+[High-level and low-level workflows](../how-to/low-level-workflow.md).
+
 Reusable downloaded inputs may also be separated from a particular repository
 with a machine-level `data_root`. Static geography and raw forcing are good
 shared inputs because several cases can reuse the same source data. Generated
@@ -63,7 +72,9 @@ Nix gives wrfkit a controlled software environment so a run does not silently
 switch to whatever compiler, MPI, or NetCDF happens to be installed on the host.
 
 On HPC systems where users do not have root permission, wrfkit can use rootless
-Nix.
+Nix. Bootstrap handles the machine-facing policy; `flake.nix` describes the
+project-facing software environment. Those are intentionally separate from
+scientific case configuration.
 
 ## Why does Slurm launch only one child task first?
 
@@ -120,3 +131,13 @@ wrfkit keeps native logs in the workspace and creates one per-run
 `native-logs.tar` for persistent provenance.
 
 For implementation details and future plans, see [Design notes](../design.md).
+
+## Follow the layer you are changing
+
+| If you want to change... | Start here |
+| --- | --- |
+| machine/site storage or MPI policy | [Bootstrap and enter the wrfkit shell](../tutorials/bootstrap-and-shell.md) |
+| compilers, libraries, Python packages, pinned Nix inputs | [Customize flake.nix](../how-to/customize-flake.md) |
+| domain, forcing, physics, output | [Understand case.toml](../reference/case-toml.md) |
+| one WPS/WRF stage | [High-level and low-level workflows](../how-to/low-level-workflow.md) |
+| complete research experiment | [Make a research case](../how-to/research-case.md) |
