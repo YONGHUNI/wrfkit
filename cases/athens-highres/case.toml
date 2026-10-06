@@ -1,8 +1,8 @@
-# wrfkit case configuration for Athens high-resolution geography validation.
+# wrfkit case configuration for Athens convection-permitting high-resolution validation.
 schema_version = 1
 
 [case]
-description = "Athens, Georgia high-resolution mandatory geography validation case"
+description = "Athens, Georgia 3-km convection-permitting high-resolution validation case"
 
 [namelist]
 # true: case.toml owns only the fields it specifies; other native namelist
@@ -36,11 +36,14 @@ parent_id = [1]
 parent_grid_ratio = [1]
 i_parent_start = [1]
 j_parent_start = [1]
-e_we = [61]
-e_sn = [61]
+
+# Keep approximately the same physical footprint as the 12-km 61x61
+# validation domain: 60*12 km = 240*3 km = 720 km.
+e_we = [241]
+e_sn = [241]
 e_vert = [45]
-dx = 12000
-dy = 12000
+dx = 3000
+dy = 3000
 map_proj = "lambert"
 ref_lat = 33.95
 ref_lon = -83.38
@@ -49,10 +52,18 @@ truelat2 = 60.0
 stand_lon = -84.0
 
 [model]
-time_step = 72
+# WRF guidance uses <= 6 * dx(km) as a typical upper rule of thumb.
+time_step = 18
 
 [physics]
 suite = "CONUS"
+
+# At 3-km grid spacing, explicitly resolve deep convection instead of using
+# the CONUS suite's default cumulus parameterization. Radiation is called
+# every ~1 minute per km of d01 grid spacing.
+[advanced.wrf.physics]
+cu_physics = [0]
+radt = [3]
 
 [output]
 history_interval_minutes = 180
