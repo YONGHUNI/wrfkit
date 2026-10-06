@@ -132,7 +132,8 @@ WRF/WPS namelist key. Native passthrough tables are open-ended, while unknown
 wrfkit convenience sections/fields are rejected so typos do not silently
 disappear.
 
-[Read the detailed TOML and native namelist guide](reference/case-toml.md)
+[Read the TOML guide](reference/case-toml.md) ·
+[Read the native namelist passthrough guide](reference/native-namelists.md)
 
 ## Documentation map
 
@@ -144,7 +145,7 @@ have:
 | set up a machine or HPC environment | [Bootstrap and wrfkit shell](tutorials/bootstrap-and-shell.md) | [UGA Sapelo2](single-node-guide.md) |
 | run WRF for the first time | [Your first WRF run](tutorials/first-run.md) | [Troubleshooting](troubleshooting.md) |
 | make a research experiment | [Make a research case](how-to/research-case.md) | [Understand case.toml](reference/case-toml.md) |
-| use a WRF/WPS option from the manual | [Understand case.toml](reference/case-toml.md) | [wrfctl commands](reference/commands.md) |
+| use a WRF/WPS option from the manual | [Native WRF/WPS namelist options](reference/native-namelists.md) | [Understand case.toml](reference/case-toml.md) |
 | rerun or debug one native stage | [High-level and low-level workflows](how-to/low-level-workflow.md) | [Troubleshooting](troubleshooting.md) |
 | change Python/compiler/library packages | [Customize flake.nix](how-to/customize-flake.md) | [How wrfkit works](explanation/how-it-works.md) |
 | submit on Sapelo2 | [UGA Sapelo2](single-node-guide.md) | [Run WRF with sbatch](how-to/sapelo2-batch.md) |
