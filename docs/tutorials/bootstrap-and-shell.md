@@ -168,6 +168,34 @@ Case-specific generated files still live under
 `.wrfkit/work/<case>` in the current design. See
 [Files and folders](../reference/files-and-folders.md).
 
+## Useful bootstrap command-line controls
+
+The current bootstrap interface also exposes explicit controls for repeatable
+machine setup:
+
+| Option | Use |
+| --- | --- |
+| `--configure` | run the guided configuration wizard again and rewrite the saved machine config |
+| `--profile NAME` | use a bundled/selected profile explicitly |
+| `--config FILE` | use an explicit bootstrap configuration file |
+| `--store-root PATH` | override the rootless Nix store location for this setup |
+| `--backend NAME` | override the rootless-Nix bootstrap backend |
+| `--scheduler none|slurm` | override scheduler policy |
+| `--require-allocation` | require an active Slurm allocation |
+| `--no-require-allocation` | disable that requirement |
+| `--reset` | purge the managed rootless Nix installation, then reinstall using the selected setup |
+| `--purge` | purge the managed rootless Nix installation/store and stop |
+
+Use `--reset` and `--purge` carefully. They act on wrfkit's managed
+rootless-Nix installation, not on a case's scientific output. The bootstrap
+script refuses to combine them.
+
+The most reliable source for the exact current CLI is always:
+
+```bash
+./bootstrap --help
+```
+
 ## Configuration precedence
 
 Bootstrap documents this precedence:
