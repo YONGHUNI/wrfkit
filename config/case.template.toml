@@ -19,6 +19,8 @@ schema_version = 1
 description = "Example real-data WRF case"
 
 [namelist]
+# This controls wrfkit's ownership policy for the native namelists; it is not
+# a WRF/WPS namelist group itself.
 # true  = wrfctl config overlays TOML-owned values onto namelist.wps/input.
 #         Native options not represented in TOML are left untouched.
 # false = wrfkit treats both native namelists as read-only; TOML still controls
@@ -34,49 +36,6 @@ end   = 2026-01-02T00:00:00Z
 # This example uses a 3-hour forcing interval -> 10800 s. Choose an interval
 # that matches the actual input times you acquire.
 forcing_interval_seconds = 10800
-
-[forcing]
-# Current implemented provider/product. The schema is intentionally provider-
-# oriented so ERA5/FNL/etc. can be added without changing WRF namelists.
-provider = "gfs"
-product = "0p25"
-
-# GFS initialization cycle. Operational GFS cycles are 00/06/12/18 UTC.
-cycle = 2026-01-01T00:00:00Z
-
-# Forecast hours to acquire. Must cover every required WPS time.
-forecast_hours = [0, 3, 6, 9, 12, 15, 18, 21, 24]
-
-[forcing.subset]
-# Regional NOMADS subset bounds. Longitudes follow the provider convention.
-# Current GFS downloader uses 0..360 degrees east.
-west  = 265.0
-east  = 288.0
-south = 25.0
-north = 42.0
-
-[geography]
-# dataset tells wrfkit where the static geography comes from.
-#
-#   Minimal validation / education (downloaded by wrfkit):
-#     dataset    = "wps-lowres-mandatory"
-#     resolution = "lowres"
-#
-#   Research baseline (downloaded and cached by wrfkit):
-#     dataset    = "wps-highres-mandatory"
-#     resolution = "default"        # or another valid native WPS selector
-#
-#   User-provided geography:
-#     dataset    = "external"
-#     resolution = "default"
-#     path       = "my-geog"        # <data_root>/geog/my-geog
-#     path       = "/work/.../WPS_GEOG"  # absolute paths are also allowed
-#
-# resolution maps directly to native WPS geog_data_res. wrfkit keeps the
-# low-resolution validation package restricted to "lowres", but does not reduce the
-# normal WPS selector freedom for research/external geography.
-dataset = "wps-lowres-mandatory"
-resolution = "lowres"
 
 [domain]
 # Number of domains. Domain-dependent entries below are TOML arrays.
@@ -112,6 +71,49 @@ ref_lon = -83.38
 truelat1 = 30.0
 truelat2 = 60.0
 stand_lon = -84.0
+
+[geography]
+# dataset tells wrfkit where the static geography comes from.
+#
+#   Minimal validation / education (downloaded by wrfkit):
+#     dataset    = "wps-lowres-mandatory"
+#     resolution = "lowres"
+#
+#   Research baseline (downloaded and cached by wrfkit):
+#     dataset    = "wps-highres-mandatory"
+#     resolution = "default"        # or another valid native WPS selector
+#
+#   User-provided geography:
+#     dataset    = "external"
+#     resolution = "default"
+#     path       = "my-geog"        # <data_root>/geog/my-geog
+#     path       = "/work/.../WPS_GEOG"  # absolute paths are also allowed
+#
+# resolution maps directly to native WPS geog_data_res. wrfkit keeps the
+# low-resolution validation package restricted to "lowres", but does not reduce the
+# normal WPS selector freedom for research/external geography.
+dataset = "wps-lowres-mandatory"
+resolution = "lowres"
+
+[forcing]
+# Current implemented provider/product. The schema is intentionally provider-
+# oriented so ERA5/FNL/etc. can be added without changing WRF namelists.
+provider = "gfs"
+product = "0p25"
+
+# GFS initialization cycle. Operational GFS cycles are 00/06/12/18 UTC.
+cycle = 2026-01-01T00:00:00Z
+
+# Forecast hours to acquire. Must cover every required WPS time.
+forecast_hours = [0, 3, 6, 9, 12, 15, 18, 21, 24]
+
+[forcing.subset]
+# Regional NOMADS subset bounds. Longitudes follow the provider convention.
+# Current GFS downloader uses 0..360 degrees east.
+west  = 265.0
+east  = 288.0
+south = 25.0
+north = 42.0
 
 [model]
 # WRF integration time step in seconds.
