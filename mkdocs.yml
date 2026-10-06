@@ -75,6 +75,7 @@ nav:
 
   - Configuration:
       - Understand case.toml: reference/case-toml.md
+      - Native WRF/WPS namelist options: reference/native-namelists.md
       - Customize flake.nix: how-to/customize-flake.md
 
   - Reference:
