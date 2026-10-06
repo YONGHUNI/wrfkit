@@ -43,6 +43,11 @@ jobs:
           [[ "$default" =~ ^[1-9][0-9]*$ ]]
           (( default <= logical ))
 
+          # Standalone mpi_tasks=auto must use the topology-aware default
+          # rather than every logical/SMT CPU.
+          auto_tasks=$(WRFKIT_MPI_TASKS=auto ./wrfctl __resolve-mpi-tasks)
+          test "$auto_tasks" = "$default"
+
           if [[ -n "$physical" ]]; then
             [[ "$physical" =~ ^[1-9][0-9]*$ ]]
           fi
