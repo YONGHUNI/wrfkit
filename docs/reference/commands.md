@@ -1,6 +1,16 @@
 # wrfctl command reference
 
-Commands below are run from the repository root unless noted otherwise.
+For interactive use, the documentation assumes you first enter:
+
+```bash
+./wrfctl shell
+```
+
+and then run commands as `wrfctl ...`. From the normal host shell or from
+batch scripts, use `./wrfctl ...` from the repository root instead.
+
+See [Bootstrap and enter the wrfkit shell](../tutorials/bootstrap-and-shell.md)
+for the environment model.
 
 ## High-level case workflow
 
@@ -16,8 +26,10 @@ Commands below are run from the repository root unless noted otherwise.
 | `./wrfctl exec real --case NAME` | Low-level direct `real.exe` execution |
 | `./wrfctl exec wrf --case NAME` | Low-level direct `wrf.exe` execution |
 
-`prep` + `run` is the normal orchestration layer. The lower-level commands below remain
-available when you want to inspect, teach, debug, or rerun only one stage.
+`prep` + `run` is the normal orchestration layer. The lower-level commands
+remain available when you want to inspect, teach, debug, or rerun only one
+stage. For the exact expansion of high-level prep/run into fetch/prepare/exec,
+see [High-level and low-level workflows](../how-to/low-level-workflow.md).
 
 Automatic geography acquisition supports both WPS mandatory packages:
 the low-resolution validation package and the highest-resolution mandatory
@@ -79,6 +91,14 @@ OpenMPI inside one Nix namespace.
 
 ## Run any command inside the environment
 
+Inside `wrfctl shell`:
+
+```bash
+wrfctl exec CMD ...
+```
+
+Outside the shell:
+
 ```bash
 ./wrfctl exec CMD ...
 ```
@@ -86,7 +106,7 @@ OpenMPI inside one Nix namespace.
 Example:
 
 ```bash
-./wrfctl exec ldd .wrfkit/install/wrf-4.8.0/bin/wrf
+wrfctl exec ldd .wrfkit/install/wrf-4.8.0/bin/wrf
 ```
 
 Running raw WRF binaries directly from the host shell is not the supported
@@ -177,3 +197,11 @@ apply that safe adjustment and print it. If the user explicitly supplies an
 unsafe `--ntasks`, the high-level command stops with the safe alternative
 instead of silently changing an explicit request. Low-level `wrfctl exec`
 remains available for direct control.
+
+## Related pages
+
+- [Bootstrap and enter the wrfkit shell](../tutorials/bootstrap-and-shell.md)
+- [Your first WRF run](../tutorials/first-run.md)
+- [Understand case.toml](case-toml.md)
+- [High-level and low-level workflows](../how-to/low-level-workflow.md)
+- [Customize flake.nix](../how-to/customize-flake.md)
