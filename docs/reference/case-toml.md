@@ -628,119 +628,38 @@ storage.
     The TOML restart fields can map into the native namelist, but wrfkit's
     complete restart/recovery workflow is not currently claimed as validated.
 
-## Lower-level control
+## Native options beyond the convenience layer
 
 The convenience fields above are intentionally limited. wrfkit does not try to
 re-create every WRF/WPS namelist option as a custom TOML field.
 
-That limitation is intentional. Reproducing the entire upstream WRF/WPS
-namelist surface as a second wrfkit-specific schema would create another manual
-to keep synchronized with every model release. Instead, frequently used fields
-can become convenience settings when wrfkit can add useful validation, while
-the native passthrough remains open-ended.
-
-Instead, advanced sections map directly to native namelist groups:
+For a valid option documented by WRF/WPS, use:
 
 ```text
-[advanced.wrf.physics]   →  &physics in namelist.input
-[advanced.wrf.dynamics]  →  &dynamics in namelist.input
-[advanced.wps.geogrid]   →  &geogrid in namelist.wps
+[advanced.wrf.<group>]  → namelist.input
+[advanced.wps.<group>]  → namelist.wps
 ```
 
-### WRF example
+Example:
 
 ```toml
 [advanced.wrf.physics]
 mp_physics = [8]
-cu_physics = [1]
-ra_lw_physics = [4]
-ra_sw_physics = [4]
-radt = [12]
+cu_physics = [0]
+radt = [3]
 ```
 
-### WPS example
+Unknown native group/key names are intentionally allowed under these advanced
+families, while unknown wrfkit convenience sections/fields are rejected.
 
-```toml
-[advanced.wps.geogrid]
-geog_data_res = ["default"]
-opt_geogrid_tbl_path = "."
-```
+If a convenience field and an advanced field target the same native key, the
+**advanced value wins**. Keep advanced tables at the end of the file so that
+override boundary is visible.
 
-If a convenience field and an advanced field write the same native key, the
-**advanced value wins**. Keep advanced tables at the end of the file so this
-override boundary remains obvious during review.
-
-??? example "More advanced WRF examples"
-
-    ```toml
-    [advanced.wrf.domains]
-    p_top_requested = 5000
-    parent_time_step_ratio = [1]
-    feedback = 1
-    smooth_option = 0
-
-    [advanced.wrf.dynamics]
-    hybrid_opt = 2
-    diff_opt = [2]
-    km_opt = [4]
-
-    [advanced.wrf.bdy_control]
-    spec_bdy_width = 5
-    specified = [true]
-    ```
-
-??? example "More advanced WPS examples"
-
-    ```toml
-    [advanced.wps.share]
-    wrf_core = "ARW"
-    active_grid = [true]
-
-    [advanced.wps.ungrib]
-    out_format = "WPS"
-    prefix = "FILE"
-
-    [advanced.wps.metgrid]
-    fg_name = ["FILE"]
-    opt_metgrid_tbl_path = "."
-    ```
-
-### Native options not known to wrfkit
-
-Advanced sections intentionally accept native group/key names that are not
-hard-coded into wrfkit:
-
-```toml
-[advanced.wrf.some_native_group]
-some_native_key = 123
-```
-
-That makes the interface extensible, but it also means **you** are responsible
-for using a valid WRF/WPS group, key, type, and scientific value.
-
-### Raw escape hatch
-
-Some Fortran namelist syntax cannot be expressed cleanly as ordinary TOML
-values. In that case:
-
-```toml
-[advanced.wrf_raw.domains]
-"eta_levels(1:3)" = "1.0, 0.5, 0.0"
-```
-
-The right-hand string is inserted verbatim as the native namelist value.
-
-Use `*_raw` only when ordinary TOML values are not enough.
-
-## How TOML values become Fortran values
-
-| TOML value | Native namelist form |
-| --- | --- |
-| `"text"` | quoted string |
-| `12` | integer |
-| `12.5` | floating-point number |
-| `true` / `false` | `.true.` / `.false.` |
-| `[1, 2, 3]` | comma-separated values |
+For the complete guide—including manual-to-TOML translation, type conversion,
+raw Fortran values, future/unknown native options, WRF/WPS examples, and the
+validation sequence—continue to
+[Native WRF/WPS namelist options](native-namelists.md).
 
 ## A safe editing routine
 
