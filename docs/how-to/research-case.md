@@ -5,11 +5,22 @@ A **case** is the tracked scientific configuration for one WRF experiment.
 The included `athens-minimal` case is useful for learning the file layout and
 testing the workflow. It is **not** a scientific recommendation.
 
-## 1. Copy the example
+## 1. Enter the wrfkit shell and copy the example
+
+For interactive work, start from the repository root:
+
+```bash
+./wrfctl shell
+```
+
+Then copy the validation case:
 
 ```bash
 cp -a cases/athens-minimal cases/my-case
 ```
+
+If the machine has not been configured yet, start with
+[Bootstrap and enter the wrfkit shell](../tutorials/bootstrap-and-shell.md).
 
 You now have:
 
@@ -98,22 +109,31 @@ km_opt = [4]
 ```
 
 These tables map directly to the corresponding native WRF namelist groups.
+They are intentionally open-ended: a valid upstream WRF/WPS option does not
+need to become a wrfkit convenience field before you can use it.
+
+Do not invent a new top-level table for a manual option. Use
+`[advanced.wrf.<group>]` or `[advanced.wps.<group>]`, matching the upstream
+namelist group exactly. wrfkit rejects unknown convenience sections/fields so a
+typo does not silently disappear.
 
 The native `namelist.wps` and `namelist.input` remain visible so you can
-always inspect exactly what WPS and WRF receive.
+always inspect exactly what WPS and WRF receive. See
+[Understand case.toml](../reference/case-toml.md) for TOML syntax, precedence,
+raw passthrough, and type conversion.
 
 ## 5. Check before preparing data
 
 Validate the TOML/native mapping without writing files:
 
 ```bash
-./wrfctl config --case my-case --check
+wrfctl config --case my-case --check
 ```
 
 Then inspect the resolved experiment:
 
 ```bash
-./wrfctl plan --case my-case
+wrfctl plan --case my-case
 ```
 
 Read the output carefully. Check the simulation period, forcing, domain,
@@ -121,11 +141,11 @@ timestep, physics suite, and planned stages.
 
 ## 6. Prepare and run
 
-For the currently supported automatic low-resolution geography + GFS path:
+For the currently supported managed-geography + GFS path:
 
 ```bash
-./wrfctl prep --case my-case
-./wrfctl run  --case my-case
+wrfctl prep --case my-case
+wrfctl run  --case my-case
 ```
 
 `prep` includes `real.exe` and should create:
@@ -138,7 +158,9 @@ wrfbdy_d01
 `run` then executes `wrf.exe` and checks for current successful output.
 
 When you need to inspect or rerun one native stage, the lower-level
-`fetch`, `prepare`, and `exec` commands remain available.
+`fetch`, `prepare`, and `exec` commands remain available. The exact
+high-level-to-native mapping is documented in
+[High-level and low-level workflows](low-level-workflow.md).
 
 ## 7. Run a short test before a long experiment
 
@@ -161,3 +183,11 @@ cumulus treatment, radiation scheme, spin-up period, or validation method is
 best for your research question.
 
 Those are scientific decisions and should remain visible and reviewable.
+
+## Related pages
+
+- Machine setup: [Bootstrap and enter the wrfkit shell](../tutorials/bootstrap-and-shell.md)
+- TOML and native namelists: [Understand case.toml](../reference/case-toml.md)
+- Individual WPS/WRF stages: [High-level and low-level workflows](low-level-workflow.md)
+- Environment changes: [Customize flake.nix](customize-flake.md)
+- Validation boundary: [Supported and validated](../validation.md)
