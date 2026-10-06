@@ -59,16 +59,17 @@ time_step = 18
 [physics]
 suite = "CONUS"
 
-# At 3-km grid spacing, explicitly resolve deep convection instead of using
-# the CONUS suite's default cumulus parameterization. Radiation is called
-# every ~1 minute per km of d01 grid spacing.
 [output]
 history_interval_minutes = 180
 frames_per_outfile = 1
 restart = false
+
 # ---------------------------------------------------------------------------
 # Native namelist overrides
 # ---------------------------------------------------------------------------
+# At 3-km grid spacing, explicitly resolve deep convection instead of using
+# the CONUS suite's default cumulus parameterization. Radiation is called
+# every ~1 minute per km of d01 grid spacing.
 # These map directly to &physics in namelist.input and intentionally live
 # after the wrfkit convenience sections.
 [advanced.wrf.physics]
