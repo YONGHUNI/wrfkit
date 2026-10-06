@@ -37,6 +37,100 @@ GEOGRAPHY_PROFILES = {
 }
 
 
+CASE_TABLE_KEYS = {
+    "case": {"description"},
+    "namelist": {"managed"},
+    "time": {"start", "end", "forcing_interval_seconds"},
+    "domain": {
+        "max_dom",
+        "parent_id",
+        "parent_grid_ratio",
+        "i_parent_start",
+        "j_parent_start",
+        "e_we",
+        "e_sn",
+        "e_vert",
+        "dx",
+        "dy",
+        "map_proj",
+        "ref_lat",
+        "ref_lon",
+        "truelat1",
+        "truelat2",
+        "stand_lon",
+        "pole_lat",
+        "pole_lon",
+        "parent_time_step_ratio",
+        "feedback",
+        "smooth_option",
+        "p_top_requested",
+    },
+    "geography": {"dataset", "resolution", "path"},
+    "forcing": {"provider", "product", "cycle", "forecast_hours", "subset"},
+    "model": {"time_step"},
+    "physics": {"suite"},
+    "output": {
+        "history_interval_minutes",
+        "frames_per_outfile",
+        "restart",
+        "restart_interval_minutes",
+    },
+}
+
+FORCING_SUBSET_KEYS = {"west", "east", "south", "north"}
+ADVANCED_FAMILIES = {"wps", "wrf", "wps_raw", "wrf_raw"}
+ALLOWED_TOP_LEVEL = {"schema_version", "advanced", *CASE_TABLE_KEYS}
+
+
+def validate_case_schema(data) -> None:
+    unknown_top = sorted(set(data) - ALLOWED_TOP_LEVEL)
+    if unknown_top:
+        rendered = ", ".join(f"[{name}]" for name in unknown_top)
+        die(
+            f"unknown top-level case.toml section/key: {rendered}. "
+            "Use documented wrfkit sections for convenience settings, or "
+            "[advanced.wrf.<group>] / [advanced.wps.<group>] for native namelist options."
+        )
+
+    for section, allowed in CASE_TABLE_KEYS.items():
+        if section not in data:
+            continue
+        table = data[section]
+        if not isinstance(table, dict):
+            die(f"[{section}] must be a TOML table")
+        unknown = sorted(set(table) - allowed)
+        if unknown:
+            rendered = ", ".join(f"{section}.{key}" for key in unknown)
+            die(
+                f"unknown convenience field(s): {rendered}. "
+                "For native WRF/WPS options, use an [advanced.*] table."
+            )
+
+    forcing = data.get("forcing", {})
+    if isinstance(forcing, dict) and "subset" in forcing:
+        subset = forcing["subset"]
+        if not isinstance(subset, dict):
+            die("[forcing.subset] must be a TOML table")
+        unknown = sorted(set(subset) - FORCING_SUBSET_KEYS)
+        if unknown:
+            rendered = ", ".join(f"forcing.subset.{key}" for key in unknown)
+            die(f"unknown forcing subset field(s): {rendered}")
+
+    advanced = data.get("advanced")
+    if advanced is None:
+        return
+    if not isinstance(advanced, dict):
+        die("[advanced] must contain native passthrough tables")
+
+    unknown_families = sorted(set(advanced) - ADVANCED_FAMILIES)
+    if unknown_families:
+        rendered = ", ".join(f"advanced.{name}" for name in unknown_families)
+        die(
+            f"unknown advanced family/families: {rendered}. "
+            "Supported families are advanced.wrf, advanced.wps, "
+            "advanced.wrf_raw, and advanced.wps_raw."
+        )
+
 
 def color_enabled(stream=sys.stdout) -> bool:
     if os.environ.get("NO_COLOR"):
@@ -89,6 +183,7 @@ def load_case(name: str):
     version = data.get("schema_version", 1)
     if version != 1:
         die(f"unsupported schema_version: {version}")
+    validate_case_schema(data)
     return case_dir, data
 
 
