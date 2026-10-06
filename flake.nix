@@ -50,6 +50,7 @@
           perl
           pkg-config
           (python3.withPackages (ps: with ps; [
+            matplotlib
             netcdf4
             numpy
             xarray
