@@ -36,27 +36,39 @@ After the allocation starts, return to the repository:
 cd ~/work/project/wrfkit
 ```
 
-Then setup/build commands may run there:
+Then prepare the machine profile and enter the project shell:
 
 ```bash
 ./bootstrap --profile sapelo2
-./wrfctl doctor
-./wrfctl build all
+./wrfctl shell
+```
+
+Inside the `(wrfkit)` shell:
+
+```bash
+wrfctl doctor
+wrfctl build all
 ```
 
 The default Sapelo2 profile uses node-local `/lscratch` for its disposable
 rootless-Nix store. That store may have to be recreated on a different compute
-node.
+node. For the distinction between bootstrap, the Nix store, reusable data, and
+the interactive shell, read
+[Bootstrap and enter the wrfkit shell](tutorials/bootstrap-and-shell.md).
 
 ## The normal case workflow
 
-Inside an appropriate compute allocation:
+Inside an appropriate compute allocation, the interactive documentation assumes
+you have entered `./wrfctl shell`. Then:
 
 ```bash
-./wrfctl plan --case athens-minimal
-./wrfctl prep --case athens-minimal
-./wrfctl run  --case athens-minimal
+wrfctl plan --case athens-minimal
+wrfctl prep --case athens-minimal
+wrfctl run  --case athens-minimal
 ```
+
+You can still use `./wrfctl ...` directly outside the shell. Batch jobs should
+use that direct form rather than trying to keep an interactive shell open.
 
 For a first run, follow the full
 [first-run tutorial](tutorials/first-run.md).
@@ -121,3 +133,11 @@ The tested Sapelo2 path is **single-node** execution.
 Multi-node MPI is not currently claimed as validated. Check
 [Supported and validated](validation.md) before using a new execution mode for
 research.
+
+## Related pages
+
+- Environment setup: [Bootstrap and enter the wrfkit shell](tutorials/bootstrap-and-shell.md)
+- First complete run: [Your first WRF run](tutorials/first-run.md)
+- Stage-by-stage debugging: [High-level and low-level workflows](how-to/low-level-workflow.md)
+- Batch execution: [Run WRF with sbatch](how-to/sapelo2-batch.md)
+- Current validation boundary: [Supported and validated](validation.md)
