@@ -5,3 +5,6 @@ result-*
 .DS_Store
 *.swp
 *~
+
+# Generated diagnostic plots
+figures/
