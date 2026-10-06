@@ -31,17 +31,20 @@ A beginner usually needs to understand these sections first:
 
 ```toml
 [time]            # when the simulation runs
+[domain]          # where the WRF grid is and how large/fine it is
+[geography]       # static WPS geography
 [forcing]         # which weather data drives the model
 [forcing.subset]  # which part of that weather data to download
-[geography]       # static WPS geography
-[domain]          # where the WRF grid is and how large/fine it is
 [model]           # numerical integration settings
 [physics]         # physics preset
 [output]          # how often WRF writes output
 ```
 
 When those are not enough, use `[advanced.wrf.*]` or `[advanced.wps.*]`
-to write lower-level native namelist options directly.
+to write lower-level native namelist options directly. The normal sections are
+ordered as experiment definition → domain → inputs → model → output; native
+`[advanced.*]` overrides belong at the end so the abstraction boundary stays
+visible.
 
 ## A minimal example
 
@@ -61,22 +64,6 @@ start = 2026-09-30T00:00:00Z
 end   = 2026-09-30T06:00:00Z
 forcing_interval_seconds = 10800
 
-[forcing]
-provider = "gfs"
-product = "0p25"
-cycle = 2026-09-30T00:00:00Z
-forecast_hours = [0, 3, 6]
-
-[forcing.subset]
-west = 265
-east = 288
-south = 25
-north = 42
-
-[geography]
-dataset = "wps-lowres-mandatory"
-resolution = "lowres"
-
 [domain]
 max_dom = 1
 parent_id = [1]
@@ -94,6 +81,22 @@ ref_lon = -83.38
 truelat1 = 30.0
 truelat2 = 60.0
 stand_lon = -84.0
+
+[geography]
+dataset = "wps-lowres-mandatory"
+resolution = "lowres"
+
+[forcing]
+provider = "gfs"
+product = "0p25"
+cycle = 2026-09-30T00:00:00Z
+forecast_hours = [0, 3, 6]
+
+[forcing.subset]
+west = 265
+east = 288
+south = 25
+north = 42
 
 [model]
 time_step = 72
