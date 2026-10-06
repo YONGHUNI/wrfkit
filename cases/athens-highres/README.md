@@ -1,44 +1,55 @@
 # athens-highres
 
-Single-domain Athens validation case for WPS's high-resolution mandatory static geography.
+Single-domain Athens validation case for a true 3 km WRF grid using WPS's
+high-resolution mandatory static geography.
 
-This case intentionally keeps the same domain, time window, GFS forcing, WRF
-physics, and output settings as `athens-minimal`. The controlled difference is
-the static-geography profile:
+The current fixture is intentionally more demanding than `athens-minimal`:
 
-```toml
-[geography]
-dataset = "wps-highres-mandatory"
-resolution = "default"
+```text
+grid spacing:       3 km
+grid dimensions:    241 x 241
+vertical levels:    45
+integration step:   18 s
+forcing:            GFS 0.25 degree, 2026-09-30 00Z, f000/f003/f006
+geography:          wps-highres-mandatory / default
+physics suite:      CONUS
+cumulus override:   cu_physics = 0
+radiation interval: radt = 3
 ```
 
-That makes the pair useful for testing wrfkit's geography handling without
-pretending that this is a complete scientific research template.
+The 241 x 241 grid keeps approximately the same horizontal span as the earlier
+12 km, 61 x 61 Athens validation grid: 240 intervals at 3 km and 60 intervals
+at 12 km are both about 720 km. The purpose is to exercise a genuinely finer
+WRF model grid, not merely finer source geography.
 
-Current status:
+This remains a validation fixture, not a ready-made research configuration.
+The domain, forcing, physics, spin-up, and numerical choices must be justified
+again for a real study.
 
-- `wrfctl config --case athens-highres --check` validates the case.
-- `wrfctl plan --case athens-highres` resolves the managed high-resolution path.
-- `wrfctl fetch geog --case athens-highres` downloads, validates, caches, and
-  installs the official high-resolution mandatory package.
-- `wrfctl prep --case athens-highres` uses that acquisition path automatically
-  and never falls back to the low-resolution package.
-- The official high-resolution archive has completed the full
-  `geogrid -> ungrib -> metgrid -> real -> wrf` path on both UGA Sapelo2 and
-  Lambda Vector, including creation of `wrfinput_d01`, `wrfbdy_d01`, and
-  `wrfout_d01_*`.
+## Validation status
 
-The downloader is covered by CI with a small local archive that has the same
-expected directory structure. It avoids separate `tar -tzf` pre-scans and uses
-the real extraction as the single gzip/tar integrity pass. Download, SHA-256,
-extraction, and total acquisition times are printed so large-cluster runs can be
-compared directly.
+On UGA Sapelo2, the current 3 km case completed the full
+`geogrid -> ungrib -> metgrid -> real -> wrf` path with 32 MPI ranks for the
+WRF stages using a 4 x 8 decomposition. `real.exe` created `wrfinput_d01`
+and `wrfbdy_d01`, and `wrf.exe` reported `SUCCESS COMPLETE WRF` and created
+`wrfout_d01_*`.
 
-The word *high-resolution* here describes the source WPS static-geography
-package, not the WRF model grid. This case still uses a 12 km, 61 x 61 WRF
-domain. `geogrid` selects source fields according to the native
-`GEOGRID.TBL` and `geog_data_res = 'default'`, then interpolates those static
-fields onto the 12 km model grid in `geo_em.d01.nc`.
+Basic diagnostic plots of terrain height, 2 m temperature, and 10 m wind were
+also inspected as a sanity check. That confirms that the output is readable
+and spatially plausible; it is not a scientific validation against
+observations.
 
-For a machine with shared persistent storage, configure `data_root` first so
-the large geography tree and its source archive can be reused.
+On Lambda Vector, the 3 km configuration and execution plan resolve correctly,
+but the current standalone automatic task policy requested 128 MPI ranks while
+OpenMPI/PRRTE exposed fewer launch slots. The resulting 128-rank launch was
+rejected before model execution. A full 3 km Lambda regression therefore
+remains pending with a compatible explicit rank count or an adjusted standalone
+auto-task policy.
+
+Earlier Lambda Vector runs that completed successfully used the older 12 km
+high-resolution-geography version of this case. They validate the geography
+and workflow history, but they are not evidence of a completed 3 km Lambda
+run.
+
+For machines with persistent shared storage, configure `data_root` so the
+large geography tree and cached forcing can be reused across clones and cases.
