@@ -31,6 +31,31 @@ jobs:
           assert 27 not in Path("/tmp/no-color").read_bytes()
           PY
 
+      - name: Check host CPU resource discovery
+        run: |
+          source scripts/system-resources.sh
+
+          logical=$(wrfkit_detect_available_logical_cpus)
+          default=$(wrfkit_derive_default_mpi_tasks)
+          physical=$(wrfkit_detect_available_physical_cores || true)
+
+          [[ "$logical" =~ ^[1-9][0-9]*$ ]]
+          [[ "$default" =~ ^[1-9][0-9]*$ ]]
+          (( default <= logical ))
+
+          if [[ -n "$physical" ]]; then
+            [[ "$physical" =~ ^[1-9][0-9]*$ ]]
+          fi
+
+          wrfkit_cpu_in_list 0 '0-3,8,10-12'
+          wrfkit_cpu_in_list 11 '0-3,8,10-12'
+          ! wrfkit_cpu_in_list 9 '0-3,8,10-12'
+
+          # OpenMP environment settings must not shrink wrfkit's host-capacity
+          # probe; they are runtime policy, not machine discovery.
+          limited=$(OMP_NUM_THREADS=1 OMP_THREAD_LIMIT=1 wrfkit_detect_available_logical_cpus)
+          test "$limited" = "$logical"
+
       - name: Validate tracked TOML cases
         run: |
           python3 scripts/case-config.py config --case athens-minimal --check
