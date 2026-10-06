@@ -119,8 +119,9 @@ typo does not silently disappear.
 
 The native `namelist.wps` and `namelist.input` remain visible so you can
 always inspect exactly what WPS and WRF receive. See
-[Understand case.toml](../reference/case-toml.md) for TOML syntax, precedence,
-raw passthrough, and type conversion.
+[Understand case.toml](../reference/case-toml.md) for the friendly schema and
+[Native WRF/WPS namelist options](../reference/native-namelists.md) for
+manual-to-TOML translation, precedence, raw passthrough, and type conversion.
 
 ## 5. Check before preparing data
 
