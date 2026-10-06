@@ -124,11 +124,22 @@ The wrapper installs rootless Nix through
 when a normal `nix` command is not already available.
 
 The bootstrap wrapper supports configuration profiles and does not require the
-user to remember rootless-Nix store paths. Interactive terminal output uses
-a shared color convention across `bootstrap` and `wrfctl`: cyan for
-headings/information, green for successful checkpoints, yellow for warnings or
-automatic adjustments, and red for failures/errors. Redirected/non-interactive
-output stays plain. Set `NO_COLOR=1` or
+user to remember rootless-Nix store paths. For an interactive standalone-Linux
+setup, it also detects CPU capacity and asks for the machine-level MPI task
+policy. When physical topology is available, the pre-filled default is one MPI
+rank per detected physical core, capped by the logical CPU capacity currently
+available to the process. If topology cannot be read, wrfkit uses half of the
+available logical CPUs only as a transparent fallback default. This is a
+starting value, not a performance recommendation. Choosing `auto` instead
+requests all currently available logical CPUs; high-level WRF `prep`/`run`
+may still reduce the final rank count to keep the domain decomposition valid.
+Slurm configurations continue to use the scheduler allocation as the
+authoritative resource limit.
+
+Interactive terminal output uses a shared color convention across `bootstrap`
+and `wrfctl`: cyan for headings/information, green for successful checkpoints,
+yellow for warnings or automatic adjustments, and red for failures/errors.
+Redirected/non-interactive output stays plain. Set `NO_COLOR=1` or
 `WRFKIT_COLOR=never` to disable colors, or `WRFKIT_COLOR=always` to force
 them. It also manages the rootless Nix lifecycle explicitly:
 
