@@ -16,19 +16,19 @@ tested end to end.
 | Rootless Nix on Sapelo2 | **Validated** | Tested with the current single-node Sapelo2 profile |
 | GFS acquisition and staging | **Validated** | Tested with the bundled validation GFS window |
 | Low-resolution validation geography | **Validated** | `athens-minimal`; intended for testing and education |
-| High-resolution mandatory geography acquisition | **Implemented** | `athens-highres`; downloader/integrity/path logic passes CI with a local archive fixture; live official archive + WPS end-to-end validation pending |
+| High-resolution mandatory geography acquisition | **Validated** | `athens-highres`; official archive acquisition plus WPS/real/WRF completed on Lambda Vector and Sapelo2 |
 | WPS → `real` → WRF | **Validated** | Bundled `athens-minimal` workflow completed |
 | Single-node interactive MPI | **Validated** | Tested during development |
 | Single-node `sbatch` MPI | **Validated** | Sapelo2 batch run completed successfully |
 | `wrfctl plan` | **Validated** | Tested on Lambda Vector and Sapelo2 |
 | `wrfctl prep` through `real.exe` | **Validated** | Tested on Lambda Vector and Sapelo2 |
-| `wrfctl run` | **Validated on Sapelo2** | Fresh Lambda regression is still pending |
+| `wrfctl run` | **Validated** | Completed on Lambda Vector and Sapelo2, including success-marker and new-output checks |
 | `case.toml` + native namelist overlay | **Validated** | Common fields and advanced passthrough have been exercised |
 | Shared reusable `data_root` | **Validated on Sapelo2** | Geography and GFS were reused from external `/work` storage |
 | Multi-node MPI | **Not validated** | Do not treat it as a supported research path yet |
 | WRF restart/recovery workflow | **Not validated** | Individual namelist fields exist, but the complete workflow is not tested |
 | Scratch-backed case workspace | **Not implemented** | Case workspaces currently stay with the repository |
-| Official high-resolution geography end-to-end run | **Not yet validated** | Downloader is implemented; still needs a live official archive run through `geogrid -> ... -> real` |
+| Official high-resolution geography end-to-end run | **Validated** | `athens-highres` completed `geogrid -> ungrib -> metgrid -> real -> wrf` on Lambda Vector and Sapelo2 |
 
 ## What "validated" means
 
