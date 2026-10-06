@@ -24,8 +24,10 @@ Commands:
                                       --jobs N applies to WRF.
   config --case NAME [--check]         Validate case.toml and optionally update managed namelists.
   plan --case NAME                     Show resolved science and the preparation plan without changes.
-  prep --case NAME [--ntasks N]       Prepare a case through real.exe (ready for WRF).
-  run --case NAME [--ntasks N]        Run wrf.exe from a validated prepared case.
+  prep --case NAME [--ntasks N] [--launcher NAME] [--dry-run]
+                                      Prepare a case through real.exe (ready for WRF).
+  run --case NAME [--ntasks N] [--launcher NAME] [--allow-stale-prep]
+                                      Run wrf.exe from a validated prepared case.
   prepare gfs --case NAME              Stage Vtable.GFS and GRIBFILE links for a case.
   exec <command> [--case NAME] [--ntasks N] [--launcher NAME] [--] [args...]
                                       Run a command inside the pinned Nix environment.
