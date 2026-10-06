@@ -70,6 +70,35 @@ jobs:
           python3 scripts/case-config.py summary --case athens-highres
           python3 scripts/case-config.py fingerprint --case athens-highres
 
+      - name: Check case TOML schema boundaries
+        run: |
+          cp -a cases/athens-minimal cases/schema-test
+          trap 'rm -rf cases/schema-test' EXIT
+
+          printf '\n[typo_section]\nvalue = 1\n' >> cases/schema-test/case.toml
+          if python3 scripts/case-config.py config --case schema-test --check > /tmp/schema-top.out 2> /tmp/schema-top.err; then
+            echo "Unknown top-level TOML section unexpectedly passed" >&2
+            exit 1
+          fi
+          grep -q 'unknown top-level case.toml section/key' /tmp/schema-top.err
+
+          cp cases/athens-minimal/case.toml cases/schema-test/case.toml
+          sed -i '/^suite = /a suit = "CONUS"' cases/schema-test/case.toml
+          if python3 scripts/case-config.py config --case schema-test --check > /tmp/schema-key.out 2> /tmp/schema-key.err; then
+            echo "Unknown convenience key unexpectedly passed" >&2
+            exit 1
+          fi
+          grep -q 'unknown convenience field' /tmp/schema-key.err
+
+          cp cases/athens-minimal/case.toml cases/schema-test/case.toml
+          cat >> cases/schema-test/case.toml <<'EOF'
+
+          [advanced.wrf.future_manual_group]
+          manual_said = 1
+          how_about_this = true
+          EOF
+          python3 scripts/case-config.py config --case schema-test --check
+
       - name: Check geography profile resolver
         run: |
           export WRFKIT_NIX_SHELL=1
