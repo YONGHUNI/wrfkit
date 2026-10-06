@@ -3,6 +3,7 @@ set -Eeuo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 source "$ROOT/scripts/ui.sh"
+source "$ROOT/scripts/system-resources.sh"
 ui_validate_color
 WRF_VERSION=4.8.0
 WPS_VERSION=4.7.0
@@ -266,7 +267,7 @@ resolve_mpi_tasks() {
           ;;
       esac
     else
-      requested=$(getconf _NPROCESSORS_ONLN 2>/dev/null || printf '1')
+      requested=$(wrfkit_detect_available_logical_cpus 2>/dev/null || printf '1')
     fi
   fi
 
