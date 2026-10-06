@@ -155,7 +155,8 @@ native namelists.
 
 Advanced users can set arbitrary upstream namelist keys under
 `[advanced.wps.<group>]` and `[advanced.wrf.<group>]`. See
-[case.toml configuration](case-toml.md).
+[case.toml configuration](case-toml.md) and
+[Native WRF/WPS namelist options](native-namelists.md).
 
 
 ## Preparation freshness guard
@@ -203,5 +204,6 @@ remains available for direct control.
 - [Bootstrap and enter the wrfkit shell](../tutorials/bootstrap-and-shell.md)
 - [Your first WRF run](../tutorials/first-run.md)
 - [Understand case.toml](case-toml.md)
+- [Native WRF/WPS namelist options](native-namelists.md)
 - [High-level and low-level workflows](../how-to/low-level-workflow.md)
 - [Customize flake.nix](../how-to/customize-flake.md)
