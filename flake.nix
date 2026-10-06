@@ -49,7 +49,11 @@
           openmpi
           perl
           pkg-config
-          python3
+          (python3.withPackages (ps: with ps; [
+            netcdf4
+            numpy
+            xarray
+          ]))
           tcsh
           which
           zlib
