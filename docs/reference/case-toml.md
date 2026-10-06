@@ -346,47 +346,96 @@ Times must include a UTC offset. A trailing `Z` means UTC.
 `10800` seconds is 3 hours. A six-hour simulation using three-hour forcing
 therefore needs forcing at 0, 3, and 6 hours.
 
-### Weather forcing
+### Domain
+
+The `[domain]` section answers three basic questions:
+
+1. How many WRF domains are there?
+2. Where are they?
+3. How large and how fine are their grids?
+
+#### Grid size and spacing
 
 ```toml
-[forcing]
-provider = "gfs"
-product = "0p25"
-cycle = 2026-09-30T00:00:00Z
-forecast_hours = [0, 3, 6]
-```
-
-| Field | Meaning | Current automatic support |
-| --- | --- | --- |
-| `provider` | weather-data provider | `"gfs"` |
-| `product` | provider product | `"0p25"` |
-| `cycle` | forecast initialization time | GFS 00/06/12/18 UTC cycle |
-| `forecast_hours` | lead times to acquire | non-negative hour values |
-
-The forecast hours must cover every WPS input time required by the simulation.
-
-### Forcing download area
-
-```toml
-[forcing.subset]
-west = 265
-east = 288
-south = 25
-north = 42
+[domain]
+max_dom = 1
+e_we = [61]
+e_sn = [61]
+e_vert = [45]
+dx = 12000
+dy = 12000
 ```
 
 | Field | Meaning |
 | --- | --- |
-| `west` | western longitude |
-| `east` | eastern longitude |
-| `south` | southern latitude |
-| `north` | northern latitude |
+| `max_dom` | number of WRF domains |
+| `e_we` | west-east staggered grid dimension |
+| `e_sn` | south-north staggered grid dimension |
+| `e_vert` | number of full vertical levels |
+| `dx` | horizontal grid spacing in the x direction |
+| `dy` | horizontal grid spacing in the y direction |
 
-The current GFS downloader uses longitudes from **0 to 360° east**.
-For example, 275°E is the same longitude as 85°W.
+For projected grids, `dx` and `dy` are in meters. Thus `12000` means
+12 km.
 
-The subset must be large enough to cover the WRF domain and the surrounding
-area needed for boundary input.
+A smaller grid spacing gives finer spatial resolution, but usually increases
+the computational cost substantially.
+
+#### Projection and location
+
+```toml
+map_proj = "lambert"
+ref_lat = 33.95
+ref_lon = -83.38
+truelat1 = 30.0
+truelat2 = 60.0
+stand_lon = -84.0
+```
+
+| Field | Meaning |
+| --- | --- |
+| `map_proj` | WPS map projection |
+| `ref_lat` | reference latitude |
+| `ref_lon` | reference longitude |
+| `truelat1` | first true latitude |
+| `truelat2` | second true latitude when used |
+| `stand_lon` | standard longitude / central meridian |
+
+The current parser also accepts `pole_lat` and `pole_lon` when needed.
+
+#### Nesting
+
+For nested domains:
+
+```toml
+parent_id = [1]
+parent_grid_ratio = [1]
+i_parent_start = [1]
+j_parent_start = [1]
+```
+
+| Field | Meaning |
+| --- | --- |
+| `parent_id` | parent domain for each grid |
+| `parent_grid_ratio` | how much finer a nest is than its parent |
+| `i_parent_start` | nest start in the parent's west-east direction |
+| `j_parent_start` | nest start in the parent's south-north direction |
+
+For a single-domain case, these remain the simple d01 values shown above.
+
+??? note "Other domain fields"
+    The convenience layer also accepts lower-level domain fields such as:
+
+    ```toml
+    [domain]
+    parent_time_step_ratio = [1]
+    feedback = 1
+    smooth_option = 0
+    p_top_requested = 5000
+    ```
+
+    These map to WRF domain settings. Use the upstream WRF documentation when
+    choosing scientific values.
 
 ### Static geography
 
@@ -485,96 +534,47 @@ Use `./wrfctl plan --case NAME` to see the resolved dataset, selector,
 management mode, and path before running anything.
 
 
-### Domain
-
-The `[domain]` section answers three basic questions:
-
-1. How many WRF domains are there?
-2. Where are they?
-3. How large and how fine are their grids?
-
-#### Grid size and spacing
+### Weather forcing
 
 ```toml
-[domain]
-max_dom = 1
-e_we = [61]
-e_sn = [61]
-e_vert = [45]
-dx = 12000
-dy = 12000
+[forcing]
+provider = "gfs"
+product = "0p25"
+cycle = 2026-09-30T00:00:00Z
+forecast_hours = [0, 3, 6]
+```
+
+| Field | Meaning | Current automatic support |
+| --- | --- | --- |
+| `provider` | weather-data provider | `"gfs"` |
+| `product` | provider product | `"0p25"` |
+| `cycle` | forecast initialization time | GFS 00/06/12/18 UTC cycle |
+| `forecast_hours` | lead times to acquire | non-negative hour values |
+
+The forecast hours must cover every WPS input time required by the simulation.
+
+### Forcing download area
+
+```toml
+[forcing.subset]
+west = 265
+east = 288
+south = 25
+north = 42
 ```
 
 | Field | Meaning |
 | --- | --- |
-| `max_dom` | number of WRF domains |
-| `e_we` | west-east staggered grid dimension |
-| `e_sn` | south-north staggered grid dimension |
-| `e_vert` | number of full vertical levels |
-| `dx` | horizontal grid spacing in the x direction |
-| `dy` | horizontal grid spacing in the y direction |
+| `west` | western longitude |
+| `east` | eastern longitude |
+| `south` | southern latitude |
+| `north` | northern latitude |
 
-For projected grids, `dx` and `dy` are in meters. Thus `12000` means
-12 km.
+The current GFS downloader uses longitudes from **0 to 360° east**.
+For example, 275°E is the same longitude as 85°W.
 
-A smaller grid spacing gives finer spatial resolution, but usually increases
-the computational cost substantially.
-
-#### Projection and location
-
-```toml
-map_proj = "lambert"
-ref_lat = 33.95
-ref_lon = -83.38
-truelat1 = 30.0
-truelat2 = 60.0
-stand_lon = -84.0
-```
-
-| Field | Meaning |
-| --- | --- |
-| `map_proj` | WPS map projection |
-| `ref_lat` | reference latitude |
-| `ref_lon` | reference longitude |
-| `truelat1` | first true latitude |
-| `truelat2` | second true latitude when used |
-| `stand_lon` | standard longitude / central meridian |
-
-The current parser also accepts `pole_lat` and `pole_lon` when needed.
-
-#### Nesting
-
-For nested domains:
-
-```toml
-parent_id = [1]
-parent_grid_ratio = [1]
-i_parent_start = [1]
-j_parent_start = [1]
-```
-
-| Field | Meaning |
-| --- | --- |
-| `parent_id` | parent domain for each grid |
-| `parent_grid_ratio` | how much finer a nest is than its parent |
-| `i_parent_start` | nest start in the parent's west-east direction |
-| `j_parent_start` | nest start in the parent's south-north direction |
-
-For a single-domain case, these remain the simple d01 values shown above.
-
-??? note "Other domain fields"
-    The convenience layer also accepts lower-level domain fields such as:
-
-    ```toml
-    [domain]
-    parent_time_step_ratio = [1]
-    feedback = 1
-    smooth_option = 0
-    p_top_requested = 5000
-    ```
-
-    These map to WRF domain settings. Use the upstream WRF documentation when
-    choosing scientific values.
+The subset must be large enough to cover the WRF domain and the surrounding
+area needed for boundary input.
 
 ### Model time step
 
