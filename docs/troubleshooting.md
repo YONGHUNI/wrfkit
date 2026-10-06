@@ -2,6 +2,13 @@
 
 Start here before reading hundreds of log lines.
 
+If the failure is clearly tied to one layer, jump to the corresponding guide:
+
+- environment/Nix/MPI: [Bootstrap and enter the wrfkit shell](tutorials/bootstrap-and-shell.md);
+- case parsing or namelist mapping: [Understand case.toml](reference/case-toml.md);
+- one WPS/WRF stage: [High-level and low-level workflows](how-to/low-level-workflow.md);
+- Sapelo2 allocation/storage: [UGA Sapelo2](single-node-guide.md).
+
 ```mermaid
 flowchart TB
     A["What failed?"]
@@ -16,10 +23,22 @@ flowchart TB
 If you typed `mpirun` directly in the normal host/login shell, this can be
 expected. wrfkit's pinned OpenMPI lives inside its Nix environment.
 
-For normal use, run:
+For interactive work, enter the project environment first:
 
 ```bash
-./wrfctl exec wrf --case my-case
+./wrfctl shell
+```
+
+Then use the high-level workflow:
+
+```bash
+wrfctl run --case my-case
+```
+
+or, when you deliberately need the native stage:
+
+```bash
+wrfctl exec wrf --case my-case
 ```
 
 Do not manually call the inner `mpirun` for the standard workflow.
@@ -45,15 +64,20 @@ This is informational, not a failure. Continue with the next command.
 
 ## `met_em.*` does not exist
 
-The WPS pipeline is incomplete. For a configured case, check that you ran:
+The WPS pipeline is incomplete. In the interactive wrfkit shell, the native
+sequence is:
 
 ```bash
-./wrfctl exec geogrid --case my-case
-./wrfctl fetch gfs --case my-case
-./wrfctl prepare gfs --case my-case
-./wrfctl exec ungrib --case my-case
-./wrfctl exec metgrid --case my-case
+wrfctl fetch geog --case my-case
+wrfctl exec geogrid --case my-case
+wrfctl fetch gfs --case my-case
+wrfctl prepare gfs --case my-case
+wrfctl exec ungrib --case my-case
+wrfctl exec metgrid --case my-case
 ```
+
+For normal use, `wrfctl prep --case my-case` orchestrates this sequence and
+adds final input verification plus a preparation manifest.
 
 ## WRF did not print `SUCCESS COMPLETE WRF`
 
@@ -129,3 +153,11 @@ Collect these four things before opening an issue:
 ```
 
 That usually separates environment, scheduler, WPS, and WRF failures quickly.
+
+## Related pages
+
+- [Bootstrap and enter the wrfkit shell](tutorials/bootstrap-and-shell.md)
+- [Understand case.toml](reference/case-toml.md)
+- [High-level and low-level workflows](how-to/low-level-workflow.md)
+- [Check whether a run succeeded](how-to/check-run.md)
+- [Supported and validated](validation.md)
