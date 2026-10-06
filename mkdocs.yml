@@ -62,15 +62,20 @@ nav:
   - Home: index.md
 
   - Get started:
+      - Bootstrap and wrfkit shell: tutorials/bootstrap-and-shell.md
       - Your first WRF run: tutorials/first-run.md
       - UGA Sapelo2: single-node-guide.md
 
-  - User guide:
+  - Workflow:
       - Make a research case: how-to/research-case.md
-      - Understand case.toml: reference/case-toml.md
+      - High-level and low-level workflow: how-to/low-level-workflow.md
       - Run WRF with sbatch: how-to/sapelo2-batch.md
       - Check whether a run succeeded: how-to/check-run.md
       - Troubleshooting: troubleshooting.md
+
+  - Configuration:
+      - Understand case.toml: reference/case-toml.md
+      - Customize flake.nix: how-to/customize-flake.md
 
   - Reference:
       - wrfctl commands: reference/commands.md
@@ -78,7 +83,7 @@ nav:
       - Glossary: reference/glossary.md
       - Supported and validated: validation.md
 
-  - About:
+  - Internals:
       - How wrfkit works: explanation/how-it-works.md
       - Detailed notes:
           - Feature details: features.md
